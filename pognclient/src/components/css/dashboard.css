@@ -1,0 +1,46 @@
+.player-dashboard {
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  padding: 20px;
+  width: 60%;
+  height: auto;
+  background-color: #f9f9f9;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid black;
+}
+
+.player-info {
+  display: flex;
+  align-items: center; /* Vertically align avatar and details */
+  gap: 16px; /* Add space between avatar and details */
+}
+
+.avatar {
+  width: 80px; /* Set avatar size */
+  height: 80px;
+  border-radius: 50%; /* Make the avatar circular */
+  overflow: hidden; /* Ensure circular shape */
+  border: 2px solid #007bff; /* Add a border for styling */
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Ensure the image fits properly */
+}
+
+.details {
+  flex-grow: 1; /* Make the details fill available space */
+}
+
+.details h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.details p {
+  margin: 4px 0 0;
+  color: #666;
+  font-size: 14px;
+}

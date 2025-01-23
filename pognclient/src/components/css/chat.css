@@ -1,0 +1,9 @@
+.chatMain {
+  display: flex;
+  flex-direction: column;
+  width: 60%;
+}
+.chatForm {
+  display: flex;
+  flex-direction: column;
+}

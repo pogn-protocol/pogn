@@ -1,0 +1,14 @@
+.rps-game {
+  text-align: center;
+}
+
+.choices {
+  margin: 0 auto;
+  text-align: center;
+}
+.choice-icons {
+  display: flex;
+  flex-direction: row;
+  font-size: 4em;
+  gap: 1em;
+}
