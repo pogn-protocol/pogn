@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "nostr-tools": "^2.10.4",
+    "uuid": "^11.0.5",
     "ws": "^8.18.0"
   }
 }

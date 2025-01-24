@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "./css/lobby.css";
 
-const Lobby = ({ message, sendMessage, publicKey, onPlayerEnteredLobby }) => {
-  const [players, setPlayers] = useState([]);
+const Lobby = ({
+  message,
+  sendMessage,
+  playerId,
+  onPlayerEnteredLobby,
+  onUpdatePlayers,
+  players,
+}) => {
   const [processedMessages, setProcessedMessages] = useState(new Set()); // Use a Set for efficient tracking
 
   // Memoize the message to prevent unnecessary reprocessing
@@ -27,61 +33,55 @@ const Lobby = ({ message, sendMessage, publicKey, onPlayerEnteredLobby }) => {
     switch (action) {
       case "updatePlayers":
         console.log("Updating player list:", payload.players);
-        setPlayers(payload.players.map((player) => ({ publicKey: player })));
-        //if our publicKey is in the list of players, we are in the lobby
-        onPlayerEnteredLobby(payload.players);
+
+        // Map the payload to the required player format
+        const updatedPlayers = payload.players.map((player) => ({
+          playerId: player.playerId,
+          playerName: player.playerName || "Unknown", // Default to "Unknown" if playerName is missing
+        }));
+
+        // Notify the parent to update the global state
+        if (onUpdatePlayers) {
+          onUpdatePlayers(updatedPlayers);
+        }
+
+        // Check if the current player is in the updated list and notify if necessary
+        if (onPlayerEnteredLobby) {
+          onPlayerEnteredLobby(updatedPlayers);
+        }
         break;
 
+      case "joinLobbyStandby":
+        console.log("Standby for verification:", payload.playerId);
+        break;
       case "verifyPlayer":
         console.log("Verification request received.");
         const verifyMessage = {
           type: "lobby",
           action: "verifyResponse",
-          payload: { publicKey },
+          payload: { playerId: playerId },
         };
         console.log("Sending verifyResponse:", verifyMessage);
         sendMessage(verifyMessage);
         break;
 
       case "playerVerified":
-        console.log(`${payload.publicKey} has verified.`);
+        console.log(`${payload.playerId} has verified.`);
         break;
-
-      case "playerJoined":
-        console.log(`Player joined: ${payload.publicKey}`);
-        setPlayers((prevPlayers) => {
-          const playerExists = prevPlayers.some(
-            (player) => player.publicKey === payload.publicKey
-          );
-          if (!playerExists) {
-            console.log(`Adding new player: ${payload.publicKey}`);
-            return [...prevPlayers, { publicKey: payload.publicKey }];
-          }
-          console.log(`Player already exists: ${payload.publicKey}`);
-          return prevPlayers;
-        });
-        break;
-
-      case "playerLeft":
-        console.log(`Player left: ${payload.publicKey}`);
-        setPlayers((prevPlayers) =>
-          prevPlayers.filter((player) => player.publicKey !== payload.publicKey)
-        );
-        break;
-
       default:
         console.warn(`Unhandled action: ${action}`);
     }
-  }, [memoizedMessage, sendMessage, publicKey, onPlayerEnteredLobby]);
+  }, [memoizedMessage, sendMessage, playerId, onPlayerEnteredLobby]);
 
   return (
     <div className="lobby">
       <h2>Lobby</h2>
+      <p>Players in Lobby: {players.length}</p>
       <ul>
         {players.length > 0 ? (
           players.map((player, index) => (
             <li key={index}>
-              <strong>Player {index + 1}:</strong> {player.publicKey}
+              <strong>Player {index + 1}:</strong> {player.playerId}
             </li>
           ))
         ) : (

@@ -1,27 +1,22 @@
 class RockPaperScissors {
-  constructor(requiredPlayers = 2) {
-    this.choices = {}; // Tracks player choices: { publicKey: "rock/paper/scissors" }
+  constructor() {
+    this.choices = {}; // Tracks player choices: { playerId: "rock/paper/scissors" }
     this.winningRules = {
       rock: "scissors",
       paper: "rock",
       scissors: "paper",
     };
     this.state = "waiting"; // Game states: waiting, in-progress, complete
-    this.players = [];
-    this.requiredPlayers = requiredPlayers;
   }
 
   // Add a player choice
-  makeChoice(publicKey, choice) {
-    if (this.state !== "started") {
-      return { gameAction: "error", message: "Game is not in progress." };
-    }
-
+  makeChoice(playerId, choice) {
     if (!["rock", "paper", "scissors"].includes(choice)) {
+      console.log("Invalid choice.");
       return { gameAction: "error", message: "Invalid choice." };
     }
 
-    this.choices[publicKey] = choice;
+    this.choices[playerId] = choice;
 
     // Check if all players have made their choice
     if (this.isReady()) {
@@ -30,14 +25,14 @@ class RockPaperScissors {
 
     return {
       gameAction: "choiceMade",
-      message: "choice recorded.",
+      logEntry: `playerId chose ${choice}`,
       state: this.state,
     };
   }
 
   // Determine if both players are ready
   isReady() {
-    return Object.keys(this.choices).length === this.requiredPlayers;
+    return Object.keys(this.choices).length === 2;
   }
 
   // Determine the winner of the game
@@ -58,13 +53,16 @@ class RockPaperScissors {
     }
 
     const winner = this.winningRules[choice1] === choice2 ? player1 : player2;
-
+    console.log("winner:", winner, "choice1:", choice1, "choice2:", choice2);
     return {
       gameAction: "winner",
-      message: `${winner} wins!`,
-      winner,
-      loser: winner === player1 ? player2 : player1,
-      choices: { [player1]: choice1, [player2]: choice2 },
+      payload: {
+        logEntry: `${winner} wins!`,
+        winner,
+        loser: winner === player1 ? player2 : player1,
+        choices: { [player1]: choice1, [player2]: choice2 },
+        state: this.state,
+      },
     };
   }
 
@@ -72,17 +70,17 @@ class RockPaperScissors {
   resetGame() {
     this.choices = {};
     this.state = "finished";
-    return { gameAction: "reset", message: "Game has been reset." };
+    return {
+      gameAction: "reset",
+      logEntry: "Game has been reset.",
+      state: this.state,
+    };
   }
 
   // Process an action from the client
-  processAction(gameAction, publicKey) {
-    if (gameAction === "start") {
-      this.state = "started";
-      return { gameAction: "start", message: "Game has started." };
-    }
-    const choiceResult = this.makeChoice(publicKey, gameAction);
-
+  processAction(gameAction, playerId) {
+    const choiceResult = this.makeChoice(playerId, gameAction);
+    console.log("choiceResult:", choiceResult);
     if (choiceResult.gameAction === "error") {
       return choiceResult;
     }
@@ -96,7 +94,7 @@ class RockPaperScissors {
 
     return {
       gameAction: "waiting",
-      message: "Waiting for other players.",
+      logEntry: "Waiting for other players.",
       state: this.state,
     };
   }

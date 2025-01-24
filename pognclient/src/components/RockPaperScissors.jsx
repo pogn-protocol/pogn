@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from "react";
 
-const RockPaperScissors = ({ sendMessage, publicKey, gameState }) => {
+const RockPaperScissors = ({ sendMessage, playerId, gameState }) => {
   const [localGameState, setLocalGameState] = useState({
-    status: "started", // Game status: waiting, in-progress, complete
-    winner: null, // Winner's public key
-    loser: null, // Loser's public key
-    choices: {}, // Player choices: { publicKey: choice }
-    draw: false, // Whether the game ended in a draw
+    status: "started",
+    winner: null,
+    loser: null,
+    choices: {}, // Ensure it's an empty object
+    draw: false,
   });
 
   // Handle game actions received from the server
   useEffect(() => {
     console.log("Received game action");
     // const gameAction = gameState?.gameAction;
-    const { gameAction, payload } = gameState || {};
+    const { gameAction = "", payload = {} } = gameState || {};
 
     if (!gameAction) {
       console.warn("No gameAction received.");
@@ -59,7 +59,7 @@ const RockPaperScissors = ({ sendMessage, publicKey, gameState }) => {
       case "reset":
         console.log("Game reset.");
         // setLocalGameState({
-        //   status: "complete",
+        //   status: "waiting",
         //   winner: null,
         //   loser: null,
         //   choices: {},
@@ -73,7 +73,7 @@ const RockPaperScissors = ({ sendMessage, publicKey, gameState }) => {
     }
   }, [gameState]);
 
-  const handleMakeChoice = (choice) => {
+  const handleMakeChoice = (gameAction) => {
     setLocalGameState((prevState) => ({
       ...prevState,
       status: "waiting",
@@ -83,8 +83,9 @@ const RockPaperScissors = ({ sendMessage, publicKey, gameState }) => {
       action: "gameAction",
       payload: {
         game: "rock-paper-scissors", // Game name
-        choice, // Player's choice
-        publicKey, // Player's public
+        gameAction, // Player's choice
+        playerId, // Player's public
+        gameId: gameState.gameId, // Game ID
       },
     };
 
@@ -120,20 +121,30 @@ const RockPaperScissors = ({ sendMessage, publicKey, gameState }) => {
           )}
           <h3>Choices</h3>
           <ul>
-            {Object.entries(localGameState.choices).map(([player, choice]) => (
-              <li key={player}>
-                {player}: {choice}
-              </li>
-            ))}
+            {localGameState.choices &&
+            Object.keys(localGameState.choices).length > 0 ? (
+              Object.entries(localGameState.choices).map(([player, choice]) => (
+                <li key={player}>
+                  {player}: {choice}
+                </li>
+              ))
+            ) : (
+              <li>No choices made yet.</li>
+            )}
           </ul>
         </>
       )}
       {/* Player List */}
+      {/* Player List */}
       <h3>Players</h3>
       <ul>
-        {gameState.players?.map((player, index) => (
-          <li key={index}>{player}</li>
-        ))}
+        {gameState.players?.length > 0 ? (
+          gameState.players.map((player, index) => (
+            <li key={index}>{player}</li>
+          ))
+        ) : (
+          <li>No players in the game yet.</li>
+        )}
       </ul>
     </div>
   );

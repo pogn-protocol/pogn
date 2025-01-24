@@ -4,29 +4,79 @@ import RockPaperScissors from "./RockPaperScissors";
 const GameConsole = ({
   message = {},
   sendMessage,
-  publicKey,
-  verifiedPlayers,
+  playerId = "",
+  players = [],
 }) => {
   const [gameState, setGameState] = useState({
     players: [],
     status: "ready-to-join",
     maxPlayers: 2,
     minPlayers: 2,
-    gameAction: null,
+    gameAction: "",
+    gameId: "",
   });
 
   const [gameStarted, setGameStarted] = useState(false);
-  const [playerInLobby, setPlayerInLobby] = useState(false);
   const [hasJoined, setHasJoined] = useState(false); // Track if the player has joined the game
   const [isJoining, setIsJoining] = useState(false);
+  const [playerInLobby, setPlayerInLobby] = useState(false);
+
+  useEffect(() => {
+    if (
+      players.some((player) => player.playerId === playerId) &&
+      !hasJoined &&
+      !isJoining &&
+      !gameState.gameId
+    ) {
+      console.log("Automatically creating a game...");
+      handleCreateGame();
+    }
+  }, [players, hasJoined, isJoining, gameState.gameId, playerId]);
 
   // Auto-join the game when in the lobby
+  // useEffect(() => {
+  //   if (
+  //     players.some((p) => p.playerId === playerId) &&
+  //     !hasJoined &&
+  //     !isJoining &&
+  //     !gameState.gameId
+  //   ) {
+  //     console.log("Automatically creating a game...");
+  //     handleCreateGame();
+  //   }
+  // }, [players, hasJoined, isJoining, gameState.gameId, playerId]);
+
+  //autojoin when we have a gameId
+  // useEffect(() => {
+  //   if (playerInLobby && gameState.gameId && !hasJoined && !isJoining) {
+  //     //console.log("Automatically joining the game...");
+  //     //handleJoinGame();
+  //   }
+  // }, [gameState.gameId]);
+
   useEffect(() => {
-    if (playerInLobby && !hasJoined && !isJoining) {
-      console.log("Automatically joining the game...");
-      handleJoinGame();
+    setPlayerInLobby(
+      (players || []).some((player) => player.playerId === playerId)
+    );
+  }, [players, playerId]);
+
+  useEffect(() => {
+    if (!gameState.gameId) {
+      const intervalId = setInterval(() => {
+        console.log("Sending getGames request...");
+        sendMessage({
+          type: "game",
+          action: "getGames",
+          payload: {
+            playerId,
+            gameId: gameState.gameId,
+          },
+        });
+      }, 2000); // Poll every 2 seconds
+
+      return () => clearInterval(intervalId); // Cleanup interval on unmount
     }
-  }, [playerInLobby, hasJoined, isJoining]);
+  }, [gameState.gameId, sendMessage, playerId]);
 
   // Auto-start the game when conditions are met
   // useEffect(() => {
@@ -58,6 +108,10 @@ const GameConsole = ({
     if (!memoizedMessage) return; // Skip null or already processed messages
 
     const { action, payload } = memoizedMessage;
+    if (!action || !payload) {
+      console.warn("Invalid message:", memoizedMessage);
+      return;
+    }
 
     console.log("Processing Game message:", memoizedMessage);
 
@@ -65,9 +119,28 @@ const GameConsole = ({
     setProcessedMessages((prev) => new Set(prev).add(memoizedMessage.unique));
 
     switch (action) {
-      case "updatePlayers":
+      case "gameList":
+        if (payload.games?.length > 0) {
+          console.log("Game list received:", payload.games);
+          setGameState((prevState) => ({
+            ...prevState,
+            gameId: payload.games[0]?.gameId, // Automatically select the first game
+          }));
+        } else {
+          console.log("No games available.");
+        }
+        break;
+
+      case "gameCreated":
+        console.log("Game created:", payload.gameId);
+        setGameState((prevState) => ({
+          ...prevState,
+          gameId: payload.gameId, // Store gameId
+        }));
+        break;
+      case "updateGamePlayers":
         //check if we are on the list
-        if (payload.players.includes(publicKey)) {
+        if (payload.players.includes(playerId)) {
           setHasJoined(true);
           setIsJoining(false);
         }
@@ -93,6 +166,10 @@ const GameConsole = ({
         }
         break;
 
+      case "joinStandby":
+        console.log("Standby for joining game:", payload.playerId);
+        break;
+
       case "verifyPlayer":
         if (isJoining || hasJoined) {
           console.log("Verification request received.");
@@ -105,7 +182,7 @@ const GameConsole = ({
         break;
 
       case "playerVerified":
-        console.log(`${payload.publicKey} has verified.`);
+        console.log(`${payload.playerId} has verified.`);
         break;
 
       case "gameAction":
@@ -113,7 +190,7 @@ const GameConsole = ({
         setGameState((prevState) => ({
           ...prevState,
           gameAction: payload.gameAction,
-          payload: payload,
+          ...payload,
         }));
         break;
 
@@ -122,10 +199,9 @@ const GameConsole = ({
     }
   }, [message, hasJoined]);
 
-  useEffect(() => {
-    // Update playerInLobby state when verifiedPlayers changes
-    setPlayerInLobby(verifiedPlayers?.includes(publicKey) || false);
-  }, [verifiedPlayers, publicKey]);
+  // useEffect(() => {
+  //   setPlayerInLobby(players.some((player) => player.playerId === playerId));
+  // }, [players, playerId]);
 
   const handleStartGame = () => {
     setGameState((prevState) => ({
@@ -138,33 +214,62 @@ const GameConsole = ({
     sendMessage({
       type: "game",
       action: "startGame",
-      payload: { game: "rock-paper-scissors", publicKey },
+      payload: {
+        game: "rock-paper-scissors",
+        playerId,
+        gameId: gameState.gameId,
+      },
+    });
+  };
+
+  const handleCreateGame = () => {
+    console.log(`${playerId} creating game...`);
+    sendMessage({
+      type: "game",
+      action: "createGame",
+      payload: {
+        gameType: "rock-paper-scissors",
+        playerId,
+        gameId: "new",
+      },
     });
   };
 
   const handleJoinGame = () => {
-    console.log(`${publicKey} joining game...`);
+    console.log(`${playerId} joining game... ${gameState.gameId}`);
     //change join text to joining...
     setIsJoining(true);
     sendMessage({
       type: "game",
-      action: "join",
-      payload: { game: "rock-paper-scissors", publicKey },
+      action: "joinGame",
+      payload: {
+        game: "rock-paper-scissors",
+        playerId,
+        gameId: gameState.gameId,
+      },
     });
   };
 
   const handleVerifyPlayer = () => {
-    console.log(`Sending verify response for player: ${publicKey}`);
+    console.log(`Sending verify response for player: ${playerId}`);
     sendMessage({
       type: "game",
       action: "verifyResponse",
-      payload: { game: "rock-paper-scissors", publicKey },
+      payload: {
+        game: "rock-paper-scissors",
+        playerId,
+        gameId: gameState.gameId,
+      },
     });
   };
 
   return (
     <div>
-      <h2>Game Controller</h2>
+      {/* <h2>Game Controller</h2>
+      <p>Players: {gameState.players.map((p) => p.playerId).join(", ")}</p>
+      <p>Game Status: {gameState.status}</p>
+      <p>Player ID: {playerId}</p>
+      <p>Game ID: {gameState.gameId}</p> */}
       {!gameStarted ? (
         <>
           <button
@@ -181,7 +286,8 @@ const GameConsole = ({
               hasJoined ||
               isJoining ||
               !playerInLobby ||
-              gameState.players.length >= gameState.maxPlayers
+              gameState.players.length >= gameState.maxPlayers ||
+              !gameState.gameId
             }
           >
             {isJoining ? "Joining..." : hasJoined ? "Joined" : "Join Game"}
@@ -190,7 +296,7 @@ const GameConsole = ({
       ) : (
         <RockPaperScissors
           sendMessage={sendMessage}
-          publicKey={publicKey}
+          playerId={playerId}
           gameState={gameState}
         />
       )}
@@ -219,7 +325,7 @@ const GameConsole = ({
 
     //   <RockPaperScissors
     //     sendMessage={sendMessage}
-    //     publicKey={publicKey}
+    //     playerId={playerId}
     //     gameState={gameState}
     //   />
     // </div>

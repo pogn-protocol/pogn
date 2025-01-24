@@ -6,21 +6,29 @@ const wss = new WebSocket.Server({ port: 8080 }, () => {
   console.log("Relay running on ws://localhost:8080");
 });
 
-const lobby = new LobbyController();
+const lobbyController = new LobbyController();
 const gameController = new GameController();
 
-// Utility: Send a response to a single client
-const sendResponse = (client, response) => {
-  if (client.readyState === WebSocket.OPEN) {
-    client.send(JSON.stringify(response));
+// WebSocket Map: playerId -> WebSocket
+const webSocketMap = new Map();
+
+// Utility: Send a response to a specific player by playerId
+const sendToPlayer = (playerId, response) => {
+  const ws = webSocketMap.get(playerId);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(response));
+    console.log(`Message sent to player ${playerId}:`, response);
+  } else {
+    console.warn(`WebSocket not open for player ${playerId}`);
   }
 };
 
-// Utility: Broadcast a response to all clients, optionally excluding the sender
-const broadcastResponse = (response, sender = null) => {
-  wss.clients.forEach((client) => {
-    if (client !== sender && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(response));
+// Utility: Broadcast a response to all players, optionally excluding the sender
+const broadcastResponse = (response, excludeplayerId = null) => {
+  webSocketMap.forEach((ws, playerId) => {
+    if (playerId !== excludeplayerId && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(response));
+      console.log(`Broadcasting to player ${playerId}:`, response);
     }
   });
 };
@@ -38,47 +46,66 @@ wss.on("connection", (ws) => {
 
       const { type, action, payload } = parsedMessage;
 
+      // Handle lobby and game actions
       switch (type) {
         case "lobby": {
-          const response = lobby.processMessage({ action, payload, ws });
+          console.log("Processing lobby message:", { action, payload });
+
+          if (type === "lobby" && action === "login" && payload?.playerId) {
+            const playerId = payload.playerId;
+            webSocketMap.set(playerId, ws); // Register WebSocket with playerId
+            console.log(`Player ${playerId} logged in and registered.`);
+            const refreshResponse = lobbyController.joinLobby(playerId);
+            if (refreshResponse) {
+              console.log("Broadcasting lobby refresh...");
+              broadcastResponse(refreshResponse);
+            }
+            setTimeout(() => {
+              broadcastResponse(lobbyController.updatePlayers());
+            }, 5000);
+          }
+          console.log("Processing lobby message:", { action, payload });
+          const response = lobbyController.processMessage(action, payload);
 
           if (response) {
             console.log("Lobby response:", response);
-            sendResponse(ws, response);
+            sendToPlayer(payload.playerId, response);
 
             if (response.broadcast) {
-              broadcastResponse(response, ws);
+              broadcastResponse(response);
             }
           }
           break;
         }
 
         case "game": {
+          console.log("Processing game message:", { action, payload });
           const response = gameController.processMessage({
             action,
             payload,
-            ws,
           });
-          console.log("Game response:", response);
+
+          // if (type === "game" && action === "join" && payload?.playerId) {
+          //   const playerId = payload.playerId;
+          //   console.log(`Player ${playerId} joined game.`);
+          //   const refreshResponse = gameController.joinGame(
+          //     payload.gameId,
+          //     playerId
+          //   );
+          //   if (refreshResponse?.broadcast) {
+          //     broadcastResponse(refreshResponse);
+          //   }
+          //   setTimeout(() => {
+          //     broadcastResponse(gameController.updatePlayers());
+          //   }, 5000);
+          // }
 
           if (response) {
-            console.log("Sending game response:", response);
-            sendResponse(ws, response);
+            console.log("Game response:", response);
+            sendToPlayer(payload.playerId, response);
 
             if (response.broadcast) {
-              console.log("Broadcasting game response...");
-              response.players.forEach((player, publicKey) => {
-                if (
-                  player.ws &&
-                  player.ws.readyState === 1 &&
-                  player.ws !== ws
-                ) {
-                  console.log(
-                    `Broadcasting game response to player ${publicKey}`
-                  );
-                  player.ws.send(JSON.stringify(response));
-                }
-              });
+              broadcastResponse(response, payload.playerId);
             }
           }
           break;
@@ -86,26 +113,40 @@ wss.on("connection", (ws) => {
 
         default:
           console.warn(`Unhandled message type: ${type}`);
-          sendResponse(ws, {
+          sendToPlayer(payload?.playerId, {
             type: "error",
             payload: { message: `Unknown message type: ${type}` },
           });
           break;
       }
     } catch (error) {
-      console.error("Error processing message:", error.message);
-      sendResponse(ws, {
+      console.error(error);
+      sendToPlayer(null, {
         type: "error",
-        payload: { message: "Invalid message format or processing error" },
+        payload: { message: "Invalid message format." },
       });
     }
   });
 
   ws.on("close", () => {
     console.log("Connection closed.");
+    // Remove the WebSocket from the map if it disconnects
+    webSocketMap.forEach((socket, playerId) => {
+      if (socket === ws) {
+        webSocketMap.delete(playerId);
+        console.log(`Player ${playerId} removed from WebSocket map.`);
+      }
+    });
   });
 
   ws.on("error", (error) => {
     console.error("WebSocket error:", error.message);
   });
+
+  // setInterval(() => {
+  //   const refreshResponse = lobby.processMessage({ action: "refreshLobby" });
+  //   if (refreshResponse?.broadcast) {
+  //     broadcastResponse(refreshResponse);
+  //   }
+  // }, 5000);
 });

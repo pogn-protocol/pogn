@@ -6,17 +6,18 @@ import GameConsole from "./components/GameConsole";
 import Lobby from "./components/Lobby";
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import ErrorBoundary from "./ErrorBoundary";
 
 const App = () => {
   const [messages, setMessages] = useState([]);
   const [lobbyMessage, setLobbyMessage] = useState(null);
   const [gameMessage, setGameMessage] = useState(null);
   const [ws, setWs] = useState(null);
-  const [publicKey, setPublicKey] = useState(null);
-  const [verifiedPlayers, setVerifiedPlayers] = useState([]); // Track verified players
+  const [playerId, setplayerId] = useState(null);
+  const [players, setPlayers] = useState([]); // Add this in App
 
   useEffect(() => {
-    if (!publicKey || ws) return;
+    if (!playerId || ws) return;
 
     const socket = new WebSocket("ws://localhost:8080");
 
@@ -28,7 +29,7 @@ const App = () => {
         type: "lobby",
         action: "login",
         payload: {
-          publicKey,
+          playerId: playerId,
         },
       };
 
@@ -77,54 +78,66 @@ const App = () => {
         socket.close();
       }
     };
-  }, [publicKey]);
+  }, [playerId]);
 
   const memoizedLobbyMessage = useMemo(() => lobbyMessage, [lobbyMessage]);
   const memoizedGameMessage = useMemo(() => gameMessage, [gameMessage]);
 
   return (
-    <div className="container mt-5">
-      <h1>Game App</h1>
-      <Player sendPublicKey={setPublicKey} />
-      {publicKey && <Dashboard playerName="Player" playerId={publicKey} />}
-      {/* Render Lobby */}
-      {memoizedLobbyMessage && (
-        <Lobby
-          message={memoizedLobbyMessage}
+    <ErrorBoundary>
+      <div className="container mt-5">
+        <h1>Game App</h1>
+        <Player sendplayerId={setplayerId} />
+        {playerId && <Dashboard playerName="Player" playerId={playerId} />}
+        {/* Render Lobby */}
+        {memoizedLobbyMessage && (
+          <Lobby
+            players={players}
+            message={memoizedLobbyMessage}
+            sendMessage={(message) => {
+              if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+              }
+            }}
+            playerId={playerId}
+            onPlayerEnteredLobby={(players) => {
+              console.log("App received verified players:", players);
+              setPlayers(players); // Update players in the App state
+            }}
+            onUpdatePlayers={(updatedPlayers) => {
+              setPlayers(updatedPlayers); // Update players in the App state
+            }}
+          />
+        )}
+        {/* Render Game Console Always */}
+        <GameConsole
+          players={players || []} // Provide a default empty array
+          message={memoizedGameMessage || { payload: {} }} // Provide a default empty message
           sendMessage={(message) => {
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify(message));
             }
           }}
-          publicKey={publicKey}
-          onPlayerEnteredLobby={(verifiedPlayers) => {
-            console.log("App received verified players:", verifiedPlayers);
-            setVerifiedPlayers(verifiedPlayers);
-          }}
+          playerId={playerId || ""}
         />
-      )}
-      {/* Render Game Console Always */}
-      <GameConsole
-        message={memoizedGameMessage || { payload: {} }} // Provide a default empty message
-        sendMessage={(message) => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(message));
-          }
-        }}
-        publicKey={publicKey}
-        verifiedPlayers={verifiedPlayers}
-      />
-      {/* Render Chat */}
-      <Chat
-        messages={messages}
-        sendMessage={(message) => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(message));
-          }
-        }}
-        publicKey={publicKey}
-      />
-    </div>
+        {console.log("GameConsole props:", {
+          players,
+          memoizedGameMessage,
+          playerId,
+        })}
+
+        {/* Render Chat */}
+        <Chat
+          messages={messages}
+          sendMessage={(message) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(message));
+            }
+          }}
+          playerId={playerId}
+        />
+      </div>
+    </ErrorBoundary>
   );
 };
 

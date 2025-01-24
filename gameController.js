@@ -1,62 +1,54 @@
+const Game = require("./game"); // Import the Game class
 const RockPaperScissors = require("./rps");
 
 class GameController {
   constructor() {
-    this.games = {}; // Game instances by game type
+    this.games = {}; // Store active games
+
     this.gameClasses = {
       "rock-paper-scissors": RockPaperScissors, // Register supported games here
     };
   }
-
+  // Process a received message
   processMessage(message) {
     console.log("Processing game message:", message);
-    const { action, payload, ws } = message;
 
-    const publicKey = payload?.publicKey;
-    const game = payload?.game;
+    const { action, payload } = message;
+    const playerId = payload?.playerId;
 
-    // Ensure required fields are present
-    if (!game || !action) {
+    if (!payload || !playerId || !payload.gameId) {
       return {
         type: "error",
-        payload: { message: "Missing required fields in payload." },
+        payload: { message: "Invalid payload structure." },
       };
     }
 
-    // Ensure the game instance exists
-    let gameInstance = this.games[game];
-    if (!gameInstance) {
-      const GameClass = this.gameClasses[game];
-      if (!GameClass) {
-        return {
-          type: "error",
-          payload: { message: `Game ${game} not supported.` },
-        };
-      }
-
-      gameInstance = new GameClass();
-      gameInstance.players = new Map(); // Map of publicKey → WebSocket
-      gameInstance.gameLog = []; // Initialize game log
-      this.games[game] = gameInstance;
+    const game = this.games[payload.gameId];
+    if (!game && action !== "createGame") {
+      return {
+        type: "error",
+        payload: { message: "Game not found." },
+      };
     }
 
     switch (action) {
-      case "join":
-        return this.join(gameInstance, publicKey, ws);
+      case "createGame":
+        return this.createGame(payload.gameType, playerId);
+
+      case "joinGame":
+        return this.joinGame(payload.gameId, playerId);
 
       case "verifyResponse":
-        return this.verifyResponse(gameInstance, publicKey, ws);
-
-      case "removePlayer":
-        return this.removePlayer(gameInstance, publicKey);
-
-      case "updatePlayers":
-        return this.updatePlayers(gameInstance);
+        return this.verifyResponse(game, playerId);
 
       case "startGame":
-        return this.startGame(gameInstance);
+        return this.startGame(game, playerId);
+
       case "gameAction":
-        return this.gameAction(gameInstance, payload.choice, publicKey);
+        return this.gameAction(game, payload.gameAction, playerId);
+
+      case "getGames":
+        return this.getGames();
 
       default:
         console.warn(`Unhandled game action: ${action}`);
@@ -67,204 +59,142 @@ class GameController {
     }
   }
 
-  gameAction(gameInstance, choice, publicKey) {
-    const players = Array.from(gameInstance.players.entries()).map(
-      ([publicKey, player]) => ({
-        publicKey,
-        ws: player.ws,
-      })
-    );
-    let gameAction = gameInstance.processAction(choice, publicKey);
+  // Create a new game instance
+  newGame(gameType) {
+    // Check if the game type is supported
+    if (!this.gameClasses[gameType]) {
+      console.error(`Unsupported game type: ${gameType}`);
+      return null;
+    }
+
+    // Create and initialize the game
+    const game = new Game(gameType);
+    const gameInstance = new this.gameClasses[gameType](); // Initialize game-specific logic
+    game.setGameInstance(gameInstance);
+    //overwrite thefirst game so there is only ever one
+    //delete all games for testing
+    this.games = {};
+    this.games[game.gameId] = game;
+    return game;
+  }
+
+  // Handle game creation
+  createGame(gameType, playerId) {
+    const game = this.newGame(gameType);
+    if (!game) {
+      return {
+        type: "error",
+        payload: { message: `Game type ${gameType} not supported.` },
+      };
+    }
+
+    game.logAction(`${playerId} created the game.`);
+
     return {
       type: "game",
-      action: "gameAction",
-      payload: gameAction,
-      state: gameInstance.state,
+      action: "gameCreated",
+      payload: game.getGameDetails(),
       broadcast: true,
-      players: players,
     };
   }
 
-  startGame(gameInstance) {
-    console.log("Starting game:", gameInstance.constructor.name);
+  // Start the game
+  startGame(game, senderplayerId) {
+    if (game.state !== "created" && game.state !== "joining") {
+      return {
+        type: "error",
+        payload: { message: "Game is not in a valid state to start." },
+      };
+    }
 
-    // Update the game state
-    gameInstance.state = "started";
-
-    // Initialize any game-specific logic
-    gameInstance.gameLog.push("Game has started.");
-    gameInstance.rounds = []; // Initialize rounds if needed
-
-    // Broadcast the updated game state to all players
-    const players = Array.from(gameInstance.players.keys());
-    console.log("Broadcasting game start to players:", players);
-
-    gameInstance.players.forEach((player, publicKey) => {
-      const { ws } = player; // Extract ws from the player object
-      if (ws && ws.readyState === 1) {
-        console.log(`Sending game start message to ${publicKey}`);
-        ws.send(
-          JSON.stringify({
-            type: "game",
-            action: "startGame",
-            payload: {
-              message: "The game has started!",
-              players,
-              gameAction: "start",
-            },
-          })
-        );
-      } else {
-        console.warn(`WebSocket for ${publicKey} is not open.`);
-      }
-    });
+    game.state = "started";
+    game.logAction(`${senderplayerId} started the game.`);
 
     return {
       type: "game",
       action: "startGame",
-      payload: {
-        message: "Game started successfully.",
-        players,
-        state: "started",
-      },
-    };
-  }
-
-  join(gameInstance, publicKey, ws) {
-    if (!publicKey) {
-      return {
-        type: "error",
-        payload: { message: "Public key required to join the game." },
-      };
-    }
-
-    if (gameInstance.players.has(publicKey)) {
-      return {
-        type: "error",
-        payload: { message: "Player already in the game." },
-      };
-    }
-
-    // Add the new player and mark as unverified
-    gameInstance.players.set(publicKey, { ws, verified: false });
-    // Mark all players as unverified
-    gameInstance.players.forEach((player) => {
-      player.verified = false;
-    });
-    gameInstance.state = "joining"; // Set the game state to joining
-    console.log(`Player ${publicKey} added to the game for verification.`);
-
-    setTimeout(() => {
-      console.log("Finalizing verification process for the game.");
-
-      // Safely iterate and remove unverified players
-      const playerKeys = Array.from(gameInstance.players.keys());
-      for (const playerKey of playerKeys) {
-        const player = gameInstance.players.get(playerKey);
-        if (!player.verified) {
-          console.log(`Removing unverified player: ${playerKey}`);
-          gameInstance.players.delete(playerKey);
-        }
-      }
-
-      // Broadcast updated player list
-      const players = Array.from(gameInstance.players.keys());
-      console.log("Broadcasting updated player list:", players);
-
-      gameInstance.players.forEach((player, playerKey) => {
-        if (player.ws && player.ws.readyState === 1) {
-          console.log(`Sending updated player list to ${playerKey}`);
-          player.ws.send(
-            JSON.stringify({
-              type: "game",
-              action: "updatePlayers",
-              payload: { players },
-              state: gameInstance.state,
-            })
-          );
-        }
-      });
-    }, 5000);
-
-    const players = Array.from(gameInstance.players.entries()).map(
-      ([publicKey, player]) => ({
-        publicKey,
-        ws: player.ws,
-      })
-    );
-
-    return {
-      type: "game",
-      action: "verifyPlayer",
-      payload: {},
+      payload: game.getGameDetails(),
       broadcast: true,
-      state: gameInstance.state,
-      players: players,
     };
   }
 
-  verifyResponse(gameInstance, publicKey, ws) {
-    console.log(`Verifying player: ${publicKey}`);
-
-    if (gameInstance.players.has(publicKey)) {
-      const player = gameInstance.players.get(publicKey);
-      gameInstance.players.set(publicKey, {
-        ws: ws,
-        verified: true,
-      });
-      console.log(`Player ${publicKey} successfully verified.`);
-    } else {
-      console.log(`Player ${publicKey} not found in the game.`);
-    }
-
-    return {
-      type: "game",
-      action: "playerVerified",
-      payload: {
-        message: `Player ${publicKey} successfully verified.`,
-        publicKey,
-      },
-    };
-  }
-
-  removePlayer(gameInstance, publicKey) {
-    if (gameInstance.players.has(publicKey)) {
-      gameInstance.players.delete(publicKey);
-      console.log(`Player removed: ${publicKey}`);
-
-      return this.updatePlayers(gameInstance); // Broadcast updated list
-    }
-
-    return {
-      type: "error",
-      payload: { message: "Player not found in the game." },
-    };
-  }
-
-  updatePlayers(gameInstance) {
-    const players = Array.from(gameInstance.players.keys());
-    console.log("Broadcasting updated player list:", players);
-
-    gameInstance.players.forEach((player, publicKey) => {
-      if (player.ws && player.ws.readyState === 1) {
-        player.ws.send(
-          JSON.stringify({
-            type: "game",
-            action: "updatePlayers",
-            payload: { players },
-            state: gameInstance.state,
-          })
-        );
-      }
+  // Get a list of active games
+  getGames() {
+    //get game ids
+    const games = Object.keys(this.games).map((gameId) => {
+      return this.games[gameId].getGameDetails();
     });
 
     return {
       type: "game",
-      action: "updatePlayers",
-      payload: { players },
-      state: gameInstance.state,
+      action: "gamesList",
+      payload: { games },
+    };
+  }
+
+  // Handle game-specific actions
+  gameAction(game, gameAction, playerId) {
+    console.log(
+      "Processing game action:",
+      gameAction,
+      "from player:",
+      playerId
+    );
+    const gameResult = game.instance.processAction(gameAction, playerId);
+
+    console.log("gameAction result:", gameResult);
+    game.logAction(gameResult.logEntry);
+    return {
+      type: "game",
+      action: "gameAction",
+      payload: {
+        ...gameResult,
+        game: game.getGameDetails(),
+        gameId: game.gameId,
+      },
+      broadcast: true,
+    };
+  }
+
+  // Add a player to the game
+  joinGame(gameId, playerId) {
+    const game = this.games[gameId];
+    console.log(playerId, " is joining game:", gameId);
+    if (!playerId) {
+      return {
+        type: "error",
+        payload: { message: "Missing playerId in payload." },
+      };
+    }
+
+    if (game.players.has(playerId)) {
+      return {
+        type: "error",
+        payload: { message: `${playerId} is already in the game.` },
+      };
+    }
+
+    game.players.set(playerId, { joined: true });
+    // game.logAction(`Player ${playerId} joined the game.`);
+    // game.deverifyJoinedPlayers();
+
+    return {
+      type: "game",
+      action: "updateGamePlayers", // This matches your existing actions
+      payload: game.getGameDetails(),
+      broadcast: true,
+    };
+  }
+
+  // Verify a player
+  verifyResponse(game, playerId) {
+    console.log("Verifying joined player: ", playerId);
+    game.verifyPlayer(playerId);
+    return {
+      type: "game",
+      action: "playerjoined",
+      payload: game.getGameDetails(),
     };
   }
 }
-
 module.exports = GameController;
