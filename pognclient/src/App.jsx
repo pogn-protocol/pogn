@@ -1,84 +1,72 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Player from "./components/Player";
 import Dashboard from "./components/Dashboard";
-import Chat from "./components/Chat";
-import GameConsole from "./components/GameConsole";
-import Lobby from "./components/Lobby";
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import ErrorBoundary from "./ErrorBoundary";
+import useWebSocket from "./components/hooks/webSocket";
+import Lobby from "./components/Lobby";
+import GameConsole from "./components/GameConsole";
 
 const App = () => {
   const [messages, setMessages] = useState([]);
   const [lobbyMessage, setLobbyMessage] = useState(null);
   const [gameMessage, setGameMessage] = useState(null);
-  const [ws, setWs] = useState(null);
-  const [playerId, setplayerId] = useState(null);
-  const [players, setPlayers] = useState([]); // Add this in App
+  const [playerId, setPlayerId] = useState(null); // Only open WebSocket after this is set
+  const [players, setPlayers] = useState([]);
 
-  useEffect(() => {
-    if (!playerId || ws) return;
+  // Memoized WebSocket handlers
+  const handleWebSocketMessage = useCallback((data) => {
+    if (!data.unique) {
+      data.unique = `${data.type}-${Date.now()}-${Math.random()}`;
+    }
 
-    const socket = new WebSocket("ws://localhost:8080");
+    console.log(`Main switch: ${data.type}`, data);
 
-    socket.onopen = () => {
-      console.log("WebSocket connected");
-      setWs(socket);
+    switch (data.type) {
+      case "lobby":
+        console.log("Setting lobby message:", data);
+        setLobbyMessage(data);
+        break;
 
-      const loginMessage = {
-        type: "lobby",
-        action: "login",
-        payload: {
-          playerId: playerId,
-        },
-      };
+      case "game":
+        setGameMessage(data);
+        break;
 
-      socket.send(JSON.stringify(loginMessage));
-      console.log("Sent login message:", loginMessage);
-    };
+      case "chat":
+        setMessages((prevMessages) => [...prevMessages, data.payload]);
+        break;
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      default:
+        console.warn(`Unhandled message type: ${data.type}`);
+    }
+  }, []);
 
-      if (!data.unique) {
-        data.unique = `${data.type}-${Date.now()}-${Math.random()}`;
+  const handleWebSocketOpen = useCallback(
+    (socket) => {
+      if (playerId) {
+        const loginMessage = {
+          type: "lobby",
+          action: "login",
+          payload: { playerId },
+        };
+        console.log("Sending login message:", loginMessage);
+        socket.send(JSON.stringify(loginMessage));
+      } else {
+        console.warn("playerId is not set. Unable to send login message.");
       }
+    },
+    [playerId]
+  );
 
-      console.log(`Received message type: ${data.type}`, data);
-
-      switch (data.type) {
-        case "lobby":
-          setLobbyMessage(data);
-          break;
-
-        case "game":
-          setGameMessage(data);
-          break;
-
-        case "chat":
-          setMessages((prevMessages) => [...prevMessages, data.payload]);
-          break;
-
-        default:
-          console.warn(`Unhandled message type: ${data.type}`);
-      }
-    };
-
-    socket.onclose = () => {
-      console.log("WebSocket disconnected");
-      setWs(null);
-    };
-
-    socket.onerror = (err) => {
-      console.error("WebSocket error:", err);
-    };
-
-    return () => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-    };
-  }, [playerId]);
+  // Only open the WebSocket after playerId is set
+  const { ws, sendMessage } = useWebSocket(
+    playerId ? "ws://localhost:8080" : null, // Open WebSocket only when playerId is set
+    {
+      onOpen: handleWebSocketOpen,
+      onMessage: handleWebSocketMessage,
+    }
+  );
 
   const memoizedLobbyMessage = useMemo(() => lobbyMessage, [lobbyMessage]);
   const memoizedGameMessage = useMemo(() => gameMessage, [gameMessage]);
@@ -87,55 +75,40 @@ const App = () => {
     <ErrorBoundary>
       <div className="container mt-5">
         <h1>Game App</h1>
-        <Player sendplayerId={setplayerId} />
+        {/* Generate playerId in Player component */}
+        <Player setPlayerId={setPlayerId} />
         {playerId && <Dashboard playerName="Player" playerId={playerId} />}
-        {/* Render Lobby */}
+        {/* Uncomment other components as needed */}
+
+        {/* {memoizedLobbyMessage && (
+          <div>
+            <h3>Debugging memoizedLobbyMessage</h3>
+            <pre>{JSON.stringify(memoizedLobbyMessage, null, 2)}</pre>
+            <h4>Players:</h4>
+            <pre>{JSON.stringify(players, null, 2)}</pre>
+            <h4>Player ID:</h4>
+            <pre>{playerId}</pre>
+          </div>
+        )} */}
+
         {memoizedLobbyMessage && (
           <Lobby
             players={players}
             message={memoizedLobbyMessage}
-            sendMessage={(message) => {
-              if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(message));
-              }
-            }}
+            sendMessage={sendMessage}
             playerId={playerId}
-            onPlayerEnteredLobby={(players) => {
-              console.log("App received verified players:", players);
-              setPlayers(players); // Update players in the App state
-            }}
-            onUpdatePlayers={(updatedPlayers) => {
-              setPlayers(updatedPlayers); // Update players in the App state
-            }}
+            onUpdatePlayers={setPlayers}
           />
         )}
-        {/* Render Game Console Always */}
+
         <GameConsole
-          players={players || []} // Provide a default empty array
-          message={memoizedGameMessage || { payload: {} }} // Provide a default empty message
-          sendMessage={(message) => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify(message));
-            }
-          }}
+          players={players || []}
+          message={memoizedGameMessage || { payload: {} }}
+          sendMessage={sendMessage}
           playerId={playerId || ""}
         />
-        {console.log("GameConsole props:", {
-          players,
-          memoizedGameMessage,
-          playerId,
-        })}
 
-        {/* Render Chat */}
-        <Chat
-          messages={messages}
-          sendMessage={(message) => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify(message));
-            }
-          }}
-          playerId={playerId}
-        />
+        {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}
       </div>
     </ErrorBoundary>
   );

@@ -1,12 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import RockPaperScissors from "./RockPaperScissors";
 
-const GameConsole = ({
-  message = {},
-  sendMessage,
-  playerId = "",
-  players = [],
-}) => {
+const GameConsole = ({ message = {}, sendMessage, playerId = "", players }) => {
   const [gameState, setGameState] = useState({
     players: [],
     status: "ready-to-join",
@@ -22,15 +17,37 @@ const GameConsole = ({
   const [playerInLobby, setPlayerInLobby] = useState(false);
 
   useEffect(() => {
+    console.log(
+      "hasJoined:",
+      hasJoined,
+      "isJoining:",
+      isJoining,
+      "gameState:",
+      gameState
+    );
+    console.log("players:", players);
+    if (gameState.gameId) {
+      console.log("Game has gameId:", gameState.gameId);
+    }
+    let timeoutId;
+
     if (
       players.some((player) => player.playerId === playerId) &&
       !hasJoined &&
       !isJoining &&
       !gameState.gameId
     ) {
-      console.log("Automatically creating a game...");
-      handleCreateGame();
+      timeoutId = setTimeout(() => {
+        console.log("Automatically creating a game...");
+        handleCreateGame();
+      }, 5000);
     }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId); // Cleanup the timeout
+      }
+    };
   }, [players, hasJoined, isJoining, gameState.gameId, playerId]);
 
   // Auto-join the game when in the lobby
@@ -61,17 +78,24 @@ const GameConsole = ({
   }, [players, playerId]);
 
   useEffect(() => {
+    let requestCount = 0; // Counter to track the number of requests sent
+
     if (!gameState.gameId) {
       const intervalId = setInterval(() => {
-        console.log("Sending getGames request...");
-        sendMessage({
-          type: "game",
-          action: "getGames",
-          payload: {
-            playerId,
-            gameId: gameState.gameId,
-          },
-        });
+        if (requestCount < 5) {
+          console.log("Sending getGames request...");
+          sendMessage({
+            type: "game",
+            action: "getGames",
+            payload: {
+              playerId,
+              gameId: "getGames",
+            },
+          });
+          requestCount += 1; // Increment the counter
+        } else {
+          clearInterval(intervalId); // Stop the interval after 5 requests
+        }
       }, 2000); // Poll every 2 seconds
 
       return () => clearInterval(intervalId); // Cleanup interval on unmount
@@ -131,13 +155,6 @@ const GameConsole = ({
         }
         break;
 
-      case "gameCreated":
-        console.log("Game created:", payload.gameId);
-        setGameState((prevState) => ({
-          ...prevState,
-          gameId: payload.gameId, // Store gameId
-        }));
-        break;
       case "updateGamePlayers":
         //check if we are on the list
         if (payload.players.includes(playerId)) {
@@ -149,11 +166,12 @@ const GameConsole = ({
           ...prevState,
           players: payload.players || [],
           gameAction: null,
+          gameState: payload.state,
         }));
         break;
 
       case "startGame":
-        console.log("startGame mmsg recieved:", payload);
+        console.log("startGame msg recieved:", payload);
         if (!gameStarted) {
           console.log("Game started.");
           setGameState((prevState) => ({
@@ -170,21 +188,6 @@ const GameConsole = ({
         console.log("Standby for joining game:", payload.playerId);
         break;
 
-      case "verifyPlayer":
-        if (isJoining || hasJoined) {
-          console.log("Verification request received.");
-          handleVerifyPlayer();
-        } else {
-          console.warn(
-            "Received verification request, but player hasn't joined."
-          );
-        }
-        break;
-
-      case "playerVerified":
-        console.log(`${payload.playerId} has verified.`);
-        break;
-
       case "gameAction":
         console.log("gameAction:", payload);
         setGameState((prevState) => ({
@@ -198,10 +201,6 @@ const GameConsole = ({
         console.warn(`Unhandled action: ${action}`);
     }
   }, [message, hasJoined]);
-
-  // useEffect(() => {
-  //   setPlayerInLobby(players.some((player) => player.playerId === playerId));
-  // }, [players, playerId]);
 
   const handleStartGame = () => {
     setGameState((prevState) => ({
@@ -226,7 +225,7 @@ const GameConsole = ({
     console.log(`${playerId} creating game...`);
     sendMessage({
       type: "game",
-      action: "createGame",
+      action: "createNewGame",
       payload: {
         gameType: "rock-paper-scissors",
         playerId,
@@ -250,44 +249,24 @@ const GameConsole = ({
     });
   };
 
-  const handleVerifyPlayer = () => {
-    console.log(`Sending verify response for player: ${playerId}`);
-    sendMessage({
-      type: "game",
-      action: "verifyResponse",
-      payload: {
-        game: "rock-paper-scissors",
-        playerId,
-        gameId: gameState.gameId,
-      },
-    });
-  };
-
   return (
     <div>
-      {/* <h2>Game Controller</h2>
-      <p>Players: {gameState.players.map((p) => p.playerId).join(", ")}</p>
-      <p>Game Status: {gameState.status}</p>
+      <h2>Game Controller</h2>
       <p>Player ID: {playerId}</p>
-      <p>Game ID: {gameState.gameId}</p> */}
+      <pre>Game State: {JSON.stringify(gameState, null, 2)}</pre>
+
       {!gameStarted ? (
         <>
           <button
             onClick={handleStartGame}
-            disabled={
-              !playerInLobby || gameStarted || gameState.players.length < 2
-            }
+            disabled={gameState.gameState !== "readyToStart"}
           >
             Start Game
           </button>
           <button
             onClick={handleJoinGame}
             disabled={
-              hasJoined ||
-              isJoining ||
-              !playerInLobby ||
-              gameState.players.length >= gameState.maxPlayers ||
-              !gameState.gameId
+              hasJoined || isJoining || !playerInLobby || !gameState.gameId
             }
           >
             {isJoining ? "Joining..." : hasJoined ? "Joined" : "Join Game"}

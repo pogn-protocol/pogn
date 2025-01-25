@@ -24,7 +24,7 @@ class GameController {
     }
 
     const game = this.games[payload.gameId];
-    if (!game && action !== "createGame") {
+    if (!game && action !== "createNewGame") {
       return {
         type: "error",
         payload: { message: "Game not found." },
@@ -32,14 +32,11 @@ class GameController {
     }
 
     switch (action) {
-      case "createGame":
+      case "createNewGame":
         return this.createGame(payload.gameType, playerId);
 
       case "joinGame":
         return this.joinGame(payload.gameId, playerId);
-
-      case "verifyResponse":
-        return this.verifyResponse(game, playerId);
 
       case "startGame":
         return this.startGame(game, playerId);
@@ -59,56 +56,38 @@ class GameController {
     }
   }
 
-  // Create a new game instance
-  newGame(gameType) {
-    // Check if the game type is supported
+  createGame(gameType, playerId) {
     if (!this.gameClasses[gameType]) {
       console.error(`Unsupported game type: ${gameType}`);
-      return null;
+      return {
+        type: "error",
+        payload: { message: `Unsupported game type: ${gameType}` },
+      };
     }
 
     // Create and initialize the game
     const game = new Game(gameType);
     const gameInstance = new this.gameClasses[gameType](); // Initialize game-specific logic
     game.setGameInstance(gameInstance);
-    //overwrite thefirst game so there is only ever one
-    //delete all games for testing
     this.games = {};
     this.games[game.gameId] = game;
-    return game;
-  }
 
-  // Handle game creation
-  createGame(gameType, playerId) {
-    const game = this.newGame(gameType);
-    if (!game) {
-      return {
-        type: "error",
-        payload: { message: `Game type ${gameType} not supported.` },
-      };
-    }
-
-    game.logAction(`${playerId} created the game.`);
+    game.logAction(`${playerId} created game.`);
+    const games = Object.keys(this.games).map((gameId) => {
+      return this.games[gameId].getGameDetails();
+    });
 
     return {
       type: "game",
-      action: "gameCreated",
-      payload: game.getGameDetails(),
+      action: "gameList",
+      payload: { games },
       broadcast: true,
     };
   }
 
   // Start the game
-  startGame(game, senderplayerId) {
-    if (game.state !== "created" && game.state !== "joining") {
-      return {
-        type: "error",
-        payload: { message: "Game is not in a valid state to start." },
-      };
-    }
-
-    game.state = "started";
-    game.logAction(`${senderplayerId} started the game.`);
+  startGame(game) {
+    game.startGame();
 
     return {
       type: "game",
@@ -140,17 +119,16 @@ class GameController {
       "from player:",
       playerId
     );
-    const gameResult = game.instance.processAction(gameAction, playerId);
+    const gameActionResult = game.instance.processAction(gameAction, playerId);
 
-    console.log("gameAction result:", gameResult);
-    game.logAction(gameResult.logEntry);
+    console.log("gameAction result:", gameActionResult);
+    game.logAction(gameActionResult.logEntry);
     return {
       type: "game",
       action: "gameAction",
       payload: {
-        ...gameResult,
+        ...gameActionResult,
         game: game.getGameDetails(),
-        gameId: game.gameId,
       },
       broadcast: true,
     };
@@ -158,42 +136,18 @@ class GameController {
 
   // Add a player to the game
   joinGame(gameId, playerId) {
+    //get all game ids
+    console.log(this.games);
     const game = this.games[gameId];
     console.log(playerId, " is joining game:", gameId);
-    if (!playerId) {
-      return {
-        type: "error",
-        payload: { message: "Missing playerId in payload." },
-      };
-    }
-
-    if (game.players.has(playerId)) {
-      return {
-        type: "error",
-        payload: { message: `${playerId} is already in the game.` },
-      };
-    }
-
-    game.players.set(playerId, { joined: true });
-    // game.logAction(`Player ${playerId} joined the game.`);
-    // game.deverifyJoinedPlayers();
+    let joinResult = game.joinPlayer(playerId);
+    console.log("Join result:", joinResult);
 
     return {
       type: "game",
       action: "updateGamePlayers", // This matches your existing actions
       payload: game.getGameDetails(),
       broadcast: true,
-    };
-  }
-
-  // Verify a player
-  verifyResponse(game, playerId) {
-    console.log("Verifying joined player: ", playerId);
-    game.verifyPlayer(playerId);
-    return {
-      type: "game",
-      action: "playerjoined",
-      payload: game.getGameDetails(),
     };
   }
 }

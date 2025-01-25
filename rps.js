@@ -7,6 +7,8 @@ class RockPaperScissors {
       scissors: "paper",
     };
     this.state = "waiting"; // Game states: waiting, in-progress, complete
+    this.minPlayers = 2;
+    this.maxPlayers = 2;
   }
 
   // Add a player choice

@@ -1,44 +1,43 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "./css/lobby.css";
 
 const Lobby = ({
   message,
   sendMessage,
   playerId,
+  onPlayerEnteredLobby,
   onUpdatePlayers,
-  players, // Default value for players
+  players,
 }) => {
-  //const [processedMessages, setProcessedMessages] = useState([]);
-  const processedMessagesRef = useRef(new Set());
+  const [processedMessages, setProcessedMessages] = useState(new Set()); // Use a Set for efficient tracking
 
-  // Process messages and track unique ones
+  // Memoize the message to prevent unnecessary reprocessing
+  const memoizedMessage = useMemo(() => {
+    if (message?.unique && !processedMessages.has(message.unique)) {
+      console.log("Memoizing new message:", message.unique);
+      return message;
+    }
+    return null; // Skip already processed messages
+  }, [message, processedMessages]);
+
   useEffect(() => {
-    console.log("lobby");
-    if (!message || typeof message !== "object") {
-      console.warn("Invalid message object:", message);
-      return; // Exit early if message is invalid
-    }
+    if (!memoizedMessage) return; // Skip null or already processed messages
 
-    if (!message.unique || processedMessagesRef.current.has(message.unique)) {
-      console.log("Skipping processed message:", message);
-      return;
-    }
+    const { action, payload } = memoizedMessage;
 
-    console.log("Processing Lobby message:", message);
-    const { action, payload } = message;
+    console.log("Processing Lobby message:", memoizedMessage);
 
-    // Add message to processedMessages
-    processedMessagesRef.current.add(message.unique);
+    // Mark the message as processed immutably
+    setProcessedMessages((prev) => new Set(prev).add(memoizedMessage.unique));
 
     switch (action) {
       case "updatePlayers":
         console.log("Updating player list:", payload.players);
 
         // Map the payload to the required player format
-        if (!payload.players) return;
-        const updatedPlayers = (payload.players || []).map((player) => ({
+        const updatedPlayers = payload.players.map((player) => ({
           playerId: player.playerId,
-          playerName: player.playerName || "Unknown", // Fallback to "Unknown"
+          playerName: player.playerName || "Unknown", // Default to "Unknown" if playerName is missing
         }));
 
         // Notify the parent to update the global state
@@ -50,7 +49,6 @@ const Lobby = ({
       case "joinLobbyStandby":
         console.log("Standby for verification:", payload.playerId);
         break;
-
       case "verifyPlayer":
         console.log("Verification request received.");
         const verifyMessage = {
@@ -65,11 +63,10 @@ const Lobby = ({
       case "playerVerified":
         console.log(`${payload.playerId} has verified.`);
         break;
-
       default:
         console.warn(`Unhandled action: ${action}`);
     }
-  }, [message, playerId, onUpdatePlayers]);
+  }, [memoizedMessage, sendMessage, playerId, onPlayerEnteredLobby]);
 
   return (
     <div className="lobby">

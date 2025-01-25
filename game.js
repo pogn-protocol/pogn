@@ -6,7 +6,7 @@ class Game {
     this.gameId = uuidv4();
     this.players = new Map();
     this.gameLog = [];
-    this.state = "created"; // Possible states: created, joining, started, ended
+    this.state = "joining"; // Possible states: created, joining, started, ended
     this.instance = null; // Game-specific logic instance (e.g., RockPaperScissors)
   }
 
@@ -16,7 +16,6 @@ class Game {
       return `${playerId} is already in the game.`;
     }
     this.players.set(playerId, { joined: false });
-    this.logAction(`Player ${playerId} joined the game.`);
     return null; // No errors
   }
 
@@ -26,7 +25,6 @@ class Game {
       return `${playerId} is not in the game.`;
     }
     this.players.delete(playerId);
-    this.logAction(`Player ${playerId} was removed.`);
     return null; // No errors
   }
 
@@ -52,14 +50,32 @@ class Game {
   }
 
   joinPlayer(playerId) {
-    const player = this.players.get(playerId);
-    if (!player) {
-      return `${playerId} not found in the game.`;
+    console.log("Joining player:", playerId);
+    console.log("Joinstate:", this.state);
+    console.log("Maxplayers:", this.instance.maxPlayers);
+    console.log("Number of players before join: ", this.players.size);
+    if (this.players.has(playerId)) {
+      return `${playerId} is already joined.`;
+    }
+    if (this.players.size >= this.instance.maxPlayers) {
+      return "Game is full.";
+    }
+    this.players.set(playerId, { joined: true });
+    if (this.state !== "joining") {
+      return "Game is not in joining state.";
+    }
+    if (this.players.size == this.instance.minPlayers) {
+      console.log("Game can start.");
+      this.state = "canStart";
+    }
+    if (this.players.size == this.instance.maxPlayers) {
+      console.log("Game is ready to start.");
+      this.state = "readyToStart";
     }
 
-    player.verified = true;
-    this.logAction(`Player ${playerId} was verified.`);
-    return null; // No errors
+    //
+    console.log("Number of players after join: ", this.players);
+    return "Player joined.";
   }
   deverifyJoinedPlayers() {
     this.players.forEach((player, playerId) => {
@@ -67,6 +83,27 @@ class Game {
     });
     this.logAction("All players were deverified.");
     return null; // No errors
+  }
+  startGame() {
+    console.log("Starting game.", this.state);
+    if (this.state === "started") {
+      return {
+        type: "error",
+        payload: { message: "Game is already started." },
+      };
+    }
+    if (this.state !== "canStart" || this.state !== "readyToStart") {
+      return {
+        type: "error",
+        payload: {
+          message: "Game is not in a valid state to start.",
+          state: this.state,
+        },
+      };
+    }
+    this.state = "started";
+
+    this.logAction(`${senderplayerId} started the game.`);
   }
 }
 
