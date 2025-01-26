@@ -21,8 +21,8 @@ class LobbyController {
       case "createNewGame":
         return this.createGame(payload);
 
-      case "getGames":
-        return this.getGames();
+      case "refreshLobby":
+        return this.refreshLobby();
 
       case "joinGame":
         return this.joinPlayer(payload);
@@ -36,13 +36,13 @@ class LobbyController {
     }
   }
 
-  getGames() {
+  refreshLobby() {
     console.log("games", this.lobby.getLobbyGames());
     const games = this.lobby.getLobbyGames();
     return {
       type: "lobby",
-      action: "lobbyGames",
-      payload: { games },
+      action: "refreshLobby",
+      payload: games,
     };
   }
 
@@ -72,7 +72,7 @@ class LobbyController {
     console.log("Updating players...", this.lobby.getVerifiedLobbyPlayers());
     return {
       type: "lobby",
-      action: "updateLobbyPlayers",
+      action: "lobbyPlayers",
       payload: {
         players: this.lobby.getVerifiedLobbyPlayers(),
       },
@@ -114,10 +114,8 @@ class LobbyController {
 
     return {
       type: "lobby",
-      action: "lobbyGames",
-      payload: {
-        games: this.lobby.getLobbyGames(),
-      },
+      action: "refreshLobby",
+      payload: this.lobby.getLobbyGames(),
       broadcast: true,
     };
   }
@@ -150,8 +148,8 @@ class LobbyController {
     console.log("games", games);
     return {
       type: "lobby",
-      action: "lobbyGames",
-      payload: { games },
+      action: "refreshLobby",
+      payload: games,
       broadcast: true,
     };
   }

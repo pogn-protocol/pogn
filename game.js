@@ -11,6 +11,7 @@ class Game {
   }
 
   // Add a player to the game
+  // Add a player to the game
   addPlayer(playerId) {
     if (this.players.has(playerId)) {
       console.log(`${playerId} is already in the game.`);
@@ -30,9 +31,13 @@ class Game {
       Array.from(this.players.keys())
     );
 
-    // Optionally, check if the game is ready to start
-    if (this.players.size >= this.instance.minPlayers) {
+    // Update the game state based on the number of players
+    if (this.players.size >= this.instance.maxPlayers) {
+      this.state = "readyToStart";
       console.log("The game is ready to start.");
+    } else if (this.players.size >= this.instance.minPlayers) {
+      this.state = "canStart";
+      console.log("The game can start.");
     }
 
     return null; // No errors
