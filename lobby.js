@@ -5,7 +5,7 @@ class Lobby {
     this.players = [];
     this.games = [];
   }
-  addPlayer(playerId, playerName = "") {
+  joinLobby(playerId, playerName = "") {
     //check if in lobby
     if (this.players.some((p) => p.playerId === playerId)) {
       return;
@@ -15,7 +15,6 @@ class Lobby {
       playerId,
       playerName,
       inLobby: true, // Default to true when adding a player to the lobby
-      inGame: false, // Default to false initially
     });
     this.players.push(player);
   }
@@ -25,27 +24,50 @@ class Lobby {
       console.log("Player not found in lobby", playerId);
       return;
     }
-    player.verified = true;
+    player.inLobby = true;
     return player;
   }
+
+  existsInLobby(playerId) {
+    return this.players.some((p) => p.playerId === playerId);
+  }
+
   removePlayer(player) {
     this.players = this.players.filter((p) => p !== player);
   }
-  sterilizeLobby() {
-    this.players.forEach((p) => (p.verified = false));
+
+  deverifyLobbyPlayers() {
+    this.players.forEach((p) => (p.inLobby = false));
   }
+
+  removeUnverifiedPlayers() {
+    console.log("Removing unverified players...");
+    this.games.forEach((game) => {
+      const verifiedPlayers = this.players
+        .filter((p) => p.inLobby)
+        .map((p) => p.playerId);
+
+      // Remove unverified players from the game
+      const playersToRemove = Array.from(game.players.keys()).filter(
+        (playerId) => !verifiedPlayers.includes(playerId)
+      );
+
+      playersToRemove.forEach((playerId) => {
+        game.removePlayer(playerId);
+        console.log(
+          `Removed unverified player ${playerId} from game ${game.gameId}`
+        );
+      });
+    });
+  }
+
   getLobbyPlayers() {
-    return this.players.filter((p) => p.verified);
+    // console.log("Getting lobby players...");
+    // this.removeUnverifiedPlayers();
+    console.log("Returning lobby players...");
+    return this.players.filter((p) => p.inLobby);
   }
-  getVerifiedLobbyPlayers() {
-    //return verified players with playerId and playerName
-    return this.players
-      .filter((p) => p.verified)
-      .map((p) => ({ playerId: p.playerId, playerName: p.playerName }));
-  }
-  isInLobby(player) {
-    return this.players.includes(player);
-  }
+
   getLobbyGames() {
     return this.games.map((game) => ({
       gameId: game.gameId,
@@ -63,7 +85,7 @@ class Lobby {
     return this.games.find((game) => game.gameId === gameId) || null;
   }
 
-  joinPlayer(gameId, playerId) {
+  joinLobbyPlayerToGame(gameId, playerId) {
     const game = this.getGame(gameId);
     console.log("Joining player", playerId, "to game", gameId);
     if (!game) {

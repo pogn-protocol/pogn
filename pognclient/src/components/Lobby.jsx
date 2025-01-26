@@ -35,23 +35,13 @@ const Lobby = ({ message, sendMessage, playerId }) => {
     processedMessagesRef.current.add(message.unique);
 
     switch (action) {
-      case "lobbyPlayers":
-        console.log("Updating player list:", payload.players);
-        if (!payload.players) return;
-        const updatedPlayers = (payload.players || []).map((player) => ({
-          playerId: player.playerId,
-          playerName: player.playerName || "Unknown", // Fallback to "Unknown"
-        }));
-        setLobbyPlayers(updatedPlayers);
-        break;
       case "refreshLobby":
         console.log("Game list received:", payload);
-
-        // Update the lobby games
-        setLobbyGames(payload);
+        setLobbyGames(payload.lobbyGames || []);
+        setLobbyPlayers(payload.lobbyPlayers || []);
 
         // Check if a game is selected and still exists
-        const selectedGame = payload.find(
+        const selectedGame = payload.lobbyGames.find(
           (game) => game.gameId === selectedGameId
         );
 

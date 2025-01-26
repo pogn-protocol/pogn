@@ -15,17 +15,11 @@ class LobbyController {
       case "login":
         return this.joinLobby(payload.playerId);
 
-      case "verifyResponse":
-        return this.handleVerifyResponse(payload.playerId);
-
       case "createNewGame":
         return this.createGame(payload);
 
-      case "refreshLobby":
-        return this.refreshLobby();
-
       case "joinGame":
-        return this.joinPlayer(payload);
+        return this.joinLobbyPlayerToGame(payload);
 
       default:
         console.warn(`Unhandled lobby action: ${action}`);
@@ -36,16 +30,6 @@ class LobbyController {
     }
   }
 
-  refreshLobby() {
-    console.log("games", this.lobby.getLobbyGames());
-    const games = this.lobby.getLobbyGames();
-    return {
-      type: "lobby",
-      action: "refreshLobby",
-      payload: games,
-    };
-  }
-
   joinLobby(playerId) {
     if (!playerId) {
       return {
@@ -54,56 +38,25 @@ class LobbyController {
       };
     }
 
-    this.lobby.addPlayer(playerId, { inLobby: false });
+    this.lobby.joinLobby(playerId, { inLobby: true });
     console.log(`Player ${playerId} added or updated in the lobby.`);
+    console.log("Lobby Players", this.lobby.getLobbyPlayers());
 
-    console.log("Sterilizing lobby players...");
-    this.lobby.sterilizeLobby();
-    console.log("players", this.lobby);
     return {
       type: "lobby",
-      action: "verifyPlayer",
-      payload: {},
-      //broadcasts to everyone via relay.js code
-    };
-  }
-
-  updatePlayers() {
-    console.log("Updating players...", this.lobby.getVerifiedLobbyPlayers());
-    return {
-      type: "lobby",
-      action: "lobbyPlayers",
+      action: "refreshLobby",
       payload: {
-        players: this.lobby.getVerifiedLobbyPlayers(),
+        lobbyPlayers: this.lobby.getLobbyPlayers(),
+        lobbyGames: this.lobby.getLobbyGames(),
       },
       broadcast: true,
     };
   }
 
-  handleVerifyResponse(playerId) {
-    console.log(`Verifying player: ${playerId}`);
-
-    if (this.lobby.verifyPlayer(playerId)) {
-      console.log(`Player ${playerId} is verified.`);
-    } else {
-      console.log(`Player ${playerId} does not exist in the lobby.`);
-    }
-
-    return {
-      type: "lobby",
-      action: "playerVerified",
-      payload: {
-        message: `Player ${playerId} successfully verified.`,
-        playerId,
-        players: this.lobby.getVerifiedLobbyPlayers(),
-      },
-      broadcast: false,
-    };
-  }
-  joinPlayer(payload) {
+  joinLobbyPlayerToGame(payload) {
     const { gameId, playerId } = payload;
 
-    const joinResult = this.lobby.joinPlayer(gameId, playerId);
+    const joinResult = this.lobby.joinLobbyPlayerToGame(gameId, playerId);
     if (joinResult?.error) {
       return {
         type: "error",
@@ -115,7 +68,10 @@ class LobbyController {
     return {
       type: "lobby",
       action: "refreshLobby",
-      payload: this.lobby.getLobbyGames(),
+      payload: {
+        lobbyPlayers: this.lobby.getLobbyPlayers(),
+        lobbyGames: this.lobby.getLobbyGames(),
+      },
       broadcast: true,
     };
   }
@@ -149,7 +105,10 @@ class LobbyController {
     return {
       type: "lobby",
       action: "refreshLobby",
-      payload: games,
+      payload: {
+        lobbyPlayers: this.lobby.getLobbyPlayers(),
+        lobbyGames: games,
+      },
       broadcast: true,
     };
   }

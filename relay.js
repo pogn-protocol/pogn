@@ -50,20 +50,20 @@ wss.on("connection", (ws) => {
         case "lobby": {
           console.log("Processing lobby message:", { action, payload });
 
-          if (type === "lobby" && action === "login" && payload?.playerId) {
-            const playerId = payload.playerId;
-            webSocketMap.set(playerId, ws); // Register WebSocket with playerId
-            console.log(`Player ${playerId} logged in and registered.`);
-            const refreshResponse = lobbyController.joinLobby(playerId);
-            if (refreshResponse) {
-              console.log("Broadcasting lobby refresh...");
-              broadcastResponse(refreshResponse);
-            }
-            setTimeout(() => {
-              broadcastResponse(lobbyController.updatePlayers());
-            }, 5000);
+          //check and reg websockets
+
+          if (payload?.playerId) {
+            webSocketMap.set(payload.playerId, ws);
+            console.log(`Player ${payload.playerId} added to WebSocket map.`);
+          } else {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                payload: { message: "No playerId in payload" },
+              })
+            );
+            console.log("No playerId in payload");
           }
-          console.log("Processing lobby message:", { action, payload });
           const response = lobbyController.processMessage(action, payload);
 
           if (response) {
@@ -129,13 +129,40 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     console.log("Connection closed.");
-    // Remove the WebSocket from the map if it disconnects
-    webSocketMap.forEach((socket, playerId) => {
+
+    // Remove the disconnected player from the WebSocket map
+    let disconnectedPlayerId = null;
+    for (const [playerId, socket] of webSocketMap.entries()) {
       if (socket === ws) {
+        disconnectedPlayerId = playerId;
         webSocketMap.delete(playerId);
         console.log(`Player ${playerId} removed from WebSocket map.`);
+        break;
       }
-    });
+    }
+
+    // Notify the LobbyController about the disconnection
+    if (disconnectedPlayerId) {
+      lobbyController.lobby.removePlayer({ playerId: disconnectedPlayerId });
+      console.log(`Player ${disconnectedPlayerId} removed from the lobby.`);
+
+      // Refresh the lobby for all remaining players
+      const lobbyPlayers = lobbyController.lobby.getLobbyPlayers();
+      const games = lobbyController.lobby.getLobbyGames();
+
+      webSocketMap.forEach((socket, playerId) => {
+        if (socket.readyState === WebSocket.OPEN) {
+          sendToPlayer(playerId, {
+            type: "lobby",
+            action: "refreshLobby",
+            payload: {
+              lobbyPlayers,
+              lobbyGames: games,
+            },
+          });
+        }
+      });
+    }
   });
 
   ws.on("error", (error) => {
