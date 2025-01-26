@@ -10,6 +10,14 @@ class RockPaperScissors {
     this.minPlayers = 2;
     this.maxPlayers = 2;
   }
+  getGameDetails() {
+    return {
+      winningRules: this.winningRules,
+      state: this.state,
+      minPlayers: this.minPlayers,
+      maxPlayers: this.maxPlayers,
+    };
+  }
 
   // Add a player choice
   makeChoice(playerId, choice) {

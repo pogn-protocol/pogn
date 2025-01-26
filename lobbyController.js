@@ -1,8 +1,10 @@
 //import lobby class
 const Lobby = require("./lobby");
+const Game = require("./game"); // Import the Game class
 
 class LobbyController {
-  constructor() {
+  constructor(gamesController) {
+    this.gamesController = gamesController; // Use the shared instance
     this.lobby = new Lobby();
   }
 
@@ -16,6 +18,15 @@ class LobbyController {
       case "verifyResponse":
         return this.handleVerifyResponse(payload.playerId);
 
+      case "createNewGame":
+        return this.createGame(payload);
+
+      case "getGames":
+        return this.getGames();
+
+      case "joinGame":
+        return this.joinPlayer(payload);
+
       default:
         console.warn(`Unhandled lobby action: ${action}`);
         return {
@@ -23,6 +34,16 @@ class LobbyController {
           payload: { message: `Unknown action: ${action}` },
         };
     }
+  }
+
+  getGames() {
+    console.log("games", this.lobby.getLobbyGames());
+    const games = this.lobby.getLobbyGames();
+    return {
+      type: "lobby",
+      action: "lobbyGames",
+      payload: { games },
+    };
   }
 
   joinLobby(playerId) {
@@ -51,7 +72,7 @@ class LobbyController {
     console.log("Updating players...", this.lobby.getVerifiedLobbyPlayers());
     return {
       type: "lobby",
-      action: "updatePlayers",
+      action: "updateLobbyPlayers",
       payload: {
         players: this.lobby.getVerifiedLobbyPlayers(),
       },
@@ -77,6 +98,61 @@ class LobbyController {
         players: this.lobby.getVerifiedLobbyPlayers(),
       },
       broadcast: false,
+    };
+  }
+  joinPlayer(payload) {
+    const { gameId, playerId } = payload;
+
+    const joinResult = this.lobby.joinPlayer(gameId, playerId);
+    if (joinResult?.error) {
+      return {
+        type: "error",
+        payload: { message: joinResult.message },
+      };
+    }
+    console.log(`Player ${playerId} joined game ${JSON.stringify(joinResult)}`);
+
+    return {
+      type: "lobby",
+      action: "lobbyGames",
+      payload: {
+        games: this.lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
+  }
+
+  createGame(payload) {
+    const { gameType, playerId } = payload;
+    console.log("Creating game:", gameType, playerId);
+
+    if (!this.gamesController.gameClasses[gameType]) {
+      console.error(`Unsupported game type: ${gameType}`);
+      return {
+        type: "error",
+        payload: { message: `Unsupported game type: ${gameType}` },
+      };
+    }
+    if (!playerId) {
+      return {
+        type: "error",
+        payload: { message: "Player ID required to create a game" },
+      };
+    }
+
+    // Create and initialize the game
+    const game = new Game(gameType);
+    const gameInstance = new this.gamesController.gameClasses[gameType]();
+    game.setGameInstance(gameInstance);
+    this.lobby.addGame(game);
+    game.logAction(`${playerId} created game.`);
+    const games = this.lobby.getLobbyGames();
+    console.log("games", games);
+    return {
+      type: "lobby",
+      action: "lobbyGames",
+      payload: { games },
+      broadcast: true,
     };
   }
 }

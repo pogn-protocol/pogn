@@ -3,6 +3,7 @@ const Player = require("./player");
 class Lobby {
   constructor() {
     this.players = [];
+    this.games = [];
   }
   addPlayer(playerId, playerName = "") {
     //check if in lobby
@@ -44,6 +45,32 @@ class Lobby {
   }
   isInLobby(player) {
     return this.players.includes(player);
+  }
+  getLobbyGames() {
+    return this.games.map((game) => ({
+      gameId: game.gameId,
+      gameType: game.gameType,
+      state: game.state,
+      players: Array.from(game.players.keys()), // Convert players map to array
+      gameLog: game.gameLog,
+      instance: game.instance,
+    }));
+  }
+  addGame(game) {
+    this.games.push(game);
+  }
+  getGame(gameId) {
+    return this.games.find((game) => game.gameId === gameId) || null;
+  }
+
+  joinPlayer(gameId, playerId) {
+    const game = this.getGame(gameId);
+    console.log("Joining player", playerId, "to game", gameId);
+    if (!game) {
+      return { error: true, message: `Game with ID ${gameId} not found.` };
+    }
+    game.addPlayer(playerId);
+    return game;
   }
 }
 

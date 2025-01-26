@@ -13,9 +13,28 @@ class Game {
   // Add a player to the game
   addPlayer(playerId) {
     if (this.players.has(playerId)) {
+      console.log(`${playerId} is already in the game.`);
       return `${playerId} is already in the game.`;
     }
+
+    // Check if the game has reached the maximum number of players
+    if (this.players.size >= this.instance?.maxPlayers) {
+      console.log(`Game is full. Max players: ${this.instance.maxPlayers}`);
+      return "Game is full.";
+    }
+
+    // Add the player to the game
     this.players.set(playerId, { joined: false });
+    console.log(
+      `${playerId} was added to the game. Current players:`,
+      Array.from(this.players.keys())
+    );
+
+    // Optionally, check if the game is ready to start
+    if (this.players.size >= this.instance.minPlayers) {
+      console.log("The game is ready to start.");
+    }
+
     return null; // No errors
   }
 
@@ -39,44 +58,19 @@ class Game {
   }
 
   // Return the game details in a serializable format
+
   getGameDetails() {
+    const instanceDetails = this.instance.getGameDetails(); // Dynamically get details
     return {
       gameId: this.gameId,
-      gameType: this.gameType,
       state: this.state,
-      players: Array.from(this.players.keys()), // Convert Map to an array of keys
+      gameType: this.gameType,
+      players: Array.from(this.players.keys()),
       gameLog: this.gameLog,
+      ...instanceDetails, // Merge game-specific details
     };
   }
 
-  joinPlayer(playerId) {
-    console.log("Joining player:", playerId);
-    console.log("Joinstate:", this.state);
-    console.log("Maxplayers:", this.instance.maxPlayers);
-    console.log("Number of players before join: ", this.players.size);
-    if (this.players.has(playerId)) {
-      return `${playerId} is already joined.`;
-    }
-    if (this.players.size >= this.instance.maxPlayers) {
-      return "Game is full.";
-    }
-    this.players.set(playerId, { joined: true });
-    if (this.state !== "joining") {
-      return "Game is not in joining state.";
-    }
-    if (this.players.size == this.instance.minPlayers) {
-      console.log("Game can start.");
-      this.state = "canStart";
-    }
-    if (this.players.size == this.instance.maxPlayers) {
-      console.log("Game is ready to start.");
-      this.state = "readyToStart";
-    }
-
-    //
-    console.log("Number of players after join: ", this.players);
-    return "Player joined.";
-  }
   deverifyJoinedPlayers() {
     this.players.forEach((player, playerId) => {
       player.joined = false;
@@ -92,7 +86,11 @@ class Game {
         payload: { message: "Game is already started." },
       };
     }
-    if (this.state !== "canStart" || this.state !== "readyToStart") {
+    if (this.state == "canStart" || this.state == "readyToStart") {
+      this.state = "started";
+
+      this.logAction(`${senderplayerId} started the game.`);
+    } else
       return {
         type: "error",
         payload: {
@@ -100,10 +98,6 @@ class Game {
           state: this.state,
         },
       };
-    }
-    this.state = "started";
-
-    this.logAction(`${senderplayerId} started the game.`);
   }
 }
 

@@ -1,13 +1,12 @@
 const WebSocket = require("ws");
-const GameController = require("./gameController");
-const LobbyController = require("./lobbyController");
+const gamesController = require("./gamesController"); // Use the singleton instance
+const LobbyController = require("./LobbyController");
+
+const lobbyController = new LobbyController(gamesController);
 
 const wss = new WebSocket.Server({ port: 8080 }, () => {
   console.log("Relay running on ws://localhost:8080");
 });
-
-const lobbyController = new LobbyController();
-const gameController = new GameController();
 
 // WebSocket Map: playerId -> WebSocket
 const webSocketMap = new Map();
@@ -80,7 +79,7 @@ wss.on("connection", (ws) => {
 
         case "game": {
           console.log("Processing game message:", { action, payload });
-          const response = gameController.processMessage({
+          const response = gamesController.processMessage({
             action,
             payload,
           });
@@ -88,7 +87,7 @@ wss.on("connection", (ws) => {
           // if (type === "game" && action === "join" && payload?.playerId) {
           //   const playerId = payload.playerId;
           //   console.log(`Player ${playerId} joined game.`);
-          //   const refreshResponse = gameController.joinGame(
+          //   const refreshResponse = gamesController.joinGame(
           //     payload.gameId,
           //     playerId
           //   );
@@ -96,7 +95,7 @@ wss.on("connection", (ws) => {
           //     broadcastResponse(refreshResponse);
           //   }
           //   setTimeout(() => {
-          //     broadcastResponse(gameController.updatePlayers());
+          //     broadcastResponse(gamesController.updatePlayers());
           //   }, 5000);
           // }
 

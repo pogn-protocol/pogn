@@ -13,7 +13,6 @@ const App = () => {
   const [lobbyMessage, setLobbyMessage] = useState(null);
   const [gameMessage, setGameMessage] = useState(null);
   const [playerId, setPlayerId] = useState(null); // Only open WebSocket after this is set
-  const [players, setPlayers] = useState([]);
 
   // Memoized WebSocket handlers
   const handleWebSocketMessage = useCallback((data) => {
@@ -93,20 +92,17 @@ const App = () => {
 
         {memoizedLobbyMessage && (
           <Lobby
-            players={players}
             message={memoizedLobbyMessage}
             sendMessage={sendMessage}
             playerId={playerId}
-            onUpdatePlayers={setPlayers}
           />
         )}
 
-        <GameConsole
-          players={players || []}
+        {/* <GameConsole
           message={memoizedGameMessage || { payload: {} }}
           sendMessage={sendMessage}
           playerId={playerId || ""}
-        />
+        /> */}
 
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}
       </div>
