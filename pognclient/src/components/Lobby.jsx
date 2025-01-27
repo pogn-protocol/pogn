@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./css/lobby.css";
 
-const Lobby = ({ message, sendMessage, playerId, setStartGame }) => {
+const Lobby = ({
+  message,
+  sendMessage,
+  playerId,
+  setStartGame,
+  setInitialGameState,
+}) => {
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [hasJoined, setHasJoined] = useState(false); // Track if the player has joined the game
@@ -18,16 +24,24 @@ const Lobby = ({ message, sendMessage, playerId, setStartGame }) => {
   const processedMessagesRef = useRef(new Set());
 
   useEffect(() => {
+    if (!message || processedMessagesRef.current.has(message.unique)) {
+      return;
+    }
+    processedMessagesRef.current.add(message.unique);
+    // Process the message...
+  }, [message]); // Only re-run when `message` changes
+
+  useEffect(() => {
     console.log("lobby");
     if (!message || typeof message !== "object") {
       console.warn("Invalid message object:", message);
       return; // Exit early if message is invalid
     }
 
-    if (!message.unique || processedMessagesRef.current.has(message.unique)) {
-      console.log("Skipping processed message:", message);
-      return;
-    }
+    // if (!message.unique || processedMessagesRef.current.has(message.unique)) {
+    //   console.log("Skipping processed message:", message);
+    //   return;
+    // }
 
     console.log("Processing Lobby message:", message);
     const { action, payload } = message;
@@ -40,70 +54,44 @@ const Lobby = ({ message, sendMessage, playerId, setStartGame }) => {
         setLobbyGames(payload.lobbyGames || []);
         setLobbyPlayers(payload.lobbyPlayers || []);
 
-        // for testing
         // Find the game the player is in
         const playerGame = payload.lobbyGames.find(
           (game) =>
             game.players?.some((player) => player === String(playerId)) &&
-            game.status === "readyToStart" // Game must be ready to start
+            (game.status === "readyToStart" || game.status === "started")
         );
 
         if (playerGame) {
           console.log(
-            `Player ${playerId} is in a game ready to start:`,
+            `Player ${playerId} is in a valid game (readyToStart/started):`,
             playerGame
           );
-          setSelectedGameId(playerGame.gameId);
-        } else {
-          console.log("Player is not in a game ready to start.");
-        }
-        // Check if a game is selected and still exists
-        console.log("Selected Game ID:", selectedGameId);
-        console.log("Games:", payload.lobbyGames);
-        const selectedGame = payload.lobbyGames.find(
-          (game) => game.gameId === playerGame?.gameId
-        );
-        //end testing code
 
-        // const selectedGame = payload.lobbyGames.find(
-        //   (game) => game.gameId === playerGame?.gameId
-        // );
-        console.log("Selected Game:", selectedGame);
-        if (selectedGame) {
-          // If the selected game is still valid, update the game state
+          // Preselect the game
+          setSelectedGameId(playerGame.gameId);
           setSelectedGamestate((prevState) => ({
             ...prevState,
-            ...selectedGame,
+            ...playerGame,
           }));
 
-          // Check if the player is still part of the selected game
-          const isPlayerInGame = selectedGame.players?.some(
+          const isPlayerInGame = playerGame.players?.some(
             (player) => player === String(playerId)
           );
 
           setHasJoined(isPlayerInGame);
-          console.log(
-            `Selected game is valid. Player in game: ${isPlayerInGame}`
-          );
 
-          const joinedGame = payload.lobbyGames.find(
-            (game) =>
-              game.players?.some((player) => player === String(playerId)) &&
-              game.status === "started" // Game must be started
-          );
-
-          if (joinedGame) {
-            console.log(`Player ${playerId} is in a started game:`, joinedGame);
-
-            // Transition to the GameConsole
-            setStartGame(joinedGame);
-          } else {
-            console.log(
-              "Player is not in a started game. Staying in the lobby."
-            );
+          if (playerGame.status === "started") {
+            console.log("Game has started. Transitioning to GameConsole.");
+            setInitialGameState(playerGame);
+            setStartGame(true);
+          } else if (playerGame.status === "readyToStart") {
+            console.log("Game is ready to start. Preparing...");
+            // handleStartGame(playerGame);
           }
         } else {
-          // If the selected game is no longer valid, reset the selected game state
+          console.log("Player is not in any valid game. Staying in the lobby.");
+
+          // Reset the game state
           setSelectedGameId(null);
           setSelectedGamestate({
             players: [],
@@ -114,9 +102,9 @@ const Lobby = ({ message, sendMessage, playerId, setStartGame }) => {
             gameId: "",
           });
           setHasJoined(false);
-          console.log("Selected game is no longer valid. Resetting state.");
         }
         break;
+
       case "verifyPlayer":
         console.log("Verification request received.");
         const verifyMessage = {
@@ -178,7 +166,7 @@ const Lobby = ({ message, sendMessage, playerId, setStartGame }) => {
       type: "lobby",
       action: "startGame",
       payload: {
-        selectedGamestate,
+        // selectedGamestate,
         playerId,
         gameId: selectedGamestate.gameId,
       },

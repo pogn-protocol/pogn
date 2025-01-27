@@ -84,14 +84,14 @@ wss.on("connection", (ws) => {
             );
             console.log("No playerId in payload");
           }
-
+          let response;
           if (action === "login") {
             console.log(`Player ${payload.playerId} logging in.`);
+            //.test insteand of .login
             response = lobbyController.test(payload.playerId);
           } else {
             response = lobbyController.processMessage(action, payload);
           }
-
           if (response) {
             console.log("Lobby response:", response);
             sendToPlayer(payload.playerId, response);

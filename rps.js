@@ -65,7 +65,8 @@ class RockPaperScissors {
     const winner = this.winningRules[choice1] === choice2 ? player1 : player2;
     console.log("winner:", winner, "choice1:", choice1, "choice2:", choice2);
     return {
-      gameAction: "winner",
+      type: "game",
+      action: "winner",
       payload: {
         logEntry: `${winner} wins!`,
         winner,
@@ -73,6 +74,7 @@ class RockPaperScissors {
         choices: { [player1]: choice1, [player2]: choice2 },
         state: this.state,
       },
+      broadcast: true,
     };
   }
 
@@ -89,6 +91,7 @@ class RockPaperScissors {
 
   // Process an action from the client
   processAction(gameAction, playerId) {
+    console.log("gameAction:", gameAction, "playerId:", playerId);
     const choiceResult = this.makeChoice(playerId, gameAction);
     console.log("choiceResult:", choiceResult);
     if (choiceResult.gameAction === "error") {

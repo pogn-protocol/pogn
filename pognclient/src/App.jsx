@@ -13,7 +13,8 @@ const App = () => {
   const [lobbyMessage, setLobbyMessage] = useState(null);
   const [gameMessage, setGameMessage] = useState(null);
   const [playerId, setPlayerId] = useState(null); // Only open WebSocket after this is set
-  const [startGame, setStartGame] = useState({});
+  const [startGame, setStartGame] = useState(false);
+  const [initialGameState, setInitialGameState] = useState({});
 
   // Memoized WebSocket handlers
   const handleWebSocketMessage = useCallback((data) => {
@@ -113,6 +114,7 @@ const App = () => {
             sendMessage={sendMessage}
             playerId={playerId}
             setStartGame={setStartGame}
+            setInitialGameState={setInitialGameState}
           />
         )}
 
@@ -122,7 +124,7 @@ const App = () => {
           <GameConsole
             playerId={playerId}
             message={memoizedMessages.gameMessage || {}}
-            initialGameState={startGame}
+            initialGameState={initialGameState}
             sendMessage={sendMessage}
           />
         )}

@@ -17,6 +17,7 @@ class Lobby {
       inLobby: true, // Default to true when adding a player to the lobby
     });
     this.players.push(player);
+    console.log("Player added to lobby", player);
   }
   verifyPlayer(playerId) {
     const player = this.players.find((p) => p.playerId === playerId);
@@ -87,11 +88,37 @@ class Lobby {
     this.games.push(game);
   }
   getGame(gameId) {
-    return this.games.find((game) => game.gameId === gameId) || null;
+    return this.games.find((game) => game.gameId === gameId);
+  }
+
+  getGameDetails(gameId) {
+    if (!gameId) {
+      console.warn("getGame: gameId is required but not provided.");
+      return null;
+    }
+
+    const game = this.games.find((game) => game.gameId === gameId);
+
+    if (!game) {
+      console.warn(`getGame: Game with ID ${gameId} not found.`);
+      return null;
+    }
+
+    // Return the game in the same format as getLobbyGames
+    return {
+      gameId: game.gameId,
+      gameType: game.gameType,
+      status: game.status,
+      players: Array.from(game.players.keys()), // Convert players map to array
+      gameLog: game.gameLog,
+      instance: game.instance,
+    };
   }
 
   joinLobbyPlayerToGame(gameId, playerId) {
+    //set game status to joining
     const game = this.getGame(gameId);
+
     console.log("Joining player", playerId, "to game", gameId);
     if (!game) {
       return { error: true, message: `Game with ID ${gameId} not found.` };
@@ -101,6 +128,7 @@ class Lobby {
   }
   startGame(gameId, playerId) {
     const game = this.getGame(gameId);
+    console.log("Starting game", gameId, "by player", playerId);
     if (!game) {
       return { error: true, message: `Game with ID ${gameId} not found.` };
     }
@@ -114,7 +142,7 @@ class Lobby {
     if (game.status === "started") {
       return { error: true, message: "Game is already started." };
     }
-    if (game.status !== "readyToStart" || game.status !== "canStart") {
+    if (game.status !== "readyToStart" && game.status !== "canStart") {
       return {
         error: true,
         message: "Game is not ready to start.",

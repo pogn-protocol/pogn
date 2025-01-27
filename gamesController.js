@@ -1,4 +1,5 @@
 const RockPaperScissors = require("./rps");
+const Game = require("./game");
 
 class GamesController {
   constructor() {
@@ -7,43 +8,60 @@ class GamesController {
     this.gameClasses = {
       "rock-paper-scissors": RockPaperScissors, // Register supported games here
     };
+    this.activeGames = new Map(); // Store active game instances
   }
   // Process a received message
   processMessage(message) {
     console.log("Processing game message:", message);
+    const { action, payload } = message;
 
-    const { action, payload, game } = message;
-    const playerId = payload?.playerId;
-
-    if (!payload || !playerId || !payload.gameId) {
+    if (!payload || !payload.gameId) {
       return {
         type: "error",
         payload: { message: "Invalid payload structure." },
       };
     }
 
+    const playerId = payload?.playerId;
+    console.log("Player ID:", playerId);
+    console.log(this.activeGames);
+    let game = this.activeGames.get(payload.gameId);
+
     if (!game) {
-      console.log("Game: ", game);
-      return {
-        type: "error",
-        payload: { message: `Game not found: ${payload.gameId}` },
-      };
+      console.log("Game not found. Creating new game instance.");
+
+      // Retrieve the game type from the payload or default to a type
+      const gameType = payload.game || "rock-paper-scissors";
+
+      // Initialize a new game instance
+      game = new Game(this.gameClasses[gameType]);
+      const gameInstance = new this.gameClasses[gameType]();
+      game.setGameInstance(gameInstance);
+
+      // Add the game to active games
+      this.addActiveGame(payload.gameId, game);
+    }
+    console.log("game", game);
+    // Forward the action to the game instance
+    if (typeof game.instance.processAction === "function") {
+      console.log("Processing game action:", payload.gameAction);
+      return game.instance.processAction(payload.gameAction, playerId);
     }
 
-    switch (action) {
-      case "startGame":
-        return this.startGame(game, playerId);
+    return {
+      error: true,
+      message: `Action ${payload.gameAction} not supported by the game.`,
+    };
+  }
 
-      case "gameAction":
-        return this.gameAction(game, payload.gameAction, playerId);
-
-      default:
-        console.warn(`Unhandled game action: ${action}`);
-        return {
-          type: "error",
-          payload: { message: `Unknown action: ${action}` },
-        };
+  addActiveGame(gameId, gameInstance) {
+    if (this.activeGames.has(gameId)) {
+      console.warn(`Game ${gameId} is already active.`);
+      return;
     }
+
+    this.activeGames.set(gameId, gameInstance);
+    console.log(`Game ${gameId} added to active games.`);
   }
 
   // Start the game
@@ -73,15 +91,13 @@ class GamesController {
     console.log("gameAction result:", gameActionResult);
     game.logAction(gameActionResult.logEntry);
     //throw andconsole and error that reminds us to rebuilt getgameDetails
-
-    throw new Error("Rebuild getGameDetails");
-
+    console.log("game", game);
     return {
       type: "game",
       action: "gameAction",
       payload: {
         ...gameActionResult,
-        game: game.getGameDetails(),
+        game: game,
       },
       broadcast: true,
     };

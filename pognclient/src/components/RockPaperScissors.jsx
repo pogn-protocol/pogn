@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { use } from "react";
 
 const RockPaperScissors = ({ sendMessage, playerId, gameState }) => {
   const [localGameState, setLocalGameState] = useState({
@@ -20,16 +21,22 @@ const RockPaperScissors = ({ sendMessage, playerId, gameState }) => {
       return;
     }
 
-    console.log("RPS message received:", gameAction);
+    // console.log("RPS message received:", gameAction);
+    // useEffect(() => {
+    //   setLocalGameState((prevState) => ({
+    //     ...prevState,
+    //     status: "started",
+    //   }));
+    // }, []);
 
     switch (gameAction) {
-      case "start":
-        console.log("Game started. Players can now choose choices.");
-        setLocalGameState((prevState) => ({
-          ...prevState,
-          status: "started",
-        }));
-        break;
+      // case "start":
+      //   console.log("Game started. Players can now choose choices.");
+      //   setLocalGameState((prevState) => ({
+      //     ...prevState,
+      //     status: "started",
+      //   }));
+      //   break;
 
       case "choiceMade":
         console.log("Choice recorded.");
