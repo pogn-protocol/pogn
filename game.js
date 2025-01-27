@@ -6,7 +6,7 @@ class Game {
     this.gameId = uuidv4();
     this.players = new Map();
     this.gameLog = [];
-    this.state = "joining"; // Possible states: created, joining, started, ended
+    this.status = "waiting"; // Possible status: created, joining, started, ended
     this.instance = null; // Game-specific logic instance (e.g., RockPaperScissors)
   }
 
@@ -31,12 +31,12 @@ class Game {
       Array.from(this.players.keys())
     );
 
-    // Update the game state based on the number of players
+    // Update the game status based on the number of players
     if (this.players.size >= this.instance.maxPlayers) {
-      this.state = "readyToStart";
+      this.status = "readyToStart";
       console.log("The game is ready to start.");
     } else if (this.players.size >= this.instance.minPlayers) {
-      this.state = "canStart";
+      this.status = "canStart";
       console.log("The game can start.");
     }
 
@@ -68,7 +68,7 @@ class Game {
     const instanceDetails = this.instance.getGameDetails(); // Dynamically get details
     return {
       gameId: this.gameId,
-      state: this.state,
+      status: this.status,
       gameType: this.gameType,
       players: Array.from(this.players.keys()),
       gameLog: this.gameLog,
@@ -84,23 +84,23 @@ class Game {
     return null; // No errors
   }
   startGame() {
-    console.log("Starting game.", this.state);
-    if (this.state === "started") {
+    console.log("Starting game.", this.status);
+    if (this.status === "started") {
       return {
         type: "error",
         payload: { message: "Game is already started." },
       };
     }
-    if (this.state == "canStart" || this.state == "readyToStart") {
-      this.state = "started";
+    if (this.status == "canStart" || this.status == "readyToStart") {
+      this.status = "started";
 
       this.logAction(`${senderplayerId} started the game.`);
     } else
       return {
         type: "error",
         payload: {
-          message: "Game is not in a valid state to start.",
-          state: this.state,
+          message: "Game is not in a valid status to start.",
+          status: this.status,
         },
       };
   }

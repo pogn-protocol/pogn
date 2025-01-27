@@ -21,6 +21,9 @@ class LobbyController {
       case "joinGame":
         return this.joinLobbyPlayerToGame(payload);
 
+      case "startGame":
+        return this.startGame(payload);
+
       default:
         console.warn(`Unhandled lobby action: ${action}`);
         return {
@@ -28,6 +31,21 @@ class LobbyController {
           payload: { message: `Unknown action: ${action}` },
         };
     }
+  }
+
+  startGame(payload) {
+    const { gameId, playerId } = payload;
+    this.lobby.startGame(gameId, playerId);
+    console.log(`Player ${playerId} started game ${gameId}`);
+    return {
+      type: "lobby",
+      action: "refreshLobby",
+      payload: {
+        lobbyPlayers: this.lobby.getLobbyPlayers(),
+        lobbyGames: this.lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
   }
 
   joinLobby(playerId) {
@@ -108,6 +126,70 @@ class LobbyController {
       payload: {
         lobbyPlayers: this.lobby.getLobbyPlayers(),
         lobbyGames: games,
+      },
+      broadcast: true,
+    };
+  }
+
+  test(playerId) {
+    console.log(`Player ${playerId} is reconnecting or joining a game.`);
+    let testGame = this.lobby
+      .getLobbyGames()
+      .find((game) => game.status === "joining");
+    console.log("Lobby Games", this.lobby.getLobbyGames());
+    console.log("testGame", testGame);
+    if (!testGame) {
+      //delete all lobby games
+      this.lobby.games = [];
+      this.lobby.players = [];
+      console.log("No available games. Creating a new game.");
+      this.createGame({
+        gameType: "rock-paper-scissors",
+        playerId,
+      });
+      console.log(
+        "Created a new game and added to lobby:",
+        this.lobby.getLobbyGames()
+      );
+      console.log("this.lobby.games", this.lobby.games);
+      this.lobby.games[0].status = "test";
+      testGame = this.lobby.games[0];
+      console.log("testGame", testGame);
+    } else {
+      console.log(`Player ${playerId} is joining an existing game:`, testGame);
+    }
+
+    //Add the player to the lobby
+    this.lobby.joinLobby(playerId, { inLobby: true });
+    // Add the player to the available game
+    this.lobby.joinLobbyPlayerToGame(testGame.gameId, playerId);
+    testGame.status = "joining";
+
+    // Check if the game is now full and should be started
+    if (testGame.players.length === testGame.instance.maxPlayers) {
+      console.log(`Game ${testGame.gameId} is now full. Starting game.`);
+      testGame.status = "started";
+    }
+
+    // Return the updated lobby state if the game is not full
+    return {
+      type: "lobby",
+      action: "refreshLobby",
+      payload: {
+        lobbyPlayers: this.lobby.getLobbyPlayers(),
+        lobbyGames: this.lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
+  }
+
+  refreshLobby() {
+    return {
+      type: "lobby",
+      action: "refreshLobby",
+      payload: {
+        lobbyPlayers: this.lobby.getLobbyPlayers(),
+        lobbyGames: this.lobby.getLobbyGames(),
       },
       broadcast: true,
     };

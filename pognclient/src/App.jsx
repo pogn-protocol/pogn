@@ -13,6 +13,7 @@ const App = () => {
   const [lobbyMessage, setLobbyMessage] = useState(null);
   const [gameMessage, setGameMessage] = useState(null);
   const [playerId, setPlayerId] = useState(null); // Only open WebSocket after this is set
+  const [startGame, setStartGame] = useState({});
 
   // Memoized WebSocket handlers
   const handleWebSocketMessage = useCallback((data) => {
@@ -24,12 +25,23 @@ const App = () => {
 
     switch (data.type) {
       case "lobby":
-        console.log("Setting lobby message:", data);
-        setLobbyMessage(data);
+        setLobbyMessage((prevMessage) => {
+          // Avoid redundant updates
+          if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
+            return prevMessage;
+          }
+          return data;
+        });
         break;
 
       case "game":
-        setGameMessage(data);
+        setGameMessage((prevMessage) => {
+          // Avoid redundant updates
+          if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
+            return prevMessage;
+          }
+          return data;
+        });
         break;
 
       case "chat":
@@ -67,8 +79,13 @@ const App = () => {
     }
   );
 
-  const memoizedLobbyMessage = useMemo(() => lobbyMessage, [lobbyMessage]);
-  const memoizedGameMessage = useMemo(() => gameMessage, [gameMessage]);
+  const memoizedMessages = useMemo(() => {
+    return {
+      lobbyMessage,
+      gameMessage,
+      messages,
+    };
+  }, [lobbyMessage, gameMessage, messages]);
 
   return (
     <ErrorBoundary>
@@ -90,20 +107,25 @@ const App = () => {
           </div>
         )} */}
 
-        {memoizedLobbyMessage && (
+        {memoizedMessages.lobbyMessage && (
           <Lobby
-            message={memoizedLobbyMessage}
+            message={memoizedMessages.lobbyMessage}
             sendMessage={sendMessage}
             playerId={playerId}
+            setStartGame={setStartGame}
           />
         )}
 
-        {/* <GameConsole
-          message={memoizedGameMessage || { payload: {} }}
-          sendMessage={sendMessage}
-          playerId={playerId || ""}
-        /> */}
-
+        {!startGame ? (
+          <p>Waiting for game to start...</p>
+        ) : (
+          <GameConsole
+            playerId={playerId}
+            message={memoizedMessages.gameMessage || {}}
+            initialGameState={startGame}
+            sendMessage={sendMessage}
+          />
+        )}
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}
       </div>
     </ErrorBoundary>

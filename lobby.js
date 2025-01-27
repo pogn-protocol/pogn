@@ -36,6 +36,11 @@ class Lobby {
     this.players = this.players.filter((p) => p !== player);
   }
 
+  removeGame(gameId) {
+    this.games = this.games.filter((game) => game.gameId !== gameId);
+    console.log(`Game ${gameId} removed from the lobby.`);
+  }
+
   deverifyLobbyPlayers() {
     this.players.forEach((p) => (p.inLobby = false));
   }
@@ -72,7 +77,7 @@ class Lobby {
     return this.games.map((game) => ({
       gameId: game.gameId,
       gameType: game.gameType,
-      state: game.state,
+      status: game.status,
       players: Array.from(game.players.keys()), // Convert players map to array
       gameLog: game.gameLog,
       instance: game.instance,
@@ -92,6 +97,31 @@ class Lobby {
       return { error: true, message: `Game with ID ${gameId} not found.` };
     }
     game.addPlayer(playerId);
+    return game;
+  }
+  startGame(gameId, playerId) {
+    const game = this.getGame(gameId);
+    if (!game) {
+      return { error: true, message: `Game with ID ${gameId} not found.` };
+    }
+    //check if player is in the game
+    if (!game.players.has(playerId)) {
+      return {
+        error: true,
+        message: `Player ${playerId} can't start the game because they are not in the game.`,
+      };
+    }
+    if (game.status === "started") {
+      return { error: true, message: "Game is already started." };
+    }
+    if (game.status !== "readyToStart" || game.status !== "canStart") {
+      return {
+        error: true,
+        message: "Game is not ready to start.",
+      };
+    }
+    game.status = "started";
+    game.startGame();
     return game;
   }
 }

@@ -50,9 +50,29 @@ wss.on("connection", (ws) => {
         case "lobby": {
           console.log("Processing lobby message:", { action, payload });
 
-          //check and reg websockets
-
+          // Check and register WebSocket
           if (payload?.playerId) {
+            const existingSocket = webSocketMap.get(payload.playerId);
+            if (existingSocket && existingSocket !== ws) {
+              console.log(
+                `Player ${payload.playerId} reconnected. Replacing old WebSocket.`
+              );
+              existingSocket.send(
+                JSON.stringify({
+                  type: "notification",
+                  payload: {
+                    message:
+                      "You have been disconnected due to a new connection.",
+                  },
+                })
+              );
+              existingSocket.close();
+              webSocketMap.delete(payload.playerId);
+            } else if (existingSocket === ws) {
+              console.log(`Player ${payload.playerId} reconnected.`);
+            }
+
+            // Add or replace WebSocket for the player
             webSocketMap.set(payload.playerId, ws);
             console.log(`Player ${payload.playerId} added to WebSocket map.`);
           } else {
@@ -64,7 +84,13 @@ wss.on("connection", (ws) => {
             );
             console.log("No playerId in payload");
           }
-          const response = lobbyController.processMessage(action, payload);
+
+          if (action === "login") {
+            console.log(`Player ${payload.playerId} logging in.`);
+            response = lobbyController.test(payload.playerId);
+          } else {
+            response = lobbyController.processMessage(action, payload);
+          }
 
           if (response) {
             console.log("Lobby response:", response);

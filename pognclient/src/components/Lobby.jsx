@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./css/lobby.css";
 
-const Lobby = ({ message, sendMessage, playerId }) => {
+const Lobby = ({ message, sendMessage, playerId, setStartGame }) => {
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [hasJoined, setHasJoined] = useState(false); // Track if the player has joined the game
   const [isJoining, setIsJoining] = useState(false);
-  const [gameState, setGameState] = useState({
+  const [selectedGamestate, setSelectedGamestate] = useState({
     players: [],
     status: "ready-to-join",
     maxPlayers: 0,
@@ -40,14 +40,38 @@ const Lobby = ({ message, sendMessage, playerId }) => {
         setLobbyGames(payload.lobbyGames || []);
         setLobbyPlayers(payload.lobbyPlayers || []);
 
-        // Check if a game is selected and still exists
-        const selectedGame = payload.lobbyGames.find(
-          (game) => game.gameId === selectedGameId
+        // for testing
+        // Find the game the player is in
+        const playerGame = payload.lobbyGames.find(
+          (game) =>
+            game.players?.some((player) => player === String(playerId)) &&
+            game.status === "readyToStart" // Game must be ready to start
         );
 
+        if (playerGame) {
+          console.log(
+            `Player ${playerId} is in a game ready to start:`,
+            playerGame
+          );
+          setSelectedGameId(playerGame.gameId);
+        } else {
+          console.log("Player is not in a game ready to start.");
+        }
+        // Check if a game is selected and still exists
+        console.log("Selected Game ID:", selectedGameId);
+        console.log("Games:", payload.lobbyGames);
+        const selectedGame = payload.lobbyGames.find(
+          (game) => game.gameId === playerGame?.gameId
+        );
+        //end testing code
+
+        // const selectedGame = payload.lobbyGames.find(
+        //   (game) => game.gameId === playerGame?.gameId
+        // );
+        console.log("Selected Game:", selectedGame);
         if (selectedGame) {
           // If the selected game is still valid, update the game state
-          setGameState((prevState) => ({
+          setSelectedGamestate((prevState) => ({
             ...prevState,
             ...selectedGame,
           }));
@@ -61,10 +85,27 @@ const Lobby = ({ message, sendMessage, playerId }) => {
           console.log(
             `Selected game is valid. Player in game: ${isPlayerInGame}`
           );
+
+          const joinedGame = payload.lobbyGames.find(
+            (game) =>
+              game.players?.some((player) => player === String(playerId)) &&
+              game.status === "started" // Game must be started
+          );
+
+          if (joinedGame) {
+            console.log(`Player ${playerId} is in a started game:`, joinedGame);
+
+            // Transition to the GameConsole
+            setStartGame(joinedGame);
+          } else {
+            console.log(
+              "Player is not in a started game. Staying in the lobby."
+            );
+          }
         } else {
           // If the selected game is no longer valid, reset the selected game state
           setSelectedGameId(null);
-          setGameState({
+          setSelectedGamestate({
             players: [],
             status: "ready-to-join",
             maxPlayers: 0,
@@ -114,15 +155,14 @@ const Lobby = ({ message, sendMessage, playerId }) => {
 
       // Check if the current player is in the game's players list
       const isPlayerInGame =
-        selectedGame.players?.some(
-          (player) => player?.playerId === String(playerId)
-        ) || false;
+        selectedGame.players?.some((player) => player === String(playerId)) ||
+        false;
       console.log("isPlayerInGame", isPlayerInGame);
       // Update states
       setIsJoining(false);
       setHasJoined(isPlayerInGame); // Correctly update hasJoined state
       setSelectedGameId(gameId); // Highlight the selected game
-      setGameState((prevState) => ({
+      setSelectedGamestate((prevState) => ({
         ...prevState,
         ...selectedGame,
       }));
@@ -132,13 +172,16 @@ const Lobby = ({ message, sendMessage, playerId }) => {
       );
     }
   };
-
   const handleStartGame = () => {
-    console.log("Starting game...", gameState.gameId);
+    console.log("Starting game...", selectedGamestate.gameId);
     sendMessage({
       type: "lobby",
       action: "startGame",
-      payload: { gameId },
+      payload: {
+        selectedGamestate,
+        playerId,
+        gameId: selectedGamestate.gameId,
+      },
     });
   };
 
@@ -168,7 +211,7 @@ const Lobby = ({ message, sendMessage, playerId }) => {
   };
 
   const handleJoinGame = () => {
-    console.log(`${playerId} joining game... ${gameState.gameId}`);
+    console.log(`${playerId} joining game... ${selectedGamestate.gameId}`);
     setIsJoining(true);
     sendMessage({
       type: "lobby",
@@ -176,7 +219,7 @@ const Lobby = ({ message, sendMessage, playerId }) => {
       payload: {
         game: "rock-paper-scissors",
         playerId,
-        gameId: gameState.gameId,
+        gameId: selectedGamestate.gameId,
       },
     });
   };
@@ -185,7 +228,7 @@ const Lobby = ({ message, sendMessage, playerId }) => {
     <div className="lobby">
       <div className="selectedGameState">
         <h2>Game State</h2>
-        <pre>{JSON.stringify(gameState, null, 2)}</pre>
+        <pre>{JSON.stringify(selectedGamestate, null, 2)}</pre>
       </div>
       <h2>Lobby</h2>
       <p>Players in Lobby: {lobbyPlayers.length}</p>
@@ -208,15 +251,16 @@ const Lobby = ({ message, sendMessage, playerId }) => {
           hasJoined ||
           isJoining ||
           lobbyPlayers.length === 0 ||
-          !gameState.gameId ||
-          gameState.players.length >= gameState.instance.maxPlayers
+          !selectedGamestate.gameId ||
+          selectedGamestate.players.length >=
+            selectedGamestate.instance.maxPlayers
         }
       >
         {console.log({
           hasJoined,
           isJoining,
           lobbyPlayersLength: lobbyPlayers.length,
-          gameId: gameState.gameId,
+          gameId: selectedGamestate.gameId,
         })}
         {hasJoined
           ? "Joined" // If the player has joined
@@ -227,8 +271,8 @@ const Lobby = ({ message, sendMessage, playerId }) => {
 
       {hasJoined &&
         selectedGameId &&
-        (gameState.state === "canStart" ||
-          gameState.state === "readyToStart") && (
+        (selectedGamestate.status === "canStart" ||
+          selectedGamestate.status === "readyToStart") && (
           <button
             onClick={() => handleStartGame(selectedGameId)}
             disabled={
