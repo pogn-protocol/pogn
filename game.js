@@ -93,8 +93,12 @@ class Game {
     }
     if (this.status == "canStart" || this.status == "readyToStart") {
       this.status = "started";
+      console.log(this.players, typeof this.players);
+      let players = Array.from(this.players.keys());
+      console.log(players);
+      this.instance.players = Array.from(this.players.keys());
 
-      this.logAction(`${senderplayerId} started the game.`);
+      this.logAction(`Game started.`);
     } else
       return {
         type: "error",

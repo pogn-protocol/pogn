@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import RockPaperScissors from "./RockPaperScissors";
+import OddsAndEvens from "./oddsAndEvens";
 
 const GameConsole = ({
   message = {},
@@ -9,12 +10,6 @@ const GameConsole = ({
 }) => {
   const [gameState, setGameState] = useState({
     ...initialGameState,
-    // players: initialGameState.players || [],
-    // status: initialGameState.status || "ready-to-join",
-    // maxPlayers: initialGameState.maxPlayers || 2,
-    // minPlayers: initialGameState.minPlayers || 2,
-    // gameAction: "",
-    // gameId: initialGameState.gameId || "",
   });
   const processedMessagesRef = useRef(new Set());
 
@@ -23,9 +18,7 @@ const GameConsole = ({
       return;
     }
     processedMessagesRef.current.add(message.unique);
-    // Process the message...
-  }, [message]); // Only re-run when `message` changes
-
+  }, [message]);
   const [gameStarted, setGameStarted] = useState(
     initialGameState.status === "started"
   );
@@ -33,7 +26,7 @@ const GameConsole = ({
   useEffect(() => {
     if (!message || typeof message !== "object") {
       console.warn("Invalid message object:", message);
-      return; // Exit early if message is invalid
+      return;
     }
 
     console.log("Processing Game message:", message);
@@ -42,10 +35,6 @@ const GameConsole = ({
     processedMessagesRef.current.add(message.unique);
 
     switch (action) {
-      case "startGame":
-        console.log("Game started:", payload);
-        setGameStarted(true);
-        break;
       case "gameAction":
         console.log("Game action received:", payload);
         setGameState((prevState) => ({
@@ -53,9 +42,8 @@ const GameConsole = ({
           ...payload,
         }));
         break;
-      case "winner":
+      case "results":
         console.log("Game finished. Winner determined.");
-        // Example structure for gameState: include winner, loser, choices, or flags
         setGameState((prevState) => ({
           ...prevState,
           status: "complete",
@@ -63,13 +51,35 @@ const GameConsole = ({
           loser: payload.loser,
           choices: payload.choices,
         }));
-
         break;
 
       default:
         console.warn(`Unhandled action: ${action}`);
     }
   }, [message]);
+
+  const renderGameComponent = () => {
+    switch (gameState.gameType) {
+      case "rock-paper-scissors":
+        return (
+          <RockPaperScissors
+            sendMessage={sendMessage}
+            playerId={playerId}
+            gameState={gameState}
+          />
+        );
+      case "odds-and-evens":
+        return (
+          <OddsAndEvens
+            sendMessage={sendMessage}
+            playerId={playerId}
+            gameState={gameState}
+          />
+        );
+      default:
+        return <p>Game type not supported.</p>;
+    }
+  };
 
   return (
     <div>
@@ -78,11 +88,7 @@ const GameConsole = ({
       <pre>Game State: {JSON.stringify(gameState, null, 2)}</pre>
 
       {gameStarted ? (
-        <RockPaperScissors
-          sendMessage={sendMessage}
-          playerId={playerId}
-          gameState={gameState}
-        />
+        <>{renderGameComponent()}</>
       ) : (
         <p>Waiting for game to start...</p>
       )}

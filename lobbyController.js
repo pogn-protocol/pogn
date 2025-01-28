@@ -38,34 +38,38 @@ class LobbyController {
     const { gameId, playerId } = payload;
 
     // Call the Lobby's startGame method
-    const game = this.lobby.startGame(gameId, playerId);
+    try {
+      const game = this.lobby.startGame(gameId, playerId);
 
-    if (game.error) {
-      console.error(`Error starting game: ${game.message}`);
+      if (game.error) {
+        console.error(`Error starting game: ${game.message}`);
+        return {
+          type: "error",
+          action: "startGameFailed",
+          payload: { message: game.message },
+        };
+      }
+
+      console.log("game", game);
+      this.gamesController.addActiveGame(gameId, game);
+      console.log(this.gamesController.activeGames);
+
+      console.log(`Player ${playerId} started game ${gameId}`);
+      const players = this.lobby.getLobbyPlayers();
+      const games = this.lobby.getLobbyGames();
+      console.log("players", players, "games", games);
       return {
-        type: "error",
-        action: "startGameFailed",
-        payload: { message: game.message },
+        type: "lobby",
+        action: "refreshLobby",
+        payload: {
+          lobbyPlayers: players,
+          lobbyGames: games,
+        },
+        broadcast: true,
       };
+    } catch (error) {
+      console.error(`Error starting game: ${error.message}`);
     }
-
-    console.log("game", game);
-    this.gamesController.addActiveGame(gameId, game);
-    console.log(this.gamesController.activeGames);
-
-    console.log(`Player ${playerId} started game ${gameId}`);
-    const players = this.lobby.getLobbyPlayers();
-    const games = this.lobby.getLobbyGames();
-    console.log("players", players, "games", games);
-    return {
-      type: "lobby",
-      action: "refreshLobby",
-      payload: {
-        lobbyPlayers: players,
-        lobbyGames: games,
-      },
-      broadcast: true,
-    };
   }
 
   joinLobby(playerId) {
@@ -165,7 +169,7 @@ class LobbyController {
       this.lobby.players = [];
       console.log("No available games. Creating a new game.");
       this.createGame({
-        gameType: "rock-paper-scissors",
+        gameType: "odds-and-evens",
         playerId,
       });
       console.log(

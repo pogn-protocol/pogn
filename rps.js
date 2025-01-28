@@ -66,7 +66,7 @@ class RockPaperScissors {
     console.log("winner:", winner, "choice1:", choice1, "choice2:", choice2);
     return {
       type: "game",
-      action: "winner",
+      action: "results",
       payload: {
         logEntry: `${winner} wins!`,
         winner,

@@ -1,4 +1,5 @@
 const RockPaperScissors = require("./rps");
+const OddsAndEvens = require("./oddsAndEvens");
 const Game = require("./game");
 
 class GamesController {
@@ -7,6 +8,7 @@ class GamesController {
     GamesController.instance = this; // Singleton instance// Store active games
     this.gameClasses = {
       "rock-paper-scissors": RockPaperScissors, // Register supported games here
+      "odds-and-evens": OddsAndEvens,
     };
     this.activeGames = new Map(); // Store active game instances
   }
@@ -45,7 +47,7 @@ class GamesController {
     // Forward the action to the game instance
     if (typeof game.instance.processAction === "function") {
       console.log("Processing game action:", payload.gameAction);
-      return game.instance.processAction(payload.gameAction, playerId);
+      return game.instance.processAction(payload.gameAction, playerId, payload);
     }
 
     return {
@@ -66,6 +68,7 @@ class GamesController {
 
   // Start the game
   startGame(game) {
+    console.log("Starting game. Status", game.status);
     game.startGame();
 
     return {
@@ -86,7 +89,11 @@ class GamesController {
       "from player:",
       playerId
     );
-    const gameActionResult = game.instance.processAction(gameAction, playerId);
+    const gameActionResult = game.instance.processAction(
+      gameAction,
+      playerId,
+      payload
+    );
 
     console.log("gameAction result:", gameActionResult);
     game.logAction(gameActionResult.logEntry);

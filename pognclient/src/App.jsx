@@ -95,19 +95,6 @@ const App = () => {
         {/* Generate playerId in Player component */}
         <Player setPlayerId={setPlayerId} />
         {playerId && <Dashboard playerName="Player" playerId={playerId} />}
-        {/* Uncomment other components as needed */}
-
-        {/* {memoizedLobbyMessage && (
-          <div>
-            <h3>Debugging memoizedLobbyMessage</h3>
-            <pre>{JSON.stringify(memoizedLobbyMessage, null, 2)}</pre>
-            <h4>Players:</h4>
-            <pre>{JSON.stringify(players, null, 2)}</pre>
-            <h4>Player ID:</h4>
-            <pre>{playerId}</pre>
-          </div>
-        )} */}
-
         {memoizedMessages.lobbyMessage && (
           <Lobby
             message={memoizedMessages.lobbyMessage}

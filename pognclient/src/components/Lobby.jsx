@@ -12,6 +12,7 @@ const Lobby = ({
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [hasJoined, setHasJoined] = useState(false); // Track if the player has joined the game
   const [isJoining, setIsJoining] = useState(false);
+  const [selectedGameType, setSelectedGameType] = useState("odds-and-evens");
   const [selectedGamestate, setSelectedGamestate] = useState({
     players: [],
     status: "ready-to-join",
@@ -35,13 +36,8 @@ const Lobby = ({
     console.log("lobby");
     if (!message || typeof message !== "object") {
       console.warn("Invalid message object:", message);
-      return; // Exit early if message is invalid
+      return;
     }
-
-    // if (!message.unique || processedMessagesRef.current.has(message.unique)) {
-    //   console.log("Skipping processed message:", message);
-    //   return;
-    // }
 
     console.log("Processing Lobby message:", message);
     const { action, payload } = message;
@@ -81,8 +77,13 @@ const Lobby = ({
           setHasJoined(isPlayerInGame);
 
           if (playerGame.status === "started") {
-            console.log("Game has started. Transitioning to GameConsole.");
-            setInitialGameState(playerGame);
+            console.log(
+              "Game has started. Transitioning to GameConsole.",
+              playerGame
+            );
+            setInitialGameState({
+              ...playerGame,
+            });
             setStartGame(true);
           } else if (playerGame.status === "readyToStart") {
             console.log("Game is ready to start. Preparing...");
@@ -191,7 +192,7 @@ const Lobby = ({
       type: "lobby",
       action: "createNewGame",
       payload: {
-        gameType: "rock-paper-scissors",
+        gameType: selectedGameType, // Include game type
         playerId,
         gameId: "new",
       },
@@ -231,7 +232,15 @@ const Lobby = ({
           <li>No players connected yet</li>
         )}
       </ul>
+      <select
+        value={selectedGameType}
+        onChange={(e) => setSelectedGameType(e.target.value)}
+      >
+        <option value="rock-paper-scissors">Rock Paper Scissors</option>
+        <option value="odds-and-evens">Odds and Evens</option>
+      </select>
       <button onClick={handleCreateGame}>Create Game</button>
+
       <button onClick={handleListGames}>List Games</button>
       <button
         onClick={handleJoinGame}

@@ -90,6 +90,9 @@ wss.on("connection", (ws) => {
             //.test insteand of .login
             response = lobbyController.test(payload.playerId);
           } else {
+            console.log(`Else`);
+            console.log("Else lobby action:", { action, payload });
+            // const response = lobbyController.processMessage(action, payload);
             response = lobbyController.processMessage(action, payload);
           }
           if (response) {

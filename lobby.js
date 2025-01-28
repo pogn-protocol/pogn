@@ -148,7 +148,6 @@ class Lobby {
         message: "Game is not ready to start.",
       };
     }
-    game.status = "started";
     game.startGame();
     return game;
   }
