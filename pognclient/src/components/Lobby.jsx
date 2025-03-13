@@ -51,10 +51,14 @@ const Lobby = ({
         setLobbyPlayers(payload.lobbyPlayers || []);
 
         // Find the game the player is in
+        // const playerGame = payload.lobbyGames.find(
+        //   (game) =>
+        //     game.players?.some((player) => player === String(playerId)) &&
+        //     (game.status === "readyToStart" || game.status === "started")
+        // );
+
         const playerGame = payload.lobbyGames.find(
-          (game) =>
-            game.players?.some((player) => player === String(playerId)) &&
-            (game.status === "readyToStart" || game.status === "started")
+          (game) => game.gameId === selectedGameId // ✅ Use the game that was actually selected
         );
 
         if (playerGame) {
@@ -187,7 +191,7 @@ const Lobby = ({
   };
 
   const handleCreateGame = () => {
-    console.log(`${playerId} creating game...`);
+    console.log(`${playerId} creating game of type ${selectedGameType}`);
     sendMessage({
       type: "lobby",
       action: "createNewGame",
@@ -271,7 +275,7 @@ const Lobby = ({
         (selectedGamestate.status === "canStart" ||
           selectedGamestate.status === "readyToStart") && (
           <button
-            onClick={() => handleStartGame(selectedGameId)}
+            onClick={handleStartGame}
             disabled={
               Object.keys(
                 lobbyGames.find((game) => game.gameId === selectedGameId)

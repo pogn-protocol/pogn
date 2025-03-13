@@ -1,17 +1,44 @@
 {
   "name": "pogn",
   "version": "1.0.0",
-  "description": "",
+  "description": "In order to decentralize the poker industry we need a proof of concept which is modular enough to evolve into a full fledged protocol in which other poker sites and skin’s can use for the basis of their projects.",
   "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "nostr-tools": "^2.10.4",
-    "uuid": "^11.0.5",
-    "ws": "^8.18.0"
-  }
+    "browserslist": "^4.24.4",
+    "caniuse-lite": "^1.0.30001703",
+    "convert-source-map": "^2.0.0",
+    "debug": "^4.4.0",
+    "electron-to-chromium": "^1.5.114",
+    "esbuild": "^0.25.1",
+    "escalade": "^3.2.0",
+    "gensync": "^1.0.0-beta.2",
+    "globals": "^11.12.0",
+    "js-tokens": "^4.0.0",
+    "jsesc": "^3.1.0",
+    "json5": "^2.2.3",
+    "lru-cache": "^5.1.1",
+    "ms": "^2.1.3",
+    "nanoid": "^3.3.9",
+    "node-releases": "^2.0.19",
+    "picocolors": "^1.1.1",
+    "postcss": "^8.5.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-refresh": "^0.14.2",
+    "rollup": "^4.35.0",
+    "scheduler": "^0.25.0",
+    "semver": "^6.3.1",
+    "source-map-js": "^1.2.1",
+    "update-browserslist-db": "^1.1.3",
+    "uuid": "^11.1.0",
+    "vite": "^6.2.1",
+    "ws": "^8.18.1",
+    "yallist": "^3.1.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC"
 }

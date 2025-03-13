@@ -1,0 +1,40 @@
+pogn/
+├── gamingHub/           # Manages multiple casinos, lobbies, and games
+│   ├── GamingHub.js     # Main class that manages casinos
+│   ├── Casino.js        # Represents a casino, can create lobbies & games
+│   ├── Lobby.js         # Represents a lobby, can create/join games
+│   ├── Game.js          # Game entity with its own rules and permissions
+├── configs/             # Configuration files (separate from logic)
+│   ├── serverConfig.js  # Server settings
+│   ├── databaseConfig.js # DB connection settings
+│   ├── relayConfig.js   # Relay settings
+│   ├── permissionsConfig.js # Default role-based access control
+├── db/                  # Shared state database (for coordination)
+│   ├── dbClient.js      # Handles connections (SQLite/Postgres/etc.)
+│   ├── stateController.js # Manages player/game state sync
+│   ├── migrations/      # Schema & migrations for database
+├── controllers/         # Business logic separate from models
+│   ├── gamingHubController.js  # High-level control over gaming hub
+│   ├── casinoController.js     # Controls casino functions
+│   ├── lobbyController.js      # Controls lobby actions
+│   ├── gameController.js       # Handles game operations
+│   ├── playerController.js     # Manages player actions.
+├── moneyServices/       # Handles transactions, escrow, and balances
+│   ├── accountService.js # Player account/balance management
+│   ├── escrowService.js  # Crypto/fiat external payment handling
+│   ├── transactionLedger.js # Local ledger for in-game transactions
+├── permissions/         # Centralized access control (not inside entity folders)
+│   ├── permissionManager.js # Validates who can do what
+│   ├── roleDefinitions.js  # Defines permission structures
+├── relayServices/       # Manages WebSocket relays for real-time updates
+│   ├── RelayGenerator.js # Creates/manages WebSocket relays dynamically
+│   ├── RelayManager.js   # Oversees multiple relay instances
+│   ├── handlers/
+│   │   ├── casinoHandler.js # Handles casino-level WebSocket events
+│   │   ├── lobbyHandler.js  # Handles lobby interactions
+│   │   ├── gameHandler.js   # Handles in-game messages
+├── validations/         # Keeps validation separate from entities
+│   ├── playerValidation.js # Ensures valid player data
+│   ├── gameValidation.js  # Enforces game rules and state
+│   ├── lobbyValidation.js # Validates lobby configurations
+└── README.md           # Project documentation

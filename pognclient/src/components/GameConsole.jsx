@@ -24,7 +24,7 @@ const GameConsole = ({
   );
 
   useEffect(() => {
-    if (!message || typeof message !== "object") {
+    if (!message || !message.action || !message.payload) {
       console.warn("Invalid message object:", message);
       return;
     }
@@ -59,6 +59,7 @@ const GameConsole = ({
   }, [message]);
 
   const renderGameComponent = () => {
+    console.log("Rendering game component:", gameState.gameType);
     switch (gameState.gameType) {
       case "rock-paper-scissors":
         return (
