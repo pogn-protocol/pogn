@@ -55,11 +55,16 @@ class Lobby {
   getLobbyPlayers() {
     // console.log("Getting lobby players...");
     // this.removeUnverifiedPlayers();
-    console.log("Returning lobby players...");
+    console.log("Lobby players...", this.players);
+    console.log(
+      "Returning lobby players...",
+      this.players.filter((p) => p.inLobby)
+    );
     return this.players.filter((p) => p.inLobby);
   }
 
   getLobbyGames() {
+    console.log("Getting lobby games...", this.games);
     return this.games.map((game) => ({
       gameId: game.gameId,
       gameType: game.gameType,

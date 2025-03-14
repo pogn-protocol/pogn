@@ -7,11 +7,27 @@ const GameConsole = ({
   sendMessage,
   playerId = "",
   initialGameState = {},
+  setStartGameConsole,
+  processedMessagesRef,
 }) => {
   const [gameState, setGameState] = useState({
     ...initialGameState,
   });
-  const processedMessagesRef = useRef(new Set());
+  // const processedMessagesRef = useRef(new Set());
+
+  // useEffect(() => {
+  //   if (!message || processedMessagesRef.current.has(message.unique)) {
+  //     return;
+  //   }
+  //   processedMessagesRef.current.add(message.unique);
+  // }, [message]);
+
+  //   useEffect(() => {
+  //     if (!message || processedMessages.current.has(message.unique)) {
+  //         return;
+  //     }
+  //     processedMessages.current.add(message.unique);
+  // }, [message]);
 
   useEffect(() => {
     if (!message || processedMessagesRef.current.has(message.unique)) {
@@ -19,13 +35,19 @@ const GameConsole = ({
     }
     processedMessagesRef.current.add(message.unique);
   }, [message]);
+
   const [gameStarted, setGameStarted] = useState(
     initialGameState.status === "started"
   );
 
   useEffect(() => {
-    if (!message || !message.action || !message.payload) {
-      console.warn("Invalid message object:", message);
+    if (
+      !message ||
+      Object.keys(message).length === 0 ||
+      !message.action ||
+      !message.payload
+    ) {
+      console.warn("⚠️ Skipping empty or invalid message:", message);
       return;
     }
 
@@ -51,6 +73,14 @@ const GameConsole = ({
           loser: payload.loser,
           choices: payload.choices,
         }));
+        break;
+      case "gameEnded":
+        console.log("Game ended.");
+        //clear the game state
+        setGameState({});
+        setStartGameConsole(false);
+        setGameStarted(false);
+
         break;
 
       default:

@@ -33,3 +33,4 @@ dist-ssr
 /.pognclientOld/
 /.quank/
 /.vscode/
+/pognclient/node_modules/

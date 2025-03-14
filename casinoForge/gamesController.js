@@ -3,7 +3,7 @@ const OddsAndEvens = require("./oddsAndEvens");
 const Game = require("./game");
 
 class GamesController {
-  constructor() {
+  constructor(gamePorts = []) {
     if (GamesController.instance) return GamesController.instance;
     GamesController.instance = this; // Singleton instance// Store active games
     this.gameClasses = {
@@ -11,6 +11,7 @@ class GamesController {
       "odds-and-evens": OddsAndEvens,
     };
     this.activeGames = new Map(); // Store active game instances
+    this.gamePorts = gamePorts; // Store available game ports
   }
 
   processMessage(message) {
@@ -44,6 +45,7 @@ class GamesController {
   createGame(gameType, playerId) {
     console.log("Creating game", gameType, "by player", playerId);
     const game = new Game(gameType);
+    game.gamePorts = this.gamePorts;
     const gameInstance = new this.gameClasses[gameType]();
     game.setGameInstance(gameInstance);
     return game;
@@ -142,6 +144,21 @@ class GamesController {
       console.log("The game can start.");
     }
     return game;
+  }
+
+  endGame(gameId) {
+    const game = this.activeGames.get(gameId);
+    if (!game) {
+      console.warn(`⚠️ Cannot end game ${gameId}: Not found.`);
+      return;
+    }
+
+    console.log(`🛑 Ending game ${gameId}`);
+    game.status = "ended";
+    game.gameLog.push("Game ended.");
+
+    // ✅ Remove from active games
+    this.activeGames.delete(gameId);
   }
 }
 module.exports = GamesController;

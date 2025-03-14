@@ -1,55 +1,90 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+
+const RECONNECT_DELAY = 10000; // 🔥 2-second debounce for reconnections
 
 const useWebSocket = (url, { onOpen, onMessage }) => {
   const [ws, setWs] = useState(null);
+  const [attemptReconnect, setAttemptReconnect] = useState(false);
+  const reconnectTimer = useRef(null); // ✅ Prevent multiple timers
 
   useEffect(() => {
-    if (!url) return; // Do not open WebSocket if URL is not set
+    if (ws) {
+      console.log("WebSocket already exists", ws);
+    }
+    if (url) {
+      console.log("WebSocket URL", url);
+    }
 
+    if (!url || ws) return; // ✅ Avoid creating multiple connections
+    console.log("🌐 Attempting WebSocket connection to:", url);
     const socket = new WebSocket(url);
-    console.log("WebSocket connecting...");
 
     socket.onopen = () => {
-      console.log("WebSocket connected");
+      console.log(`✅ WebSocket connected to ${url}`);
       setWs(socket);
-      if (onOpen) onOpen(socket); // Call onOpen callback
+      setAttemptReconnect(false); // ✅ Reset reconnection flag
+      if (onOpen) onOpen(socket);
     };
 
     socket.onmessage = (event) => {
       if (onMessage) {
-        const data = JSON.parse(event.data);
-        console.log("Message received:", data);
-        onMessage(data);
+        try {
+          const data = JSON.parse(event.data);
+          console.log(`📨 Message received from ${url}:`, data);
+          onMessage(data);
+        } catch (err) {
+          console.error("❌ Failed to parse WebSocket message:", err);
+        }
       }
     };
 
     socket.onclose = () => {
-      console.warn("WebSocket disconnected");
+      console.warn(`⚠️ WebSocket disconnected from ${url}`);
       setWs(null);
+
+      // if (!attemptReconnect) {
+      //   setAttemptReconnect(true);
+
+      //   // ✅ Prevent multiple reconnection timers from stacking
+      //   if (reconnectTimer.current) {
+      //     clearTimeout(reconnectTimer.current);
+      //   }
+
+      //   reconnectTimer.current = setTimeout(() => {
+      //     console.log(
+      //       `🤖 Reconnecting WebSocket to ${url} after ${
+      //         RECONNECT_DELAY / 1000
+      //       }s...`
+      //     );
+      //     setWs(null); // ✅ Reset before retrying
+      //   }, RECONNECT_DELAY);
+      // }
     };
 
     socket.onerror = (err) => {
-      console.error("WebSocket error:", err);
+      console.error(`🚨 WebSocket error at ${url}:`, err);
     };
 
     return () => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.close();
-        console.log("WebSocket closed");
+        // console.log(`🔴 WebSocket manually closed at ${url}`);
       }
     };
-  }, [url, onOpen, onMessage]);
+  }, [url, onOpen, onMessage, attemptReconnect]);
 
   const sendMessage = useCallback(
     (message) => {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(message));
-        console.log("Message sent:", message);
+        console.log("📤 Message sent:", message);
       } else {
-        console.warn("WebSocket is not connected.");
+        console.warn(
+          `❌ Cannot send message, WebSocket not connected to ${url}`
+        );
       }
     },
-    [ws]
+    [ws, url]
   );
 
   return { ws, sendMessage };

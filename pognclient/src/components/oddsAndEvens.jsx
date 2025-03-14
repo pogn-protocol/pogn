@@ -9,7 +9,7 @@ const OddsAndEvens = ({
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
   const [localGameState, setLocalGameState] = useState({
-    status: "started",
+    //status: "started",
     winner: null,
     sum: null,
     roles: {}, // Store the roles assigned by the server
@@ -26,7 +26,7 @@ const OddsAndEvens = ({
       ...gameState,
     }));
     //if this.roles isn't populated get them from the relay
-    if (Object.keys(localGameState.roles).length === 0) {
+    if (Object.keys(localGameState.roles).length === 0 && !role) {
       console.log("Roles not assigned yet. Fetching from the relay...");
       sendMessage({
         type: "game",
@@ -46,12 +46,12 @@ const OddsAndEvens = ({
       case "rolesAssigned":
         rolesFetched.current = true;
         console.log(`Role assigned`);
+        setRole(localGameState.roles[playerId]);
         setLocalGameState((prev) => ({
           ...prev,
-          action: "",
+          action: "gotRoles",
           state: "in-progress",
         }));
-        setRole(localGameState.roles[playerId]);
 
         break;
 
@@ -63,13 +63,29 @@ const OddsAndEvens = ({
         }));
         break;
 
+      case "gotRoles":
+        console.log("Got roles from the relay.");
+        break;
+
       case "results":
+        setLocalGameState((prev) => ({
+          ...prev,
+          state: "complete",
+          winner: localGameState.winner,
+          sum: localGameState.sum,
+          roles: localGameState.roles,
+          numbers: localGameState.numbers,
+        }));
         console.log("Game results received.");
 
         break;
 
       default:
-        console.warn(`Unhandled action: ${localGameState?.action}`);
+        console.warn(
+          `Unhandled action: ${
+            localGameState?.action
+          } with message: ${JSON.stringify(localGameState)}`
+        );
     }
   }, [localGameState.action]);
 
@@ -179,6 +195,21 @@ const OddsAndEvens = ({
           </ul>
         </div>
       )}
+      {/* Kill Game */}
+      <button
+        onClick={() =>
+          sendMessage({
+            type: "game",
+            action: "endGame",
+            payload: {
+              playerId,
+              gameId: gameState.gameId,
+            },
+          })
+        }
+      >
+        Kill Game
+      </button>
     </div>
   );
 };

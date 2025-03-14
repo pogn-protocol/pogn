@@ -8,6 +8,7 @@ class Game {
     this.gameLog = [];
     this.status = "waiting"; // Possible status: created, joining, started, ended
     this.instance = null; // Game-specific logic instance (e.g., RockPaperScissors)
+    this.gamePorts = [];
   }
 
   removePlayer(playerId) {
@@ -40,14 +41,6 @@ class Game {
       gameLog: this.gameLog,
       ...instanceDetails, // Merge game-specific details
     };
-  }
-
-  deverifyJoinedPlayers() {
-    this.players.forEach((player, playerId) => {
-      player.joined = false;
-    });
-    this.logAction("All players were deverified.");
-    return null; // No errors
   }
 }
 

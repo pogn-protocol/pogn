@@ -1,9 +1,16 @@
-// Initialize Controllers
-const GamesController = require("./casinoForge/GamesController");
+const RelayManager = require("./casinoForge/relayManager");
+const GamesController = require("./casinoForge/gamesController");
 const LobbyController = require("./casinoForge/lobbyController");
-const Relay = require("./casinoForge/Relay");
-const gamesController = new GamesController();
+
+// ✅ Initialize Controllers
+let gamePorts = [9000]; // ✅ Define game ports
+const gamesController = new GamesController(gamePorts);
 const lobbyController = new LobbyController(gamesController);
 
-// ✅ Initialize Relay AFTER controllers are ready
-const lobbyRelay = new Relay(lobbyController, gamesController);
+// ✅ Initialize RelayManager (which will create the lobby relay)
+const relayManager = new RelayManager();
+relayManager.createLobbyRelay("lobby", lobbyController);
+//let gameRelay = relayManager.createGameRelay("game", gamesController);
+//console.log("gameRelay", gameRelay);
+
+//module.exports = { relayManager }; // ✅ NO WebSocket server here

@@ -5,7 +5,8 @@ const Lobby = ({
   message,
   sendMessage,
   playerId,
-  setStartGame,
+  setStartWebSocket,
+  // setStartGame,
   setInitialGameState,
 }) => {
   const [lobbyGames, setLobbyGames] = useState([]);
@@ -85,13 +86,14 @@ const Lobby = ({
               "Game has started. Transitioning to GameConsole.",
               playerGame
             );
+            setStartWebSocket(true);
+            // setStartGame(true);
             setInitialGameState({
               ...playerGame,
             });
-            setStartGame(true);
           } else if (playerGame.status === "readyToStart") {
             console.log("Game is ready to start. Preparing...");
-            // handleStartGame(playerGame);
+            handleStartGame(playerGame);
           }
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
@@ -109,22 +111,20 @@ const Lobby = ({
           setHasJoined(false);
         }
         break;
+      case "startGame":
+        const game = payload.game;
+        console.log("Starting game...", game.gameId);
 
-      case "verifyPlayer":
-        console.log("Verification request received.");
-        const verifyMessage = {
-          type: "lobby",
-          action: "verifyResponse",
-          payload: { playerId: playerId },
-        };
-        console.log("Sending verifyResponse:", verifyMessage);
-        sendMessage(verifyMessage);
+        if (new Set(game.players).has(playerId)) {
+          console.log(
+            `✅ Player ${playerId} is in the game. Attaching to relay.`
+          );
+          setStartWebSocket(true);
+          setInitialGameState({ ...game });
+        } else {
+          console.log(`⚠️ Player ${playerId} is not in this game. Ignoring.`);
+        }
         break;
-
-      case "playerVerified":
-        console.log(`${payload.playerId} has verified.`);
-        break;
-
       default:
         console.warn(`Unhandled action: ${action}`);
     }
@@ -257,12 +257,12 @@ const Lobby = ({
             selectedGamestate.instance.maxPlayers
         }
       >
-        {console.log({
+        {/* {console.log({
           hasJoined,
           isJoining,
           lobbyPlayersLength: lobbyPlayers.length,
           gameId: selectedGamestate.gameId,
-        })}
+        })} */}
         {hasJoined
           ? "Joined" // If the player has joined
           : isJoining

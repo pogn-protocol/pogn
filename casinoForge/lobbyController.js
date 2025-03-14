@@ -1,11 +1,17 @@
 //import lobby class
 const Lobby = require("./lobby");
 const Player = require("./player"); // Import the Player class
+const RelayManager = require("./relayManager");
 
 class LobbyController {
   constructor(gamesController) {
     this.gamesController = gamesController; // Use the shared instance
     this.lobby = new Lobby();
+    this.relayManager = null;
+  }
+
+  setRelayManager(relayManager) {
+    this.relayManager = relayManager; // ✅ Store the RelayManager instance
   }
 
   processMessage(action, payload) {
@@ -16,7 +22,7 @@ class LobbyController {
         return this.joinLobby(payload.playerId);
 
       case "createNewGame":
-        return this.createGame(payload);
+        return this.createGame(payload, true);
 
       case "joinGame":
         return this.joinLobbyPlayerToGame(payload);
@@ -52,17 +58,13 @@ class LobbyController {
       }
 
       console.log(this.gamesController.activeGames);
-
-      console.log(`Player ${playerId} started game ${gameId}`);
-      const players = this.lobby.getLobbyPlayers();
-      const games = this.lobby.getLobbyGames();
-      console.log("players", players, "games", games);
+      let gameDetails = game.getGameDetails();
+      console.log("Game started:", gameDetails);
       return {
         type: "lobby",
-        action: "refreshLobby",
+        action: "startGame",
         payload: {
-          lobbyPlayers: players,
-          lobbyGames: games,
+          game: gameDetails,
         },
         broadcast: true,
       };
@@ -93,6 +95,7 @@ class LobbyController {
 
     console.log(`Player ${playerId} added or updated in the lobby.`);
     console.log("Lobby Players", this.lobby.getLobbyPlayers());
+    console.log("Lobby Games", this.lobby.getLobbyGames());
 
     return {
       type: "lobby",
@@ -164,7 +167,7 @@ class LobbyController {
     };
   }
 
-  createGame(payload) {
+  createGame(payload, createRelay = false) {
     const { gameType, playerId } = payload;
     console.log("Creating game:", gameType, playerId);
 
@@ -189,6 +192,19 @@ class LobbyController {
     const games = this.lobby.getLobbyGames();
     let players = this.lobby.getLobbyPlayers();
     console.log("games", games, "players", players);
+
+    // if (createRelay) {
+    //   console.log(`🚀 Creating GameRelay for game ${game.gameId}...`);
+    //   this.relayManager.createGameRelay(
+    //     game.gameId,
+    //     this.gamesController,
+    //     players
+    //   );
+    // }
+
+    const relayManager = new RelayManager();
+    relayManager.createGameRelay("game", this.gamesController);
+
     return {
       type: "lobby",
       action: "refreshLobby",
@@ -212,10 +228,13 @@ class LobbyController {
       this.lobby.games = [];
       this.lobby.players = [];
       console.log("No available games. Creating a new game.");
-      this.createGame({
-        gameType: "odds-and-evens",
-        playerId,
-      });
+      this.createGame(
+        {
+          gameType: "odds-and-evens",
+          playerId,
+        },
+        false
+      );
       console.log(
         "Created a new game and added to lobby:",
         this.lobby.getLobbyGames()
