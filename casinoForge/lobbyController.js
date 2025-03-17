@@ -2,16 +2,26 @@
 const Lobby = require("./lobby");
 const Player = require("./player"); // Import the Player class
 const RelayManager = require("./relayManager");
+const eventBus = require("./eventBus");
 
 class LobbyController {
   constructor(gamesController) {
     this.gamesController = gamesController; // Use the shared instance
-    this.lobby = new Lobby();
+    this.lobby = new Lobby("default");
     this.relayManager = null;
+    this.lobbyRelay = new Map();
+    this.initializeListeners();
+
+    // setInterval(() => {
+    //   this.testEmitter();
+    // }, 10000);
   }
 
   setRelayManager(relayManager) {
     this.relayManager = relayManager; // ✅ Store the RelayManager instance
+  }
+  setLobbyRelay(lobbyId, lobbyRelay) {
+    this.lobbyRelay.set(lobbyId, lobbyRelay);
   }
 
   processMessage(action, payload) {
@@ -22,13 +32,16 @@ class LobbyController {
         return this.joinLobby(payload.playerId);
 
       case "createNewGame":
-        return this.createGame(payload, true);
+        return this.createGame(payload);
 
       case "joinGame":
         return this.joinLobbyPlayerToGame(payload);
 
       case "startGame":
         return this.startGame(payload);
+
+      case "endGame":
+        return this.endGame(payload.gameId);
 
       default:
         console.warn(`Unhandled lobby action: ${action}`);
@@ -44,8 +57,20 @@ class LobbyController {
     const { gameId, playerId } = payload;
 
     // Call the Lobby's startGame method
+
+    const game = this.lobby.getGame(gameId);
+    if (!game) {
+      return {
+        type: "error",
+        payload: { message: `Game with ID ${gameId} not found in the lobby.` },
+      };
+    }
+
+    // ✅ Move the game to the GameController
+    this.lobby.removeGame(gameId); // Remove from lobby
+
     try {
-      const game = this.lobby.getGame(gameId);
+      // const game = this.lobby.getGame(gameId);
       const startGameResult = this.gamesController.startGame(game);
 
       if (startGameResult?.error) {
@@ -156,6 +181,25 @@ class LobbyController {
       console.log("The game can start.");
     }
 
+    // const gameDetails = game.getGameDetails();
+    // console.log("gameDetails", gameDetails);
+    // //const lobbyRelay = this.lobbyRelay.get("default");
+    // const gameRelay = game.relay;
+    // console.log("gameRelay", gameRelay);
+    // console.log("gameRelay Methods", Object.keys(game.relay || {}));
+
+    // game.relay.broadcastResponse({
+    //   type: "game",
+    //   action: "gameEnded",
+    //   payload: {
+    //     gameId: gameId,
+    //     status: "ended",
+    //     gameLog: game.gameLog, // Include game history
+    //   },
+    // });
+
+    // this.refreshLobby();
+
     return {
       type: "lobby",
       action: "refreshLobby",
@@ -185,7 +229,12 @@ class LobbyController {
       };
     }
 
-    const game = this.gamesController.createGame(gameType, playerId);
+    const game = this.gamesController.createGame(
+      gameType,
+      (createRelay = true),
+      playerId
+    );
+
     console.log("game", game);
     this.lobby.addGame(game);
     game.logAction(`${playerId} created game.`);
@@ -193,17 +242,8 @@ class LobbyController {
     let players = this.lobby.getLobbyPlayers();
     console.log("games", games, "players", players);
 
-    // if (createRelay) {
-    //   console.log(`🚀 Creating GameRelay for game ${game.gameId}...`);
-    //   this.relayManager.createGameRelay(
-    //     game.gameId,
-    //     this.gamesController,
-    //     players
-    //   );
-    // }
-
-    const relayManager = new RelayManager();
-    relayManager.createGameRelay("game", this.gamesController);
+    // const relayManager = new RelayManager();
+    // relayManager.createGameRelay("game", this.gamesController);
 
     return {
       type: "lobby",
@@ -232,8 +272,8 @@ class LobbyController {
         {
           gameType: "odds-and-evens",
           playerId,
-        },
-        false
+        }
+        //true
       );
       console.log(
         "Created a new game and added to lobby:",
@@ -286,7 +326,42 @@ class LobbyController {
     };
   }
 
-  refreshLobby() {
+  // refreshLobby() {
+  //   return {
+  //     type: "lobby",
+  //     action: "refreshLobby",
+  //     payload: {
+  //       lobbyPlayers: this.lobby.getLobbyPlayers(),
+  //       lobbyGames: this.lobby.getLobbyGames(),
+  //     },
+  //     broadcast: true,
+  //   };
+  // }
+
+  endGame(gameId) {
+    // const game = this.lobby.getGame(gameId);
+    const game = this.gamesController.activeGames.get(gameId);
+    if (!game) {
+      console.warn(`⚠️ Cannot end game ${gameId}: Not found.`);
+      return;
+    }
+
+    console.log(`🛑 Ending game ${gameId}`);
+    //delete game
+    game.status = "ended";
+    game.gameLog.push("Game ended.");
+
+    // ✅ Remove from active games
+    this.lobby.removeGame(gameId);
+    // change games status in active games to ende
+    this.gamesController.activeGames.get(gameId).status = "ended";
+    //kill game relay
+    this.gamesController.activeGames.get(gameId).relay.shutdown();
+    //game log
+    this.gamesController.activeGames.get(gameId).gameLog.push("Game ended.");
+    console.log("active games", this.gamesController.activeGames);
+    eventBus.emit("gameEnded", { gameId });
+
     return {
       type: "lobby",
       action: "refreshLobby",
@@ -296,6 +371,71 @@ class LobbyController {
       },
       broadcast: true,
     };
+  }
+
+  refreshLobby() {
+    //get lobby relay and use broadcast meth
+    const lobbyRelay = this.lobbyRelay.get("lobby");
+    console.log("lobbyRelay", lobbyRelay);
+    lobbyRelay.broadcastResponse({
+      type: "lobby",
+      action: "refreshLobby",
+      payload: {
+        lobbyPlayers: this.lobby.getLobbyPlayers(),
+        lobbyGames: this.lobby.getLobbyGames(),
+      },
+    });
+  }
+
+  initializeListeners() {
+    // ✅ Listen for the "gameEnded" event from GameController
+    eventBus.on("gameEnded", ({ gameId }) => {
+      //get the game
+      console.log("gameId", gameId);
+      //const game = this.lobby.getGame(gameId);
+      console.log("activeGames", this.gamesController.activeGames);
+      const game = this.gamesController.activeGames.get(gameId);
+      console.log("game", game);
+      const gameDetails = game.getGameDetails();
+      console.log("gameDetails", gameDetails);
+      //const lobbyRelay = this.lobbyRelay.get("default");
+      const gameRelay = game.relay;
+      console.log("gameRelay", gameRelay);
+      console.log("gameRelay Methods", Object.keys(game.relay || {}));
+
+      game.relay.broadcastResponse({
+        type: "game",
+        action: "gameEnded",
+        payload: {
+          gameId: gameId,
+          status: "ended",
+          gameLog: game.gameLog, // Include game history
+        },
+      });
+      // gameDetails.forEach((player) => {
+      //   //send message to player
+      //   lobbyRelay.sendToPlayer(player.playerId, {
+      //     type: "game",
+      //     action: "gameEnded",
+      //     payload: {
+      //       gameId: gameId,
+      //       status: "ended",
+      //       gameLog: game.gameLog, // Include game history
+      //     },
+      //   });
+      // });
+      //refresh lobby
+      this.refreshLobby();
+    });
+    eventBus.on("gameMessage", (message) => {
+      console.log("Lobby recieved gameMessage:", message);
+    });
+  }
+
+  //create test function to periodically say hi to the gamescontroller
+  testEmitter() {
+    console.log("emitting test event");
+    eventBus.emit("lobbyMessage", { message: "hi game" });
   }
 }
 

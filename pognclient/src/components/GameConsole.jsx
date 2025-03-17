@@ -8,61 +8,75 @@ const GameConsole = ({
   playerId = "",
   initialGameState = {},
   setStartGameConsole,
-  processedMessagesRef,
+  sendLobbyMessage,
 }) => {
   const [gameState, setGameState] = useState({
     ...initialGameState,
   });
-  // const processedMessagesRef = useRef(new Set());
+  //lobby message var
+  const [lobbyMessage, setLobbyMessage] = useState({});
+  const [gameStarted, setGameStarted] = useState(false);
 
-  // useEffect(() => {
-  //   if (!message || processedMessagesRef.current.has(message.unique)) {
-  //     return;
-  //   }
-  //   processedMessagesRef.current.add(message.unique);
-  // }, [message]);
+  //send the lobby message to the relay when lobbyMessage is set
+  useEffect(() => {
+    console.log("Lobby message:", lobbyMessage);
+    if (lobbyMessage && Object.keys(lobbyMessage).length > 0) {
+      console.log("Sending lobby message:", lobbyMessage);
+      sendLobbyMessage(lobbyMessage);
 
-  //   useEffect(() => {
-  //     if (!message || processedMessages.current.has(message.unique)) {
-  //         return;
-  //     }
-  //     processedMessages.current.add(message.unique);
-  // }, [message]);
+      // ✅ Delay clearing the message slightly to avoid interfering with sendLobbyMessage
+      setTimeout(() => {
+        console.log("Clearing lobby message...");
+        setLobbyMessage(null); // Use `null` instead of `{}`
+      }, 100);
+    }
+  }, [lobbyMessage, sendLobbyMessage]);
 
   useEffect(() => {
-    if (!message || processedMessagesRef.current.has(message.unique)) {
-      return;
-    }
-    processedMessagesRef.current.add(message.unique);
-  }, [message]);
-
-  const [gameStarted, setGameStarted] = useState(
-    initialGameState.status === "started"
-  );
+    console.log("Checking game state for start condition...");
+    console.log("gamestate", gameState);
+    setGameStarted(gameState.status === "started");
+  }, [gameState]);
 
   useEffect(() => {
-    if (
-      !message ||
-      Object.keys(message).length === 0 ||
-      !message.action ||
-      !message.payload
-    ) {
-      console.warn("⚠️ Skipping empty or invalid message:", message);
+    if (!message || Object.keys(message).length === 0) {
+      console.log("No message received.");
       return;
     }
+    // if (
+    //   !message ||
+    //   Object.keys(message).length === 0 ||
+    //   !message.action ||
+    //   !message.payload
+    // ) {
+    //   console.warn("⚠️ Skipping empty or invalid message:", message);
+    //   return;
+    // }
 
     console.log("Processing Game message:", message);
     const { action, payload } = message;
+    console.log("action", action);
+    console.log("payload", payload);
+    // if (!message || processedMessagesRef.current.has(message.unique)) {
+    //   console.warn(
+    //     "⚠️ Skipping message because it was already processed:",
+    //     message
+    //   );
+    //   return;
+    // }
 
-    processedMessagesRef.current.add(message.unique);
-
+    // processedMessagesRef.current.add(message.unique);
+    console.log("Switching on action:", action);
     switch (action) {
       case "gameAction":
         console.log("Game action received:", payload);
-        setGameState((prevState) => ({
-          ...prevState,
-          ...payload,
-        }));
+        setGameState((prevState) => {
+          const newState = { ...prevState, ...payload };
+          console.log("🛠️ Updated GameState:", newState);
+          setGameStarted(newState.status === "started"); // ✅ Set it inside
+          return newState;
+        });
+
         break;
       case "results":
         console.log("Game finished. Winner determined.");
@@ -79,7 +93,7 @@ const GameConsole = ({
         //clear the game state
         setGameState({});
         setStartGameConsole(false);
-        setGameStarted(false);
+        //  setGameStarted(false);
 
         break;
 
@@ -89,7 +103,7 @@ const GameConsole = ({
   }, [message]);
 
   const renderGameComponent = () => {
-    console.log("Rendering game component:", gameState.gameType);
+    console.log("Rendering game component:", gameState);
     switch (gameState.gameType) {
       case "rock-paper-scissors":
         return (
@@ -97,14 +111,17 @@ const GameConsole = ({
             sendMessage={sendMessage}
             playerId={playerId}
             gameState={gameState}
+            setLobbyMessage={setLobbyMessage}
           />
         );
       case "odds-and-evens":
+        console.log("Rendering Odds and Evens component...", gameState);
         return (
           <OddsAndEvens
             sendMessage={sendMessage}
             playerId={playerId}
             gameState={gameState}
+            setLobbyMessage={setLobbyMessage}
           />
         );
       default:
@@ -116,12 +133,18 @@ const GameConsole = ({
     <div>
       <h2>Game Console</h2>
       <p>Player ID: {playerId}</p>
-      <pre>Game State: {JSON.stringify(gameState, null, 2)}</pre>
+      <h3>Game State:</h3>
+      <pre> {JSON.stringify(gameState, null, 2)}</pre>
+      {console.log("🔍 Re-rendering: gameStarted =", gameStarted)}
 
       {gameStarted ? (
-        <>{renderGameComponent()}</>
+        <>
+          {" "}
+          {console.log("✅ Rendering Game Component")}
+          {renderGameComponent()}
+        </>
       ) : (
-        <p>Waiting for game to start...</p>
+        <p>Console waiting for game to start...</p>
       )}
     </div>
   );

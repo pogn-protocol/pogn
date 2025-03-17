@@ -28,16 +28,18 @@ class OddsAndEvens {
   }
 
   // Process an action from the controller
-  processAction(action, playerId, payload) {
+  processAction(playerId, payload) {
     console.log("state", this.state);
-
-    switch (action) {
+    const gameAction = payload.gameAction;
+    console.log("game action", gameAction);
+    switch (gameAction) {
       //console state
       case "getRoles":
         // Prevent roles from being reassigned if already assigned
         if (this.state === "in-progress" || this.state === "complete") {
           return {
-            type: "game",
+            // type: "game",
+            logEntry: "Roles assigned.",
             action: "gameAction",
             payload: {
               action: "rolesAssigned",
@@ -57,8 +59,9 @@ class OddsAndEvens {
             const roles = this.assignRoles(this.players);
             this.state = "in-progress";
             return {
-              type: "game",
-              action: "gameAction",
+              // type: "game",
+              // action: "gameAction",
+              logEntry: "Roles assigned.",
               payload: {
                 action: "rolesAssigned",
                 roles,
@@ -79,7 +82,7 @@ class OddsAndEvens {
         return this.submitNumber(playerId, payload.number);
 
       default:
-        return { type: "error", message: `Unknown action: ${action}` };
+        return { type: "error", message: `Unknown action: ${gameAction}` };
     }
   }
 
@@ -100,11 +103,8 @@ class OddsAndEvens {
     }
 
     return {
-      type: "game",
-      action: "gameAction",
       payload: {
         action: "waitingForOpponent",
-
         playerId,
         message: "Waiting for the other player to submit their number.",
       },
@@ -125,8 +125,6 @@ class OddsAndEvens {
     this.state = "complete";
 
     return {
-      type: "game",
-      action: "gameAction",
       payload: {
         action: "results",
         winner,

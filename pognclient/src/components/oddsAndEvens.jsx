@@ -3,8 +3,8 @@ import React, { useEffect, useState, useRef } from "react";
 const OddsAndEvens = ({
   sendMessage,
   playerId,
-
   gameState,
+  setLobbyMessage,
 }) => {
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
@@ -18,15 +18,19 @@ const OddsAndEvens = ({
 
   const rolesFetched = useRef(false); // Ref to track whether roles have been fetched
 
-  //set localGameState to gameState
   useEffect(() => {
     console.log("gameState", gameState);
     setLocalGameState((prev) => ({
       ...prev,
       ...gameState,
     }));
-    //if this.roles isn't populated get them from the relay
-    if (Object.keys(localGameState.roles).length === 0 && !role) {
+
+    // ✅ Only request roles if they haven't been fetched yet
+    if (
+      !rolesFetched.current &&
+      gameState?.gameId &&
+      Object.keys(gameState.roles || {}).length === 0
+    ) {
       console.log("Roles not assigned yet. Fetching from the relay...");
       sendMessage({
         type: "game",
@@ -37,8 +41,10 @@ const OddsAndEvens = ({
           gameId: gameState.gameId,
         },
       });
+
+      rolesFetched.current = true; // ✅ Prevent multiple fetches
     }
-  }, [gameState]);
+  }, [gameState, sendMessage, playerId]);
 
   useEffect(() => {
     console.log("gameState", localGameState);
@@ -141,7 +147,7 @@ const OddsAndEvens = ({
 
       {/* Game Waiting State */}
       {localGameState.state === "waiting" && (
-        <p>Waiting for the game to start...</p>
+        <p>Odds and Evens Waiting to start...</p>
       )}
 
       {/* Game In Progress */}
@@ -197,16 +203,21 @@ const OddsAndEvens = ({
       )}
       {/* Kill Game */}
       <button
-        onClick={() =>
-          sendMessage({
-            type: "game",
-            action: "endGame",
-            payload: {
-              playerId,
-              gameId: gameState.gameId,
-            },
-          })
-        }
+        onClick={() => {
+          setLobbyMessage((prev) => {
+            // ✅ Prevent redundant updates (avoids unnecessary re-renders)
+            if (prev?.gameId === gameState.gameId) return prev;
+
+            return {
+              type: "lobby",
+              action: "endGame",
+              payload: {
+                playerId,
+                gameId: gameState.gameId,
+              },
+            };
+          });
+        }}
       >
         Kill Game
       </button>

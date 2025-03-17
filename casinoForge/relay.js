@@ -9,11 +9,11 @@ class Relay {
     this.port = port; // 🔥 Store port as a class property
     this.webSocketMap = new Map();
 
-    this.interval = setInterval(() => {
-      console.log(this.type, "Relay is running...");
-      //console.log("Active games", this.gamesController.activeGames);
-      console.log("WebSocket Map", this.webSocketMap);
-    }, 10000);
+    // this.interval = setInterval(() => {
+    //   console.log(this.type, "Relay is running...");
+    //   //console.log("Active games", this.gamesController.activeGames);
+    //   console.log("WebSocket Map", this.webSocketMap);
+    // }, 10000);
 
     // this.wss = new WebSocket.Server({ port: this.port }, () => {
     //   // 🔥 Use this.port

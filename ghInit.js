@@ -9,7 +9,7 @@ const lobbyController = new LobbyController(gamesController);
 
 // ✅ Initialize RelayManager (which will create the lobby relay)
 const relayManager = new RelayManager();
-relayManager.createLobbyRelay("lobby", lobbyController);
+relayManager.createLobbyRelay("lobby", lobbyController, gamesController);
 //let gameRelay = relayManager.createGameRelay("game", gamesController);
 //console.log("gameRelay", gameRelay);
 

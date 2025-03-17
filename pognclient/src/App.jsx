@@ -45,76 +45,53 @@ const App = () => {
   const processedMessagesRef = useRef(new Set());
 
   // Memoized WebSocket handlers
-  const handleWebSocketMessage = useCallback((event) => {
-    console.log("Received WebSocket message....");
-    console.log("data", event); // This is actually a `MessageEvent`
+  // const handleWebSocketMessageRef = useRef((event) => {
+  //   console.log("Received WebSocket message....");
+  //   console.log("data", event); // This is actually a `MessageEvent`
 
-    let data;
-    try {
-      data = JSON.parse(event.data); // ✅ Extract `data` from `MessageEvent`
-    } catch (error) {
-      console.error("❌ Failed to parse WebSocket message:", error);
-      return;
-    }
-    console.log(`Main switch: ${data.type}`, data);
-
-    switch (data.type) {
-      case "lobby":
-        console.log("Switched to lobby");
-        setLobbyMessage((prevMessage) => {
-          // Avoid redundant updates
-          if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
-            return prevMessage;
-          }
-          return data;
-        });
-        break;
-
-      case "game":
-        setGameMessage((prevMessage) => {
-          // Avoid redundant updates
-          if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
-            return prevMessage;
-          }
-          return data;
-        });
-        break;
-
-      case "chat":
-        setMessages((prevMessages) => [...prevMessages, data.payload]);
-        break;
-
-      default:
-        console.warn(`Unhandled message type: ${data.type}`);
-    }
-  }, []);
-
-  // const handleWebSocketOpen = useCallback(
-  //   (socket) => {
-  //     console.log("logging in...");
-  //     if (playerId) {
-  //       const loginMessage = {
-  //         type: "lobby",
-  //         action: "login",
-  //         payload: { playerId },
-  //       };
-  //       console.log("Sending login message:", loginMessage);
-  //       socket.send(JSON.stringify(loginMessage));
-  //     } else {
-  //       console.warn("playerId is not set. Unable to send login message.");
-  //     }
-  //   },
-  //   [playerId]
-  // );
-
-  // Only open the WebSocket after playerId is set
-  // const { ws, sendMessage } = useWebSocket(
-  //   playerId ? "ws://localhost:8080" : null, // Open WebSocket only when playerId is set
-  //   {
-  //     onOpen: handleWebSocketOpen,
-  //     onMessage: handleWebSocketMessage,
+  //   let data;
+  //   try {
+  //     data = JSON.parse(event.data); // ✅ Extract `data` from `MessageEvent`
+  //   } catch (error) {
+  //     console.error("❌ Failed to parse WebSocket message:", error);
+  //     return;
   //   }
-  // );
+  //   console.log(`Main switch: ${data.type}`, data);
+
+  //   switch (data.type) {
+  //     case "lobby":
+  //       console.log("Switched to lobby");
+  //       setLobbyMessage((prevMessage) => {
+  //         // Avoid redundant updates
+  //         if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
+  //           return prevMessage;
+  //         }
+  //         return data;
+  //       });
+  //       break;
+
+  //     case "game":
+  //       setGameMessage((prevMessage) => {
+  //         // Avoid redundant updates
+  //         if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
+  //           return prevMessage;
+  //         }
+  //         return data;
+  //       });
+  //       break;
+
+  //     case "chat":
+  //       setMessages((prevMessages) => [...prevMessages, data.payload]);
+  //       break;
+
+  //     default:
+  //       console.warn(`Unhandled message type: ${data.type}`);
+  //   }
+  // });
+
+  // useEffect(() => {
+  //   handleWebSocketMessageRef.current = handleWebSocketMessageRef.current;
+  // }, []);
 
   useEffect(() => {
     if (startWebSocket) {
@@ -126,41 +103,17 @@ const App = () => {
     }
   }, [startWebSocket]);
 
-  // const { ws: lobbyWs, sendMessage: sendLobbyMessage } = useWebSocket(
-  //   playerId ? "ws://localhost:8080" : null, // ✅ Open WebSocket only when playerId is set
-  //   {
-  //     onOpen: handleWebSocketOpen,
-  //     onMessage: handleWebSocketMessage, // ✅ Handles lobby messages
-  //   }
-  // );
-
-  // useEffect(() => {
-  //   console.log("🔥 App.jsx Re-Rendered!");
-  // });
-
-  // const { ws: gameWs, sendMessage: sendGameMessage } = useWebSocket(
-  //   startWebSocket ? "ws://localhost:9000" : null,
-  //   {
-  //     onOpen: () => {
-  //       console.log("🔵 Game WebSocket opened.");
-  //     },
-  //     onMessage: handleWebSocketMessage,
-  //     onClose: () => {
-  //       console.log("🔴 Game WebSocket closed.");
-  //       setStartGameConsole(false);
-  //       setStartWebSocket(false);
-  //     },
-  //   }
-  // );
-
-  const { sendJsonMessage: sendLobbyMessage } = useWebSocket(
+  const {
+    sendJsonMessage: sendLobbyMessage,
+    lastJsonMessage: lastLobbyMessage,
+  } = useWebSocket(
     useMemo(() => (playerId ? "ws://localhost:8080" : null), [playerId]),
     {
       onOpen: () => {
         console.log("🔵 Lobby WebSocket opened for playerId;", playerId);
         handleWebSocketOpen();
       },
-      onMessage: (event) => handleWebSocketMessage(event),
+      //onMessage: (event) => handleWebSocketMessageRef.current(event);
       onClose: () => {
         console.log("🔴 Lobby WebSocket closed.");
       },
@@ -168,32 +121,46 @@ const App = () => {
   );
 
   // ✅ Memoized game WebSocket (Only re-runs when `startWebSocket` changes)
-  const { sendJsonMessage: sendGameMessage } = useWebSocket(
-    useMemo(
-      () => (startWebSocket ? "ws://localhost:9000" : null),
-      [startWebSocket]
-    ),
-    {
-      onOpen: () => {
-        console.log("🔵 Game WebSocket opened.");
-      },
-      onMessage: (event) => handleWebSocketMessage(event),
-      onClose: (event) => {
-        console.log("🔴 Game WebSocket closed.", event);
-        if (event.wasClean) {
-          console.log("💡 WebSocket closed cleanly, resetting game state.");
-          setStartGameConsole(false);
-          setStartWebSocket(false);
-        } else {
-          console.warn(
-            "⚠️ Unexpected WebSocket closure, preventing unnecessary resets."
-          );
-        }
-      },
-    }
-  );
+  const { sendJsonMessage: sendGameMessage, lastJsonMessage: lastGameMessage } =
+    useWebSocket(
+      useMemo(
+        () => (startWebSocket ? "ws://localhost:9000" : null),
+        [startWebSocket]
+      ),
+      {
+        onOpen: () => {
+          console.log("🔵 Game WebSocket opened.");
+        },
+        // onMessage: (event) => handleWebSocketMessageRef.current(event),
+        onClose: (event) => {
+          console.log("🔴 Game WebSocket closed.", event);
+          if (event.wasClean) {
+            console.log("💡 WebSocket closed cleanly, resetting game state.");
+            setStartGameConsole(false);
+            setStartWebSocket(false);
+          } else {
+            console.warn(
+              "⚠️ Unexpected WebSocket closure, preventing unnecessary resets."
+            );
+          }
+        },
+      }
+    );
 
-  //if startGame false set startWebSocket to false
+  useEffect(() => {
+    if (lastLobbyMessage) {
+      console.log("Processing lastLobbyMessage:", lastLobbyMessage);
+      setLobbyMessage(lastLobbyMessage); // ✅ Set directly
+    }
+  }, [lastLobbyMessage]); // ✅ Only runs when `lastLobbyMessage` changes
+
+  useEffect(() => {
+    if (lastGameMessage) {
+      console.log("Processing lastGameMessage:", lastGameMessage);
+      setGameMessage(lastGameMessage); // ✅ Set directly
+    }
+  }, [lastGameMessage]); // ✅ Only runs when `lastGameMessage` changes
+
   useEffect(() => {
     if (!startGameConsole && startWebSocket) {
       console.log("⚠️ Waiting before shutting down WebSocket...");
@@ -202,11 +169,6 @@ const App = () => {
       }, 200); // 🔥 Prevent instant loop
     }
   }, [startGameConsole]);
-
-  const sendLobbyMessageRef = useRef(sendLobbyMessage);
-  useEffect(() => {
-    sendLobbyMessageRef.current = sendLobbyMessage;
-  }, [sendLobbyMessage]);
 
   const handleWebSocketOpen = useCallback(() => {
     console.log("logging in...");
@@ -217,31 +179,24 @@ const App = () => {
         payload: { playerId },
       };
       console.log("📤 Sending login message:", loginMessage);
-      sendLobbyMessageRef.current(loginMessage); // ✅ Use react-use-websocket's `sendMessage`
+      //  sendLobbyMessageRef.current(loginMessage); // ✅ Use react-use-websocket's `sendMessage`
+      sendLobbyMessage(loginMessage);
     } else {
       console.warn("⚠️ playerId is not set. Unable to send login message.");
     }
-  }, [playerId, sendLobbyMessageRef]);
+  }, [playerId, sendLobbyMessage]);
 
   useEffect(() => {
     console.log("🔥 App.jsx Re-Rendered!");
   });
 
-  // ✅ Ensure game starts only when WebSocket is fully open
-  // useEffect(() => {
-  //   if (gameWs && gameWs.readyState === WebSocket.OPEN) {
-  //     console.log("✅ Game WebSocket is now fully open. Starting game...");
-  //     setStartGameConsole(true);
-  //   }
-  // }, [gameWs]); // ✅ Runs when gameWs changes
-
-  const memoizedMessages = useMemo(() => {
-    return {
-      lobbyMessage,
-      gameMessage,
-      messages,
-    };
-  }, [lobbyMessage, gameMessage, messages]);
+  // const memoizedMessages = useMemo(() => {
+  //   return {
+  //     lobbyMessage,
+  //     gameMessage,
+  //     messages,
+  //   };
+  // }, [lobbyMessage, gameMessage, messages]);
 
   return (
     <ErrorBoundary>
@@ -250,10 +205,11 @@ const App = () => {
         {/* Generate playerId in Player component */}
         <Player setPlayerId={setPlayerId} />
         {playerId && <Dashboard playerName="Player" playerId={playerId} />}
-        {memoizedMessages.lobbyMessage && (
+        {lastLobbyMessage && (
           <Lobby
-            message={memoizedMessages.lobbyMessage}
+            // message={memoizedMessages.lobbyMessage}
             sendMessage={sendLobbyMessage}
+            message={lastLobbyMessage || {}}
             playerId={playerId}
             setStartWebSocket={setStartWebSocket}
             // setStartGameConsole={setStartGameConsole}
@@ -266,11 +222,14 @@ const App = () => {
         ) : (
           <GameConsole
             playerId={playerId}
-            message={memoizedMessages.gameMessage || {}}
+            // message={memoizedMessages.gameMessage || {}}
             initialGameState={initialGameState}
             sendMessage={sendGameMessage}
             setStartGameConsole={setStartGameConsole}
-            processedMessagesRef={processedMessagesRef}
+            // processedMessagesRef={processedMessagesRef}
+            message={lastGameMessage || {}}
+            sendLobbyMessage={sendLobbyMessage}
+            startWebSocket={startWebSocket}
           />
         )}
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}

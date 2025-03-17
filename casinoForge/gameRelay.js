@@ -1,4 +1,5 @@
 const Relay = require("./relay");
+const { v4: uuidv4 } = require("uuid");
 //const WebSocket = require("ws");
 
 class GameRelay extends Relay {
@@ -12,11 +13,11 @@ class GameRelay extends Relay {
 
     players.forEach((playerId) => this.webSocketMap.set(playerId, null));
     //console ever 5 seconds if running
-    this.interval = setInterval(() => {
-      console.log("GameRelay is running...");
-      console.log("Active games", this.gamesController.activeGames);
-      console.log("WebSocket Map", this.webSocketMap);
-    }, 30000);
+    // this.interval = setInterval(() => {
+    //   console.log("GameRelay is running...");
+    //   console.log("Active games", this.gamesController.activeGames);
+    //   console.log("WebSocket Map", this.webSocketMap);
+    // }, 30000);
   }
 
   handleConnection(ws) {
@@ -28,10 +29,8 @@ class GameRelay extends Relay {
     // 🔥 Store WebSocket immediately, even if no message is received yet
     this.webSocketMap.set(tempPlayerId, ws);
     console.log(`📌 Temporary WebSocket stored for ${tempPlayerId}`);
-
     ws.on("message", (message) => {
-      console.log("📨 GameRelay Received Message");
-      console.log("Message:", message);
+      console.log("📨 GameRelay Received Message", message);
       try {
         if (Buffer.isBuffer(message)) {
           message = message.toString("utf-8");
@@ -49,21 +48,17 @@ class GameRelay extends Relay {
 
         const playerId = parsedMessage.payload?.playerId;
         if (playerId) {
-          // 🔄 Replace the temporary WebSocket mapping with the real player ID
-          this.webSocketMap.delete(tempPlayerId);
+          // ✅ Store WebSocket under both temporary and real player ID
           this.webSocketMap.set(playerId, ws);
           console.log(`✅ WebSocket mapped to real player ID: ${playerId}`);
         }
-
-        // ✅ Let subclass handle the message
-        console.log("gameRelay processing message...");
-        this.processMessage(ws, parsedMessage);
+        this.gamesController.processMessage(ws, parsedMessage);
       } catch (error) {
         console.error("❌ GameRelay Error processing message:", error);
         ws.send(
           JSON.stringify({
             type: "error",
-            payload: { message: "GameRelay side Error." },
+            payload: { message: "GameRelay Error." },
           })
         );
       }
@@ -94,70 +89,33 @@ class GameRelay extends Relay {
     });
   }
 
-  processMessage(ws, message) {
-    const { type, action, payload } = message;
-    if (type !== "game") {
-      console.warn("Message sent to game not of type game:", type);
-      this.sendError(ws, "Game received message of wrong type.");
-      return;
-    }
-
-    console.log("Processing game message:", { action, payload });
-
-    // ✅ Ensure game exists
-    console.log("Active games", this.gamesController.activeGames);
-    const game = this.gamesController.activeGames.get(payload.gameId);
-    if (!game) {
-      console.warn(`⚠️ Game ${payload.gameId} not found.`);
-      this.sendError(ws, `Game ${payload.gameId} not found.`);
-      return;
-    }
-
-    if (action === "endGame") {
-      console.log(`🛑 Ending game ${payload.gameId}...`);
-      this.gamesController.endGame(payload.gameId);
-
-      // ✅ Broadcast game ended message
-      this.broadcastResponse({
-        type: "game",
-        action: "gameEnded",
-        payload: {
-          gameId: payload.gameId,
-          status: "ended",
-          gameLog: game.gameLog, // Include game history
-        },
-        broadcast: true,
-      });
-
-      // ✅ Cleanup the relay
-      this.shutdown();
-      return;
-    }
-
-    // ✅ Store WebSocket reference for the player sending the message
-    if (payload.playerId) {
-      this.webSocketMap.set(payload.playerId, ws);
-      console.log(`🔄 Updated WebSocket for player ${payload.playerId}`);
-    }
-
-    let response = this.gamesController.processMessage({ action, payload });
-    console.log("Game response", response);
-
-    if (response) {
-      this.sendToPlayer(payload.playerId, response);
-      if (response.broadcast) {
-        this.broadcastResponse(response);
-      }
-    }
-  }
-
   broadcastResponse(response) {
-    for (const ws of this.webSocketMap.values()) {
-      console.log("Broadcasting to:", ws);
-      console.log("response", response);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(response));
+    console.log(`📡 GameRelay Broadcasting from gameId: ${this.gameId}`);
+
+    // Log the entire WebSocket map
+    console.log(
+      "🛠️ WebSocket Map Contents:",
+      Array.from(this.webSocketMap.entries())
+    );
+
+    console.log("response", response);
+    //add a uuid to the response
+    response.uuid = uuidv4();
+
+    for (const [playerId, ws] of this.webSocketMap.entries()) {
+      console.log(`🔹 Sending to Player: ${playerId}, WebSocket:`, ws);
+
+      if (!ws) {
+        console.warn(`⚠️ WebSocket for player ${playerId} is null.`);
+        continue;
       }
+
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.warn(`⚠️ WebSocket for player ${playerId} is not open.`);
+        continue;
+      }
+
+      ws.send(JSON.stringify(response));
     }
   }
 

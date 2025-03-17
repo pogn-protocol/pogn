@@ -23,19 +23,19 @@ const Lobby = ({
     gameId: "",
   });
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
-  const processedMessagesRef = useRef(new Set());
+  //const processedMessagesRef = useRef(new Set());
 
-  useEffect(() => {
-    if (!message || processedMessagesRef.current.has(message.unique)) {
-      return;
-    }
-    processedMessagesRef.current.add(message.unique);
-    // Process the message...
-  }, [message]); // Only re-run when `message` changes
+  // useEffect(() => {
+  //   if (!message || processedMessagesRef.current.has(message.unique)) {
+  //     return;
+  //   }
+  //   processedMessagesRef.current.add(message.unique);
+  //   // Process the message...
+  // }, [message]); // Only re-run when `message` changes
 
   useEffect(() => {
     console.log("lobby");
-    if (!message || typeof message !== "object") {
+    if (!message || Object.keys(message).length === 0) {
       console.warn("Invalid message object:", message);
       return;
     }
@@ -43,21 +43,14 @@ const Lobby = ({
     console.log("Processing Lobby message:", message);
     const { action, payload } = message;
 
-    processedMessagesRef.current.add(message.unique);
+    // processedMessagesRef.current.add(message.unique);
 
     switch (action) {
       case "refreshLobby":
         console.log("Game list received:", payload);
         setLobbyGames(payload.lobbyGames || []);
         setLobbyPlayers(payload.lobbyPlayers || []);
-
-        // Find the game the player is in
-        // const playerGame = payload.lobbyGames.find(
-        //   (game) =>
-        //     game.players?.some((player) => player === String(playerId)) &&
-        //     (game.status === "readyToStart" || game.status === "started")
-        // );
-
+        console.log("selectedGameId", selectedGameId);
         const playerGame = payload.lobbyGames.find(
           (game) => game.gameId === selectedGameId // ✅ Use the game that was actually selected
         );
@@ -86,14 +79,26 @@ const Lobby = ({
               "Game has started. Transitioning to GameConsole.",
               playerGame
             );
-            setStartWebSocket(true);
+            // setStartWebSocket(true);
             // setStartGame(true);
-            setInitialGameState({
-              ...playerGame,
+            setStartWebSocket((prev) => {
+              if (prev) {
+                console.log("🚨 WebSocket already started. Skipping...");
+                return true; // Don't change state
+              }
+              console.log(
+                `✅ Player ${playerId} is in the game. Attaching to relay.`
+              );
+              setInitialGameState({ ...playerGame });
+              return true; // Change state to start WebSocket
             });
+
+            // setInitialGameState({
+            //   ...playerGame,
+            // });
           } else if (playerGame.status === "readyToStart") {
             console.log("Game is ready to start. Preparing...");
-            handleStartGame(playerGame);
+            // handleStartGame(playerGame);
           }
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
@@ -113,14 +118,23 @@ const Lobby = ({
         break;
       case "startGame":
         const game = payload.game;
-        console.log("Starting game...", game.gameId);
-
+        console.log("Starting game...", game);
         if (new Set(game.players).has(playerId)) {
           console.log(
             `✅ Player ${playerId} is in the game. Attaching to relay.`
           );
-          setStartWebSocket(true);
-          setInitialGameState({ ...game });
+
+          setStartWebSocket((prev) => {
+            if (prev) {
+              console.log("🚨 WebSocket already started. Skipping...");
+              return true; // Don't change state
+            }
+            console.log(
+              `✅ Player ${playerId} is in the game. Attaching to relay.`
+            );
+            setInitialGameState({ ...game });
+            return true; // Change state to start WebSocket
+          });
         } else {
           console.log(`⚠️ Player ${playerId} is not in this game. Ignoring.`);
         }

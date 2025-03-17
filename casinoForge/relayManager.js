@@ -23,7 +23,10 @@ class RelayManager {
         lobbyController,
         gamesController
       );
-      this.lobbies.set(lobbyId, lobbyRelay);
+      console.log(`🔥 Spawning LobbyRelay for lobby ${lobbyId}...`);
+      lobbyController.setLobbyRelay(lobbyId, lobbyRelay);
+      // this.lobbies.set(lobbyId, lobbyRelay);
+
       console.log(`✅ Lobby ${lobbyId} WebSocket started on 8080.`);
     }
     return this.lobbies.get(lobbyId);
@@ -43,6 +46,7 @@ class RelayManager {
         gamePorts,
         gamesController
       );
+      gamesController.addGameRelay(gameId, gameRelay);
       this.games.set(gameId, gameRelay);
 
       console.log(

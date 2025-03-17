@@ -9,6 +9,7 @@ class Game {
     this.status = "waiting"; // Possible status: created, joining, started, ended
     this.instance = null; // Game-specific logic instance (e.g., RockPaperScissors)
     this.gamePorts = [];
+    this.relay = null; // Reference to the game relay
   }
 
   removePlayer(playerId) {

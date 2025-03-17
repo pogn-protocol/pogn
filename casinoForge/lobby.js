@@ -1,7 +1,8 @@
 class Lobby {
-  constructor() {
+  constructor(lobbyId) {
     this.players = [];
     this.games = [];
+    this.lobbyId = lobbyId || "default";
   }
 
   verifyPlayer(playerId) {

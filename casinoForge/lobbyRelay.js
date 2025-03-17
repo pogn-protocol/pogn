@@ -6,11 +6,11 @@ class LobbyRelay extends Relay {
     this.lobbyController = lobbyController;
     this.webSocketMap = new Map(); // ✅ Ensure WebSocket Map exists
 
-    this.interval = setInterval(() => {
-      console.log("lobbyRelay is running...");
-      console.log("lobbyPlayers", this.lobbyController.players);
-      console.log("WebSocket Map", this.webSocketMap);
-    }, 30000);
+    // this.interval = setInterval(() => {
+    //   console.log("lobbyRelay is running...");
+    //   console.log("lobbyPlayers", this.lobbyController.lobby.getLobbyPlayers());
+    //   console.log("WebSocket Map", this.webSocketMap);
+    // }, 30000);
   }
 
   processMessage(ws, message) {
