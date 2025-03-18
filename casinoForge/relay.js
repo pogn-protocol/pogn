@@ -112,10 +112,9 @@ class Relay {
 
   broadcastResponse(response) {
     console.log(`📡 Broadcasting from ${this.type} Relay ID: ${this.id}`);
+    response.uuid = uuidv4(); // Assign unique identifier to messages
     console.log("Response:", response);
     console.log("WebSocket Map:", this.webSocketMap);
-
-    response.uuid = uuidv4(); // Assign unique identifier to messages
 
     for (const [id, ws] of this.webSocketMap.entries()) {
       if (ws.readyState === ws.OPEN) {

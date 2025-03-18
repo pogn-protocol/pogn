@@ -58,7 +58,7 @@ class LobbyRelay extends Relay {
     let response =
       action === "login"
         ? this.lobbyController.test(playerId)
-        : this.lobbyController.processMessage(action, payload);
+        : this.lobbyController.processMessage(message);
     console.log("Lobby response", response);
     if (response) {
       this.sendResponse(playerId, response);

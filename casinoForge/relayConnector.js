@@ -2,7 +2,6 @@ const WebSocket = require("ws");
 
 class RelayConnector {
   constructor(
-    id,
     targetUrl,
     onMessage,
     onOpen = null,
@@ -16,9 +15,7 @@ class RelayConnector {
     this.duration = duration;
     this.tries = 0;
     this.relaySocket = null;
-    console.log(
-      `🚀 Initializing RelayConnector (ID: ${id}, Target: ${targetUrl})`
-    );
+    console.log(`🚀 Initializing RelayConnector (Target: ${targetUrl})`);
     if (targetUrl) {
       console.log(`🔗 Connecting to relay at ${targetUrl}`);
       this.autoConnect();
@@ -113,7 +110,7 @@ class RelayConnector {
       this.relaySocket.send(JSON.stringify(message));
     } else {
       console.warn(
-        `${this.id} Relay: WebSocket not open. Cannot send message. ${message}`
+        `Relay: WebSocket not open. Cannot send message. ${message}`
       );
     }
   }
