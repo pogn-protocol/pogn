@@ -131,13 +131,11 @@ const App = () => {
         onOpen: () => {
           console.log("🔵 Game WebSocket opened.");
         },
-        // onMessage: (event) => handleWebSocketMessageRef.current(event),
+
         onClose: (event) => {
           console.log("🔴 Game WebSocket closed.", event);
           if (event.wasClean) {
             console.log("💡 WebSocket closed cleanly, resetting game state.");
-            setStartGameConsole(false);
-            setStartWebSocket(false);
           } else {
             console.warn(
               "⚠️ Unexpected WebSocket closure, preventing unnecessary resets."
@@ -147,28 +145,28 @@ const App = () => {
       }
     );
 
-  useEffect(() => {
-    if (lastLobbyMessage) {
-      console.log("Processing lastLobbyMessage:", lastLobbyMessage);
-      setLobbyMessage(lastLobbyMessage); // ✅ Set directly
-    }
-  }, [lastLobbyMessage]); // ✅ Only runs when `lastLobbyMessage` changes
+  // useEffect(() => {
+  //   if (lastLobbyMessage) {
+  //     console.log("Processing lastLobbyMessage:", lastLobbyMessage);
+  //     setLobbyMessage(lastLobbyMessage); // ✅ Set directly
+  //   }
+  // }, [lastLobbyMessage]); // ✅ Only runs when `lastLobbyMessage` changes
 
-  useEffect(() => {
-    if (lastGameMessage) {
-      console.log("Processing lastGameMessage:", lastGameMessage);
-      setGameMessage(lastGameMessage); // ✅ Set directly
-    }
-  }, [lastGameMessage]); // ✅ Only runs when `lastGameMessage` changes
+  // useEffect(() => {
+  //   if (lastGameMessage) {
+  //     console.log("Processing lastGameMessage:", lastGameMessage);
+  //     setGameMessage(lastGameMessage); // ✅ Set directly
+  //   }
+  // }, [lastGameMessage]);
 
-  useEffect(() => {
-    if (!startGameConsole && startWebSocket) {
-      console.log("⚠️ Waiting before shutting down WebSocket...");
-      setTimeout(() => {
-        setStartWebSocket(false);
-      }, 200); // 🔥 Prevent instant loop
-    }
-  }, [startGameConsole]);
+  // useEffect(() => {
+  //   if (!startGameConsole && startWebSocket) {
+  //     console.log("⚠️ Waiting before shutting down WebSocket...");
+  //     setTimeout(() => {
+  //       setStartWebSocket(false);
+  //     }, 200); // 🔥 Prevent instant loop
+  //   }
+  // }, [startGameConsole]);
 
   const handleWebSocketOpen = useCallback(() => {
     console.log("logging in...");
@@ -207,12 +205,10 @@ const App = () => {
         {playerId && <Dashboard playerName="Player" playerId={playerId} />}
         {lastLobbyMessage && (
           <Lobby
-            // message={memoizedMessages.lobbyMessage}
             sendMessage={sendLobbyMessage}
             message={lastLobbyMessage || {}}
             playerId={playerId}
             setStartWebSocket={setStartWebSocket}
-            // setStartGameConsole={setStartGameConsole}
             setInitialGameState={setInitialGameState}
           />
         )}
@@ -222,14 +218,12 @@ const App = () => {
         ) : (
           <GameConsole
             playerId={playerId}
-            // message={memoizedMessages.gameMessage || {}}
-            initialGameState={initialGameState}
-            sendMessage={sendGameMessage}
-            setStartGameConsole={setStartGameConsole}
-            // processedMessagesRef={processedMessagesRef}
             message={lastGameMessage || {}}
+            sendMessage={sendGameMessage}
+            initialGameState={initialGameState}
+            setStartGameConsole={setStartGameConsole}
             sendLobbyMessage={sendLobbyMessage}
-            startWebSocket={startWebSocket}
+            setStartWebSocket={setStartWebSocket}
           />
         )}
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}

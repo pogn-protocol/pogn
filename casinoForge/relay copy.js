@@ -1,207 +1,159 @@
-const WebSocket = require("ws");
-const gamesController = require("./gamesController");
-const LobbyController = require("./LobbyController");
+class Relay {
+  constructor(type, id, port) {
+    console.log("WebSocket global check:", typeof WebSocket);
 
-const lobbyController = new LobbyController(gamesController);
+    console.log("Initializing Relay...");
+    // 🔥 Fixed: port should be singular, not 'ports'
+    this.type = type;
+    this.id = id;
+    this.port = port; // 🔥 Store port as a class property
+    this.webSocketMap = new Map();
 
-const wss = new WebSocket.Server({ port: 8080 }, () => {
-  console.log("Relay running on ws://localhost:8080");
-});
+    // this.interval = setInterval(() => {
+    //   console.log(this.type, "Relay is running...");
+    //   //console.log("Active games", this.gamesController.activeGames);
+    //   console.log("WebSocket Map", this.webSocketMap);
+    // }, 10000);
 
-// WebSocket Map: playerId -> WebSocket
-const webSocketMap = new Map();
-
-// Utility: Send a response to a specific player by playerId
-const sendToPlayer = (playerId, response) => {
-  const ws = webSocketMap.get(playerId);
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(response));
-    console.log(`Message sent to player ${playerId}:`, response);
-  } else {
-    console.warn(`WebSocket not open for player ${playerId}`);
-  }
-};
-
-// Utility: Broadcast a response to all players, optionally excluding the sender
-const broadcastResponse = (response, excludeplayerId = null) => {
-  webSocketMap.forEach((ws, playerId) => {
-    if (playerId !== excludeplayerId && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(response));
-      console.log(`Broadcasting to player ${playerId}:`, response);
-    }
-  });
-};
-
-wss.on("connection", (ws) => {
-  console.log("New connection established.");
-
-  ws.on("message", (message) => {
     try {
-      if (Buffer.isBuffer(message)) {
-        message = message.toString("utf-8");
-      }
-      const parsedMessage = JSON.parse(message);
-      console.log("Message received:", parsedMessage);
-
-      const { type, action, payload } = parsedMessage;
-
-      // Handle lobby and game actions
-      switch (type) {
-        case "lobby": {
-          console.log("Processing lobby message:", { action, payload });
-
-          // Check and register WebSocket
-          if (payload?.playerId) {
-            const existingSocket = webSocketMap.get(payload.playerId);
-            if (existingSocket && existingSocket !== ws) {
-              console.log(
-                `Player ${payload.playerId} reconnected. Replacing old WebSocket.`
-              );
-              existingSocket.send(
-                JSON.stringify({
-                  type: "notification",
-                  payload: {
-                    message:
-                      "You have been disconnected due to a new connection.",
-                  },
-                })
-              );
-              existingSocket.close();
-              webSocketMap.delete(payload.playerId);
-            } else if (existingSocket === ws) {
-              console.log(`Player ${payload.playerId} reconnected.`);
-            }
-
-            // Add or replace WebSocket for the player
-            webSocketMap.set(payload.playerId, ws);
-            console.log(`Player ${payload.playerId} added to WebSocket map.`);
-          } else {
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                payload: { message: "No playerId in payload" },
-              })
-            );
-            console.log("No playerId in payload");
-          }
-          let response;
-          if (action === "login") {
-            console.log(`Player ${payload.playerId} logging in.`);
-            //.test insteand of .login
-            response = lobbyController.test(payload.playerId);
-          } else {
-            console.log(`Else`);
-            console.log("Else lobby action:", { action, payload });
-            // const response = lobbyController.processMessage(action, payload);
-            response = lobbyController.processMessage(action, payload);
-          }
-          if (response) {
-            console.log("Lobby response:", response);
-            sendToPlayer(payload.playerId, response);
-
-            if (response.broadcast) {
-              broadcastResponse(response);
-            }
-          }
-          break;
-        }
-
-        case "game": {
-          console.log("Processing game message:", { action, payload });
-          const response = gamesController.processMessage({
-            action,
-            payload,
-          });
-
-          // if (type === "game" && action === "join" && payload?.playerId) {
-          //   const playerId = payload.playerId;
-          //   console.log(`Player ${playerId} joined game.`);
-          //   const refreshResponse = gamesController.joinGame(
-          //     payload.gameId,
-          //     playerId
-          //   );
-          //   if (refreshResponse?.broadcast) {
-          //     broadcastResponse(refreshResponse);
-          //   }
-          //   setTimeout(() => {
-          //     broadcastResponse(gamesController.updatePlayers());
-          //   }, 5000);
-          // }
-
-          if (response) {
-            console.log("Game response:", response);
-            sendToPlayer(payload.playerId, response);
-
-            if (response.broadcast) {
-              broadcastResponse(response, payload.playerId);
-            }
-          }
-          break;
-        }
-
-        default:
-          console.warn(`Unhandled message type: ${type}`);
-          sendToPlayer(payload?.playerId, {
-            type: "error",
-            payload: { message: `Unknown message type: ${type}` },
-          });
-          break;
-      }
-    } catch (error) {
-      console.error(error);
-      sendToPlayer(null, {
-        type: "error",
-        payload: { message: "Invalid message format." },
+      this.wss = new WebSocket.Server({ port: this.port }, () => {
+        console.log(
+          `✅ ${this.type} Relay ${this.id} running on ws://localhost:${this.port}`
+        );
       });
+
+      this.setupWebSocketHandlers();
+    } catch (error) {
+      console.error("❌ WebSocket Server Error:", error);
     }
-  });
 
-  ws.on("close", () => {
-    console.log("Connection closed.");
+    // ✅ Catch errors during execution
+    this.wss?.on("error", (error) => this.handleServerError(error));
+  }
 
-    // Remove the disconnected player from the WebSocket map
-    let disconnectedPlayerId = null;
-    for (const [playerId, socket] of webSocketMap.entries()) {
+  handleServerError(error) {
+    // if (error.code === "EADDRINUSE") {
+    //   console.error(
+    //     `❌ Port ${this.port} is already in use. Trying a new port...`
+    //   );
+    // }
+    // ✅ Automatically try a new port (increments)
+    // const newPort = this.port + 1;
+    // console.log(`🔄 Retrying on port ${newPort}...`);
+    // // ✅ Try again on a new port
+    // new Relay(this.type, this.id, newPort);
+    // } else {
+    //   console.error("❌ WebSocket Server Error:", error);
+    // }
+  }
+
+  setupWebSocketHandlers() {
+    this.wss.on("connection", (ws) => {
+      console.log(`🔌 New connection to ${this.type} Relay ${this.id}`);
+      this.handleConnection(ws);
+      console.log("connected");
+    });
+  }
+
+  handleConnection(ws) {
+    ws.on("message", (message) => {
+      console.log(`Relay Received Message`);
+      console.log("type", this.type);
+      console.log("msg type", typeof message);
+      console.log("Message:", message);
+      try {
+        if (Buffer.isBuffer(message)) {
+          message = message.toString("utf-8");
+        }
+        console.log("type of debuffered message", typeof message);
+        console.log("debuffered message", message);
+        let parsedMessage;
+        try {
+          parsedMessage = JSON.parse(message); // ✅ Only parse if it's a valid JSON string
+          //  parsedMessage = JSON.parse(parsedMessage);
+        } catch (err) {
+          console.error("❌ JSON Parsing Error:", err);
+          // return; // 🚨 Exit to prevent further issues
+        }
+        // const parsedMessage = JSON.parse(message);
+        console.log("type of parsed message", typeof parsedMessage);
+        console.log(`📨 ${this.type} Relay Received Message:`, parsedMessage);
+
+        // ✅ Extract playerId and store WebSocket reference
+        const playerId = parsedMessage.payload?.playerId;
+        if (playerId) {
+          console.log(`🔄 Storing WebSocket for player ${playerId}`);
+          this.webSocketMap.set(playerId, ws); // ✅ Store player connection
+        }
+        console.log("ws", ws);
+        console.log("WebSocket Map:", this.webSocketMap);
+
+        // ✅ Let subclass handle the message
+        this.processMessage(ws, parsedMessage);
+      } catch (error) {
+        console.error(
+          `❌ Error processing message in ${this.type} Relay:`,
+          error
+        );
+        // ws.send(
+        //   JSON.stringify({
+        //     type: "error",
+        //     payload: { message: "Relay side Error." },
+        //   })
+        // );
+      }
+    });
+
+    ws.on("close", () => {
+      console.log("🔌 Player disconnected");
+      for (const [playerId, socket] of this.webSocketMap.entries()) {
+        if (socket === ws) {
+          this.webSocketMap.delete(playerId);
+          console.log(`🛑 Removed WebSocket reference for player ${playerId}`);
+        }
+      }
+    });
+  }
+
+  handleDisconnection(ws) {
+    for (const [playerId, socket] of this.webSocketMap.entries()) {
       if (socket === ws) {
-        disconnectedPlayerId = playerId;
-        webSocketMap.delete(playerId);
-        console.log(`Player ${playerId} removed from WebSocket map.`);
+        this.webSocketMap.delete(playerId);
+        console.log(
+          `⚠️ ${this.type} Relay ${this.id}: Player ${playerId} disconnected.`
+        );
         break;
       }
     }
+  }
 
-    // Notify the LobbyController about the disconnection
-    if (disconnectedPlayerId) {
-      lobbyController.lobby.removePlayer({ playerId: disconnectedPlayerId });
-      console.log(`Player ${disconnectedPlayerId} removed from the lobby.`);
+  sendToPlayer(playerId, message) {
+    const ws = this.webSocketMap.get(playerId);
 
-      // Refresh the lobby for all remaining players
-      const lobbyPlayers = lobbyController.lobby.getLobbyPlayers();
-      const games = lobbyController.lobby.getLobbyGames();
-
-      webSocketMap.forEach((socket, playerId) => {
-        if (socket.readyState === WebSocket.OPEN) {
-          sendToPlayer(playerId, {
-            type: "lobby",
-            action: "refreshLobby",
-            payload: {
-              lobbyPlayers,
-              lobbyGames: games,
-            },
-          });
-        }
-      });
+    if (!ws) {
+      console.warn(`⚠️ WebSocket not found for player ${playerId}`);
+      return;
     }
-  });
 
-  ws.on("error", (error) => {
-    console.error("WebSocket error:", error.message);
-  });
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    } else {
+      console.warn(`⚠️ WebSocket for player ${playerId} is not open.`);
+      this.webSocketMap.delete(playerId); // Remove stale WebSocket
+    }
+  }
 
-  // setInterval(() => {
-  //   const refreshResponse = lobby.processMessage({ action: "refreshLobby" });
-  //   if (refreshResponse?.broadcast) {
-  //     broadcastResponse(refreshResponse);
-  //   }
-  // }, 5000);
-});
+  // ✅ Abstract method: Subclasses must implement this
+  processMessage(ws, action, payload) {
+    console.warn(`⚠️ processMessage not implemented in ${this.type} Relay.`);
+  }
+
+  // shutDown() {
+  //   console.log(`🛑 Shutting down ${this.type} Relay ${this.id}...`);
+  //   this.wss.close(() => {
+  //     console.log(`✅ ${this.type} Relay ${this.id} closed.`);
+  //   });
+  // }
+}
+
+module.exports = Relay;

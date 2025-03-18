@@ -9,6 +9,7 @@ const GameConsole = ({
   initialGameState = {},
   setStartGameConsole,
   sendLobbyMessage,
+  setStartWebSocket,
 }) => {
   const [gameState, setGameState] = useState({
     ...initialGameState,
@@ -90,11 +91,10 @@ const GameConsole = ({
         break;
       case "gameEnded":
         console.log("Game ended.");
-        //clear the game state
         setGameState({});
+        setGameStarted(false);
+        setStartWebSocket(false);
         setStartGameConsole(false);
-        //  setGameStarted(false);
-
         break;
 
       default:

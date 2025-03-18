@@ -1,103 +1,74 @@
+const { Server } = require("ws");
+const { v4: uuidv4 } = require("uuid");
+const RelayConnector = require("./relayConnector");
+
 class Relay {
-  constructor(type, id, port) {
-    console.log("WebSocket global check:", typeof WebSocket);
-
-    console.log("Initializing Relay...");
-    // 🔥 Fixed: port should be singular, not 'ports'
+  constructor(type, id, port, host = "localhost") {
+    console.log(`🚀 Initializing ${type} Relay (ID: ${id}, Port: ${port})`);
     this.type = type;
-    this.id = id;
-    this.port = port; // 🔥 Store port as a class property
-    this.webSocketMap = new Map();
-
-    // this.interval = setInterval(() => {
-    //   console.log(this.type, "Relay is running...");
-    //   //console.log("Active games", this.gamesController.activeGames);
-    //   console.log("WebSocket Map", this.webSocketMap);
-    // }, 10000);
-
-    // this.wss = new WebSocket.Server({ port: this.port }, () => {
-    //   // 🔥 Use this.port
-    //   console.log(
-    //     `✅ ${this.type} Relay ${this.id} running on ws://localhost:${this.port}`
-    //   );
-    // });
-    //  this.setupWebSocketHandlers();
+    this.id = id; // Unique relay ID
+    this.port = port; // WebSocket port
+    this.webSocketMap = new Map(); // Track  WebSocket connections
+    this.wsAddress = `ws://${host}:${port}`; // WebSocket address
 
     try {
-      this.wss = new WebSocket.Server({ port: this.port }, () => {
+      this.wss = new Server({ port }, () => {
         console.log(
-          `✅ ${this.type} Relay ${this.id} running on ws://localhost:${this.port}`
+          `✅ ${this.type} Relay running on ws://localhost:${this.port}`
         );
       });
 
       this.setupWebSocketHandlers();
     } catch (error) {
-      console.error("❌ WebSocket Server Error:", error);
-      //this.handleServerError(error);
+      console.error(`❌ WebSocket Server Error in ${this.type} Relay:`, error);
     }
 
-    // ✅ Catch errors during execution
+    // ✅ Handle WebSocket server errors
     this.wss?.on("error", (error) => this.handleServerError(error));
   }
 
-  handleServerError(error) {
-    // if (error.code === "EADDRINUSE") {
-    //   console.error(
-    //     `❌ Port ${this.port} is already in use. Trying a new port...`
-    //   );
-    // }
-    // ✅ Automatically try a new port (increments)
-    // const newPort = this.port + 1;
-    // console.log(`🔄 Retrying on port ${newPort}...`);
-    // // ✅ Try again on a new port
-    // new Relay(this.type, this.id, newPort);
-    // } else {
-    //   console.error("❌ WebSocket Server Error:", error);
-    // }
+  connectToRelay(id, targetUrl) {
+    console.log(`🔗 Connecting  ${id} relayConnector to ${targetUrl}`);
+
+    this.relayConnector = new RelayConnector(
+      id,
+      targetUrl
+      //  (message) => this.broadcastResponse(message) // ✅ Forward messages to connected clients
+    );
   }
 
+  /** 🔥 Handle WebSocket Server Errors */
+  handleServerError(error) {
+    console.error(`❌ ${this.type} Relay Server Error:`, error);
+  }
+
+  /** 🔌 Setup Connection Handlers */
   setupWebSocketHandlers() {
     this.wss.on("connection", (ws) => {
       console.log(`🔌 New connection to ${this.type} Relay ${this.id}`);
       this.handleConnection(ws);
-      console.log("connected");
     });
   }
 
+  /** 🔄 Handle  Connection */
   handleConnection(ws) {
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    this.webSocketMap.set(tempId, ws);
+
+    console.log(`📌 Temporary WebSocket stored for ${tempId}`);
+
     ws.on("message", (message) => {
-      console.log(`Relay Received Message`);
-      console.log("type", this.type);
-      console.log("msg type", typeof message);
+      console.log(`📨 ${this.type} Relay Received Message`);
       console.log("Message:", message);
+
       try {
+        // ✅ Handle binary buffer messages
         if (Buffer.isBuffer(message)) {
           message = message.toString("utf-8");
         }
-        console.log("type of debuffered message", typeof message);
-        console.log("debuffered message", message);
-        let parsedMessage;
-        try {
-          parsedMessage = JSON.parse(message); // ✅ Only parse if it's a valid JSON string
-          //  parsedMessage = JSON.parse(parsedMessage);
-        } catch (err) {
-          console.error("❌ JSON Parsing Error:", err);
-          // return; // 🚨 Exit to prevent further issues
-        }
-        // const parsedMessage = JSON.parse(message);
-        console.log("type of parsed message", typeof parsedMessage);
-        console.log(`📨 ${this.type} Relay Received Message:`, parsedMessage);
-
-        // ✅ Extract playerId and store WebSocket reference
-        const playerId = parsedMessage.payload?.playerId;
-        if (playerId) {
-          console.log(`🔄 Storing WebSocket for player ${playerId}`);
-          this.webSocketMap.set(playerId, ws); // ✅ Store player connection
-        }
-        console.log("ws", ws);
-        console.log("WebSocket Map:", this.webSocketMap);
-
-        // ✅ Let subclass handle the message
+        console.log("Converting message to JSON", message);
+        const parsedMessage = JSON.parse(message);
+        console.log("Parsed message", parsedMessage);
         this.processMessage(ws, parsedMessage);
       } catch (error) {
         console.error(
@@ -107,62 +78,84 @@ class Relay {
         // ws.send(
         //   JSON.stringify({
         //     type: "error",
-        //     payload: { message: "Relay side Error." },
+        //     payload: { message: "Invalid message format." },
         //   })
         // );
       }
     });
 
     ws.on("close", () => {
-      console.log("🔌 Player disconnected");
-      for (const [playerId, socket] of this.webSocketMap.entries()) {
-        if (socket === ws) {
-          this.webSocketMap.delete(playerId);
-          console.log(`🛑 Removed WebSocket reference for player ${playerId}`);
-        }
-      }
+      console.log(`🔌 ${this.type} Relay: websocket disconnected.`);
+      this.removeSocket(ws);
     });
   }
 
-  handleDisconnection(ws) {
-    for (const [playerId, socket] of this.webSocketMap.entries()) {
+  /** 📩 Process Incoming Messages */
+  processMessage(ws, message) {
+    console.log(`📨 Processing ${this.type} message:`, message);
+    if (message.type === "hello") {
+      this.broadcastResponse(message);
+    }
+  }
+
+  removeSocket(ws) {
+    //there no players for this class don't use the word players use id
+    let found = false;
+    for (const [id, socket] of this.webSocketMap.entries()) {
       if (socket === ws) {
-        this.webSocketMap.delete(playerId);
-        console.log(
-          `⚠️ ${this.type} Relay ${this.id}: Player ${playerId} disconnected.`
-        );
-        break;
+        this.webSocketMap.delete(id);
+        found = true;
+        console.log(`🛑 Removed WebSocket reference for ${id}`);
       }
     }
   }
 
-  sendToPlayer(playerId, message) {
-    const ws = this.webSocketMap.get(playerId);
+  broadcastResponse(response) {
+    console.log(`📡 Broadcasting from ${this.type} Relay ID: ${this.id}`);
+    console.log("Response:", response);
+    console.log("WebSocket Map:", this.webSocketMap);
 
-    if (!ws) {
-      console.warn(`⚠️ WebSocket not found for player ${playerId}`);
+    response.uuid = uuidv4(); // Assign unique identifier to messages
+
+    for (const [id, ws] of this.webSocketMap.entries()) {
+      if (ws.readyState === ws.OPEN) {
+        console.log(`📡 Broadcasting to ${id}`);
+        ws.send(JSON.stringify(response));
+      } else {
+        console.warn(`⚠️ WebSocket not open for ${id}`);
+      }
+    }
+  }
+
+  sendResponse(id, message) {
+    const ws = this.webSocketMap.get(id);
+    if (!ws || ws.readyState !== ws.OPEN) {
+      console.warn(`⚠️ WebSocket not found or not open for ${id}`);
       return;
     }
+    ws.send(JSON.stringify(message));
+  }
 
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+  /** 🛑 Shutdown Relay */
+  shutdown() {
+    console.log(`🛑 Shutting down ${this.type} Relay ${this.id}...`);
+
+    for (const ws of this.webSocketMap.values()) {
+      ws.close();
+    }
+
+    this.webSocketMap.clear();
+
+    if (this.wss) {
+      this.wss.close(() => {
+        console.log(
+          `✅ ${this.type} Relay ${this.id} WebSocket server closed.`
+        );
+      });
     } else {
-      console.warn(`⚠️ WebSocket for player ${playerId} is not open.`);
-      this.webSocketMap.delete(playerId); // Remove stale WebSocket
+      console.warn("⚠️ WebSocket server instance (wss) not found!");
     }
   }
-
-  // ✅ Abstract method: Subclasses must implement this
-  processMessage(ws, action, payload) {
-    console.warn(`⚠️ processMessage not implemented in ${this.type} Relay.`);
-  }
-
-  // shutDown() {
-  //   console.log(`🛑 Shutting down ${this.type} Relay ${this.id}...`);
-  //   this.wss.close(() => {
-  //     console.log(`✅ ${this.type} Relay ${this.id} closed.`);
-  //   });
-  // }
 }
 
 module.exports = Relay;

@@ -15,14 +15,10 @@ class RelayManager {
     // this.createLobby("default");
   }
 
-  createLobbyRelay(lobbyId, lobbyController, gamesController) {
+  createLobbyRelay(lobbyId, ports, lobbyController) {
     if (!this.lobbies.has(lobbyId)) {
       lobbyController.setRelayManager(this);
-      const lobbyRelay = new LobbyRelay(
-        lobbyId,
-        lobbyController,
-        gamesController
-      );
+      const lobbyRelay = new LobbyRelay(lobbyId, ports, lobbyController);
       console.log(`🔥 Spawning LobbyRelay for lobby ${lobbyId}...`);
       lobbyController.setLobbyRelay(lobbyId, lobbyRelay);
       // this.lobbies.set(lobbyId, lobbyRelay);

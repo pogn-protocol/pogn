@@ -1,31 +1,37 @@
 const Relay = require("./relay");
+const RelayConnector = require("./relayConnector");
 
 class LobbyRelay extends Relay {
-  constructor(lobbyId, lobbyController) {
-    super("lobby", lobbyId, 8080);
+  constructor(lobbyId, ports, lobbyController, targetUrl = null) {
+    super("lobby", lobbyId, ports[0]); // Pass targetUrl for potential relay connections
     this.lobbyController = lobbyController;
-    this.webSocketMap = new Map(); // ✅ Ensure WebSocket Map exists
 
-    // this.interval = setInterval(() => {
-    //   console.log("lobbyRelay is running...");
-    //   console.log("lobbyPlayers", this.lobbyController.lobby.getLobbyPlayers());
-    //   console.log("WebSocket Map", this.webSocketMap);
-    // }, 30000);
+    if (targetUrl) {
+      this.relayConnector = new RelayConnector(
+        targetUrl
+        //  (message) => this.broadcastResponse(message) // ✅ Forward messages to connected clients
+      );
+    }
   }
 
   processMessage(ws, message) {
     // ✅ Extract type, action and payload from message
     const { type, action, payload } = message;
+    if (type === "hello") {
+      this.relayConnector.sendMessage({
+        type: "hello",
+        payload: { message: "Hello back from lobby relay" },
+      });
+      return;
+    }
     if (type !== "lobby") {
       console.warn("Message sent to lobby not of type lobby:", type);
-      this.sendError(ws, "Lobby received message of wrong type.");
       return; // ✅ Return early
     }
     console.log("Processing lobby message:", { action, payload });
 
     if (!payload?.playerId) {
       console.warn("No playerId in payload.");
-      this.sendError(ws, "No playerId in payload.");
       return; // ✅ Return early
     }
 
@@ -55,30 +61,10 @@ class LobbyRelay extends Relay {
         : this.lobbyController.processMessage(action, payload);
     console.log("Lobby response", response);
     if (response) {
-      this.sendToPlayer(playerId, response);
+      this.sendResponse(playerId, response);
       if (response.broadcast) {
         this.broadcastResponse(response);
       }
-    }
-  }
-
-  /**
-   * ✅ Ensure broadcastResponse is available in LobbyRelay
-   */
-  broadcastResponse(response) {
-    for (const ws of this.webSocketMap.values()) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(response));
-      }
-    }
-  }
-
-  /**
-   * ✅ Add sendError in case it's missing in Relay
-   */
-  sendError(ws, message) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "error", payload: { message } }));
     }
   }
 }

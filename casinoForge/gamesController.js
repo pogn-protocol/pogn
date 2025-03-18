@@ -5,7 +5,7 @@ const eventBus = require("./eventBus"); // Import the shared EventBus
 const GameRelay = require("./gameRelay");
 
 class GamesController {
-  constructor(gamePorts = []) {
+  constructor(gamePorts = [], lobbyWsUrl) {
     if (GamesController.instance) return GamesController.instance;
     GamesController.instance = this; // Singleton instance// Store active games
     this.gameClasses = {
@@ -16,6 +16,7 @@ class GamesController {
     this.gamePorts = gamePorts; // Store available game ports
     this.gameRelay = new Map(); // Store game relays
     this.initializeListeners();
+    this.lobbyWsUrl = lobbyWsUrl;
   }
 
   addGameRelay(gameId, gameRelay) {
@@ -58,17 +59,27 @@ class GamesController {
     console.log("Player ID:", playerId);
     console.log(this.activeGames);
 
+    if (payload.action === "gameEnded") {
+      console.log("Game ended.");
+      this.activeGames.delete(payload.gameId);
+      this.broadcastToGamePlayers(payload.gameId, {
+        type: "game",
+        action: "gameEnded",
+        payload: {},
+        broadcast: true,
+      });
+      return;
+    }
+
     console.log("game", game);
     if (typeof game.instance.processAction === "function") {
       try {
         console.log("Processing game action:", payload.gameAction);
-        //const gameRelay = this.gameRelay.get(payload.gameId);
         const gameRelay = game.relay;
         console.log("gameRelay", gameRelay);
         console.log("payload", payload);
         const gameResponse = game.instance.processAction(playerId, payload);
         console.log("gameResponse", gameResponse);
-        //log if log entry is not null
         if (gameResponse.logEntry) {
           game.logAction(gameResponse.logEntry);
         }
@@ -86,15 +97,9 @@ class GamesController {
 
         console.log("response", response);
         gameRelay.broadcastResponse(response);
-        // return response;
-
         return;
       } catch (error) {
         console.error(`❌ Error processing game action:`, error);
-        // return {
-        //   type: "error",
-        //   payload: { message: "Error processing game action." },
-        // };
       }
     } else {
       console.warn(`Game ${payload.gameId} does not support game actions.`);
@@ -134,10 +139,15 @@ class GamesController {
     game.gamePorts = this.gamePorts;
     const gameInstance = new this.gameClasses[gameType]();
     game.setGameInstance(gameInstance);
-    //create game relay
-    //constructor(gameId, players = [], ports, gamesController) {
-    const gameRelay = new GameRelay(game.gameId, [], this.gamePorts, this);
-    // this.addGameRelay(game.gameId, gameRelay);
+    //  constructor(gameId, ports, gamesController, targetUrl = null) {
+
+    // const gameRelay = new GameRelay(game.gameId, [9000, 9001], this.lobbyWsUrl);
+    const gameRelay = new GameRelay(
+      game.gameId,
+      [9000, 9001],
+      this,
+      this.lobbyWsUrl
+    );
     game.relay = gameRelay;
     console.log("game", game);
     return game;
@@ -180,39 +190,6 @@ class GamesController {
     return;
   }
 
-  // gameAction(gameAction, playerId, payload) {
-  //   console.log(
-  //     "Processing game action:",
-  //     gameAction,
-  //     "from player:",
-  //     playerId
-  //   );
-  //   const gameActionResult = game.instance.processAction(
-  //     gameAction,
-  //     playerId,
-  //     payload
-  //   );
-
-  //   console.log("gameAction result:", gameActionResult);
-  //   //throw error if log entry is null
-  //   if (gameActionResult.logEntry) {
-  //     game.logAction(gameActionResult.logEntry);
-  //   }
-  //   console.log("game", game);
-  //   return gameActionResult;
-  //   // return {
-  //   //   type: "game",
-  //   //   action: "gameAction",
-  //   //   payload: {
-  //   //     ...gameActionResult,
-  //   //     game: game,
-  //   //   },
-  //   //   broadcast: true,
-  //   // };
-
-  //   //throw andconsole and error that reminds us to rebuilt getgameDetails
-  // }
-
   addPlayerToGame(gameId, playerId) {
     console.log("activeGames", this.activeGames);
     const game = this.activeGames.get(gameId);
@@ -244,35 +221,16 @@ class GamesController {
   }
 
   initializeListeners() {
-    // ✅ Listen for the "gameEnded" event from GameController
     eventBus.on("gameEnded", ({ gameId }) => {
       console.log(`🔄 Game ${gameId} ended, refreshing lobby.`);
-      // this.refreshLobby();
     });
 
     eventBus.on("lobbyMessage", (message) => {
       console.log("gameController received lobby message", message);
-      //send hello reply back
       eventBus.emit("gameMessage", {
         message: "Hello from the game relay.",
       });
     });
   }
-
-  // endGame(gameId) {
-  //   const game = this.activeGames.get(gameId);
-  //   if (!game) {
-  //     console.warn(`⚠️ Cannot end game ${gameId}: Not found.`);
-  //     return;
-  //   }
-
-  //   console.log(`🛑 Ending game ${gameId}`);
-  //   //delete game
-  //   game.status = "ended";
-  //   game.gameLog.push("Game ended.");
-
-  //   // ✅ Remove from active games
-  //   this.activeGames.delete(gameId);
-  // }
 }
 module.exports = GamesController;
