@@ -5,13 +5,7 @@ class LobbyRelay extends Relay {
   constructor(lobbyId, ports, lobbyController, targetUrl = null) {
     super("lobby", lobbyId, ports[0]); // Pass targetUrl for potential relay connections
     this.lobbyController = lobbyController;
-
-    if (targetUrl) {
-      this.relayConnector = new RelayConnector(
-        targetUrl
-        //  (message) => this.broadcastResponse(message) // ✅ Forward messages to connected clients
-      );
-    }
+    this.gameRelayConnections = new Map();
   }
 
   processMessage(ws, message) {
@@ -66,6 +60,15 @@ class LobbyRelay extends Relay {
         this.broadcastResponse(response);
       }
     }
+  }
+
+  sendToGameRelay(gameId, message) {
+    let gameWs = this.gameRelayConnections.get(gameId);
+    if (!gameWs) {
+      console.warn(`Game ${gameId} not found in gameRelayConnections.`);
+      return;
+    }
+    this.sendResponse(gameWs, message);
   }
 }
 

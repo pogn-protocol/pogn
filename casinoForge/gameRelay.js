@@ -10,23 +10,24 @@ class GameRelay extends Relay {
     this.ports = ports;
     this.gameId = gameId;
     this.players = [];
-
-    // players.forEach((playerId) => this.webSocketMap.set(playerId, null));
+    this.lobbyWs = new Map();
+    this.lobbyId = null;
     //console ever 5 seconds if running
     // this.interval = setInterval(() => {
     //   console.log("GameRelay is running...");
     //   console.log("Active games", this.gameController.activeGames);
     //   console.log("WebSocket Map", this.webSocketMap);
     // }, 30000);
-
-    if (targetUrl) {
-      this.relayConnector = new RelayConnector(targetUrl);
-    }
   }
 
   processMessage(ws, message) {
     console.log("🎮 GameRelay Processing Message:", message);
-    const { payload } = message;
+
+    const { type, payload } = message;
+    if (type !== "game") {
+      console.warn("⚠️ Message sent to game not of type game:", type);
+      return;
+    }
     const gameId = payload?.gameId;
     const game = this.gameController.activeGames.get(gameId);
     if (!game) {
@@ -44,6 +45,11 @@ class GameRelay extends Relay {
     } catch (error) {
       console.error("❌ GameRelay Error processing message:", error);
     }
+  }
+
+  sendToLobby(message) {
+    console.log(`📡 Sending to LobbyId ${this.lobbyId}:`, message);
+    this.sendResponse(lobbyWs, message);
   }
 }
 

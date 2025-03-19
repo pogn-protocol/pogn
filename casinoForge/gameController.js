@@ -120,24 +120,13 @@ class gameController {
       console.log("createRelay is false");
     }
     const game = new Game(gameType);
-    game.gamePorts = this.gamePorts;
     const gameInstance = new this.gameClasses[gameType]();
     game.setGameInstance(gameInstance);
-    //  constructor(gameId, ports, gameController, targetUrl = null) {
 
-    //type id and options
     this.relayManager.createRelay("game", game.gameId, {
       players: [playerId],
-      ports: this.gamePorts,
       controller: this,
     });
-    // const gameRelay = new GameRelay(
-    //   game.gameId,
-    //   [9000, 9001],
-    //   this,
-    //   this.lobbyWsUrl
-    // );
-    //game.relay = gameRelay;
     console.log("game", game);
     return game;
   }
@@ -190,11 +179,11 @@ class gameController {
     game.status = "ended";
     game.gameLog.push("Game ended.");
     console.log("gameRelay", this.relayManager.relays.get(gameId));
-    this.relayManager.relays.get(gameId).broadcastResponse({
-      type: "game",
+    this.relayManager.relays.get(gameId).sendResponse(lobby.lobbyId, {
+      type: "lobby",
       action: "gameEnded",
       payload: {
-        playerId: "lobbyController",
+        playerId: "gameController",
         gameId: gameId,
         status: "ended",
         gameLog: game.gameLog, // Include game history

@@ -15,7 +15,6 @@ const lobbyController = new LobbyController(gameController, relayManager);
 
 // ✅ Initialize RelayManager (which will create the lobby relay)
 relayManager.createRelay("lobby", "lobby1", {
-  ports: lobbyPorts,
   controller: lobbyController,
 });
 

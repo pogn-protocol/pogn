@@ -7,6 +7,8 @@ const RelayConnector = require("./relayConnector");
 class RelayManager {
   constructor() {
     this.relays = new Map(); // ✅ Store all relays (lobby & game)
+    this.gamePorts = [9000]; // ✅ Define game ports
+    this.lobbyPorts = [8080]; // ✅ Define lobby ports
   }
 
   /** 🔗 Create relay dynamically based on type */
@@ -19,7 +21,11 @@ class RelayManager {
     let relay;
     switch (type) {
       case "lobby":
-        relay = new LobbyRelay(id, options.ports, options.controller);
+        relay = new LobbyRelay(
+          id,
+          options.ports || this.lobbyPorts,
+          options.controller
+        );
         console.log(`🔥 Created LobbyRelay for ${id}`);
         break;
 
@@ -27,9 +33,23 @@ class RelayManager {
         relay = new GameRelay(
           id,
           options.players,
-          options.ports,
-          options.controller
+          options.ports || this.gamePorts,
+          options.controller,
+          options.lobbyId
         );
+        if (options.lobby) {
+          const lobbyRelay = this.relays.get(options.lobbyId);
+          if (lobbyRelay) {
+            console.log(
+              `🔗 Linking GameRelay ${id} with LobbyRelay ${options.lobbyId}`
+            );
+            lobbyRelay.gameRelayConnections.set(id, relay);
+            relay.lobbyWs = lobbyRelay.wss;
+            relay.lobbyId = options.lobbyId;
+          } else {
+            console.warn(`⚠️ No LobbyRelay found for ID ${options.lobbyId}.`);
+          }
+        }
         console.log(`🔥 Created GameRelay for ${id}`);
         break;
 

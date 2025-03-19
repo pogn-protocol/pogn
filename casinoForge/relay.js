@@ -1,6 +1,5 @@
 const { Server } = require("ws");
 const { v4: uuidv4 } = require("uuid");
-const RelayConnector = require("./relayConnector");
 
 class Relay {
   constructor(type, id, port, host = "localhost") {
@@ -10,6 +9,7 @@ class Relay {
     this.port = port; // WebSocket port
     this.webSocketMap = new Map(); // Track  WebSocket connections
     this.wsAddress = `ws://${host}:${port}`; // WebSocket address
+    this.wss = null; // WebSocket server instance
 
     try {
       this.wss = new Server({ port }, () => {
@@ -25,16 +25,6 @@ class Relay {
 
     // ✅ Handle WebSocket server errors
     this.wss?.on("error", (error) => this.handleServerError(error));
-  }
-
-  connectToRelay(id, targetUrl) {
-    console.log(`🔗 Connecting  ${id} relayConnector to ${targetUrl}`);
-
-    this.relayConnector = new RelayConnector(
-      id,
-      targetUrl
-      //  (message) => this.broadcastResponse(message) // ✅ Forward messages to connected clients
-    );
   }
 
   /** 🔥 Handle WebSocket Server Errors */
@@ -69,6 +59,13 @@ class Relay {
         console.log("Converting message to JSON", message);
         const parsedMessage = JSON.parse(message);
         console.log("Parsed message", parsedMessage);
+        if (parsedMessage.type !== this.type) {
+          console.warn(
+            `⚠️ Message sent to ${this.type} not of type ${this.type}:`,
+            parsedMessage.type
+          );
+          return;
+        }
         this.processMessage(ws, parsedMessage);
       } catch (error) {
         console.error(
@@ -99,7 +96,6 @@ class Relay {
   }
 
   removeSocket(ws) {
-    //there no players for this class don't use the word players use id
     let found = false;
     for (const [id, socket] of this.webSocketMap.entries()) {
       if (socket === ws) {

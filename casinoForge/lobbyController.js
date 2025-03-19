@@ -23,9 +23,11 @@ class LobbyController {
       endGame: (data) => this.endGame(data),
       refreshLobby: (data) => this.refreshLobby(data),
     };
+    this.messages = [];
   }
 
   processMessage(message) {
+    console.log("Preserved messages", this.messages);
     console.log("Processing lobby message:", message);
 
     const { lobbyId, action, payload } = message;
@@ -197,15 +199,21 @@ class LobbyController {
       };
     }
 
-    const game = this.gameController.createGame(gameType, true, playerId);
+    const game = this.gameController.createGame(gameType, game.gameId, {
+      players,
+      ports,
+      controller: this.gameController,
+      lobbyId: lobby.lobbyId,
+    });
     console.log("gameRelay", this.relayManager.relays.get(game.gameId));
     console.log("relay ws", this.relayManager.relays.get(game.gameId).ws);
-    this.relayManager.connectRelayToWS(lobby.lobbyId, game.relay.wsAddress);
+    //this.relayManager.connectRelayToWS(lobby.lobbyId, game.relay.wsAddress);
     setTimeout(() => {
       console.log("sending test message");
-      this.relayManager.relays.get(game.gameId).sendMessage({
-        type: "hello",
-        payload: { message: "Hello from lobby" },
+      this.relayManager.relays.get(lobby.lobbyId).sendToGame(game.gameId, {
+        type: "game",
+        action: "test",
+        payload: { message: "test message" },
       });
     }, 10000);
 
