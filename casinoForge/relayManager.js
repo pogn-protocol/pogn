@@ -98,14 +98,14 @@ class RelayManager {
   }
 
   /** 🔗 Create and return a relay connector */
-  connectRelayToWS(id, targetUrl) {
-    console.log(`🔗 RelayManager connecting ${id} to ${targetUrl}`);
-    if (!this.relays.has(id)) {
-      console.warn(`⚠️ Relay ${id} not found.`);
-      return null;
-    }
-    this.relays.get(id).relayConnector = new RelayConnector(targetUrl);
-  }
+  // connectRelayToWS(id, targetUrl) {
+  //   console.log(`🔗 RelayManager connecting ${id} to ${targetUrl}`);
+  //   if (!this.relays.has(id)) {
+  //     console.warn(`⚠️ Relay ${id} not found.`);
+  //     return null;
+  //   }
+  //   this.relays.get(id).relayConnector = new RelayConnector(id, targetUrl);
+  // }
 
   /** 🛑 Remove a relay */
   removeRelay(id) {

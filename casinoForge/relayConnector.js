@@ -3,16 +3,16 @@ const uuidv4 = require("uuid").v4;
 
 class RelayConnector {
   constructor(
-    senderId,
-    recieverId,
+    clientId,
+    targetId,
     targetUrl,
     onMessage,
     onOpen = null,
     maxTries = 5,
     duration = 5000
   ) {
-    this.senderId = senderId;
-    this.recieverId = recieverId;
+    this.clientId = clientId;
+    this.targetId = targetId;
     this.targetUrl = targetUrl;
     this.onMessage = onMessage;
     this.onOpen = onOpen;
@@ -88,7 +88,7 @@ class RelayConnector {
         type: "game",
         action: "test",
         payload: {
-          id: this.senderId,
+          id: this.clientId,
           message: "Hello from relay connector",
         },
       })
@@ -116,18 +116,18 @@ class RelayConnector {
   sendMessage(message) {
     if (this.relaySocket && this.relaySocket.readyState === WebSocket.OPEN) {
       console.log(
-        `relayConnector ${this.senderId} sending message:`,
+        `relayConnector ${this.clientId} sending message:`,
         message,
-        `to ${this.recieverId}`
+        `to ${this.targetId}`
       );
       console.log(message.id);
       //make sure message.id = this.id
-      if (message?.id !== this.senderId) {
+      if (message?.id !== this.clientId) {
         console.warn(
-          `Relay: ${message.id} does not match senderId: ${this.senderId}`
+          `Relay: ${message.id} does not match clientId: ${this.clientId}`
         );
       }
-      message.id = this.senderId;
+      message.id = this.clientId;
 
       this.relaySocket.send(JSON.stringify(message));
     } else {

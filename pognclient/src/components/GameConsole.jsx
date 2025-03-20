@@ -14,18 +14,15 @@ const GameConsole = ({
   const [gameState, setGameState] = useState({
     ...initialGameState,
   });
-  //lobby message var
   const [lobbyMessage, setLobbyMessage] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
 
-  //send the lobby message to the relay when lobbyMessage is set
   useEffect(() => {
     console.log("Lobby message:", lobbyMessage);
     if (lobbyMessage && Object.keys(lobbyMessage).length > 0) {
       console.log("Sending lobby message:", lobbyMessage);
       sendLobbyMessage(lobbyMessage);
 
-      // ✅ Delay clearing the message slightly to avoid interfering with sendLobbyMessage
       setTimeout(() => {
         console.log("Clearing lobby message...");
         setLobbyMessage(null); // Use `null` instead of `{}`
@@ -44,29 +41,12 @@ const GameConsole = ({
       console.log("No message received.");
       return;
     }
-    // if (
-    //   !message ||
-    //   Object.keys(message).length === 0 ||
-    //   !message.action ||
-    //   !message.payload
-    // ) {
-    //   console.warn("⚠️ Skipping empty or invalid message:", message);
-    //   return;
-    // }
 
     console.log("Processing Game message:", message);
     const { action, payload } = message;
     console.log("action", action);
     console.log("payload", payload);
-    // if (!message || processedMessagesRef.current.has(message.unique)) {
-    //   console.warn(
-    //     "⚠️ Skipping message because it was already processed:",
-    //     message
-    //   );
-    //   return;
-    // }
-
-    // processedMessagesRef.current.add(message.unique);
+    //check if the action is not in switch statement
     console.log("Switching on action:", action);
     switch (action) {
       case "gameAction":

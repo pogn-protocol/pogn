@@ -1,11 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 
-const OddsAndEvens = ({
-  sendGameMessage,
-  playerId,
-  gameState,
-  setGameMessage,
-}) => {
+const OddsAndEvens = ({ sendGameMessage, playerId, gameState }) => {
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
   const [localGameState, setLocalGameState] = useState({
@@ -111,29 +106,6 @@ const OddsAndEvens = ({
     });
     setNumber(""); // Clear input after submission
   };
-
-  //send a msg to game to get a role "getRole"
-  // Send a message to the game to get roles
-  // useEffect(() => {
-  //   console.log("gameState", localGameState);
-  //   if (localGameState?.action === "getRoles") {
-  //     console.log("Getting roles...");
-  //     // rolesFetched.current = true;
-  //     sendGameMessage({
-  //       type: "game",
-  //       action: "gameAction",
-  //       payload: {
-  //         game: "odds-and-evens",
-  //         gameAction: "getRoles",
-  //         playerId,
-  //         gameId: localGameState.gameId, // Use gameState directly
-  //         state: localGameState.status, // Use gameState directly
-  //       },
-  //     });
-  //   } else {
-  //     console.warn("Game ID or state is not available yet.");
-  //   }
-  // }, [localGameState.action]);
 
   return (
     <div className="mb-5">

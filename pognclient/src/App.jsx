@@ -1,20 +1,12 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import useWebSocket from "react-use-websocket";
 import Player from "./components/Player";
 import Dashboard from "./components/Dashboard";
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import ErrorBoundary from "./ErrorBoundary";
-//import useWebSocket from "./components/hooks/webSocket";
 import Lobby from "./components/Lobby";
 import GameConsole from "./components/GameConsole";
-import { use } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 window.onerror = function (message, source, lineno, colno, error) {
@@ -36,63 +28,14 @@ window.addEventListener("unhandledrejection", function (event) {
 });
 
 const App = () => {
-  const [messages, setMessages] = useState([]);
   const [lobbyMessage, setLobbyMessage] = useState(null);
   const [gameMessage, setGameMessage] = useState(null);
   const [playerId, setPlayerId] = useState(null); // Only open WebSocket after this is set
   const [startGameConsole, setStartGameConsole] = useState(false);
   const [startWebSocket, setStartWebSocket] = useState(false);
   const [initialGameState, setInitialGameState] = useState({});
-  const processedMessagesRef = useRef(new Set());
-
-  // Memoized WebSocket handlers
-  // const handleWebSocketMessageRef = useRef((event) => {
-  //   console.log("Received WebSocket message....");
-  //   console.log("data", event); // This is actually a `MessageEvent`
-
-  //   let data;
-  //   try {
-  //     data = JSON.parse(event.data); // ✅ Extract `data` from `MessageEvent`
-  //   } catch (error) {
-  //     console.error("❌ Failed to parse WebSocket message:", error);
-  //     return;
-  //   }
-  //   console.log(`Main switch: ${data.type}`, data);
-
-  //   switch (data.type) {
-  //     case "lobby":
-  //       console.log("Switched to lobby");
-  //       setLobbyMessage((prevMessage) => {
-  //         // Avoid redundant updates
-  //         if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
-  //           return prevMessage;
-  //         }
-  //         return data;
-  //       });
-  //       break;
-
-  //     case "game":
-  //       setGameMessage((prevMessage) => {
-  //         // Avoid redundant updates
-  //         if (JSON.stringify(prevMessage) === JSON.stringify(data)) {
-  //           return prevMessage;
-  //         }
-  //         return data;
-  //       });
-  //       break;
-
-  //     case "chat":
-  //       setMessages((prevMessages) => [...prevMessages, data.payload]);
-  //       break;
-
-  //     default:
-  //       console.warn(`Unhandled message type: ${data.type}`);
-  //   }
-  // });
-
-  // useEffect(() => {
-  //   handleWebSocketMessageRef.current = handleWebSocketMessageRef.current;
-  // }, []);
+  const [lobbyMessageHistory, setLobbyMessageHistory] = useState([]);
+  const [gameMessageHistory, setGameMessageHistory] = useState([]);
 
   useEffect(() => {
     if (startWebSocket) {
@@ -112,7 +55,7 @@ const App = () => {
     {
       onOpen: () => {
         console.log("🔵 Lobby WebSocket opened for playerId;", playerId);
-        handleWebSocketOpen();
+        handleLobbyWebSocketOpen();
       },
       //onMessage: (event) => handleWebSocketMessageRef.current(event);
       onClose: () => {
@@ -122,68 +65,117 @@ const App = () => {
   );
 
   // ✅ Memoized game WebSocket (Only re-runs when `startWebSocket` changes)
-  const { sendJsonMessage: sendGameMessage, lastJsonMessage: lastGameMessage } =
-    useWebSocket(
-      useMemo(
-        () => (startWebSocket ? "ws://localhost:9000" : null),
-        [startWebSocket]
-      ),
-      {
-        onOpen: () => {
-          console.log("🔵 Game WebSocket opened.");
-        },
+  const {
+    sendJsonMessage: originalSendGameMessage,
+    lastJsonMessage: lastGameMessage,
+  } = useWebSocket(
+    useMemo(
+      () => (startWebSocket ? "ws://localhost:9000" : null),
+      [startWebSocket]
+    ),
+    {
+      onOpen: () => {
+        console.log("🔵 Game WebSocket opened.");
+      },
 
-        onClose: (event) => {
-          setStartWebSocket(false);
-          console.log("🔴 Game WebSocket closed.", event);
-          if (event.wasClean) {
-            console.log("💡 WebSocket closed cleanly, resetting game state.");
-          } else {
-            console.warn(
-              "⚠️ Unexpected WebSocket closure, preventing unnecessary resets."
-            );
-          }
-        },
+      onClose: (event) => {
+        setStartWebSocket(false);
+        console.log("🔴 Game WebSocket closed.", event);
+        if (event.wasClean) {
+          console.log("💡 WebSocket closed cleanly, resetting game state.");
+        } else {
+          console.warn(
+            "⚠️ Unexpected WebSocket closure, preventing unnecessary resets."
+          );
+        }
+      },
+    }
+  );
+  useEffect(() => {
+    if (lastLobbyMessage !== null) {
+      //check if type not lobby or has no action or no payload
+      setLobbyMessageHistory((prev) => prev.concat(lastLobbyMessage));
+      console.log("Added message to lobbyMessageHistory", lobbyMessageHistory);
+      if (
+        !lastLobbyMessage.type ||
+        lastLobbyMessage.type !== "lobby" ||
+        !lastLobbyMessage.action ||
+        !lastLobbyMessage.payload
+      ) {
+        console.warn("⚠️ Skipping empty or invalid message:", lastLobbyMessage);
+        return;
       }
-    );
+      console.log("Sending Lobby message:", lastLobbyMessage);
+      setLobbyMessage(lastLobbyMessage);
+    }
+  }, [lastLobbyMessage]);
+
+  useEffect(() => {
+    if (lastGameMessage !== null) {
+      setGameMessageHistory((prev) => prev.concat(lastGameMessage));
+      console.log("Added message to gameMessageHistory", gameMessageHistory);
+      if (
+        !lastGameMessage.type ||
+        lastGameMessage.type !== "game" ||
+        !lastGameMessage.action ||
+        !lastGameMessage.payload
+      ) {
+        console.warn("⚠️ Skipping empty or invalid message:", lastGameMessage);
+        return;
+      }
+      console.log("Sending Game message:", lastGameMessage);
+      setGameMessage(lastGameMessage);
+    }
+  }, [lastGameMessage]);
 
   // Wrap sendJsonMessage to add a UUID
   const sendLobbyMessage = (message) => {
     if (!message) return;
+
+    //make sure they have type as lobby and action and payload
+    if (
+      !message.type ||
+      message.type !== "lobby" ||
+      !message.action ||
+      !message.payload
+    ) {
+      console.error("⚠️ Invalid lobby message:", message);
+      return;
+    }
 
     const messageWithUUID = {
       ...message,
       uuid: uuidv4(), // 🔥 Generate a new UUID for each message
     };
 
-    console.log("📤 Sending message with UUID:", messageWithUUID);
+    console.log("📤 Sending lobby message with UUID:", messageWithUUID);
     originalSendLobbyMessage(messageWithUUID);
   };
 
-  // useEffect(() => {
-  //   if (lastLobbyMessage) {
-  //     console.log("Processing lastLobbyMessage:", lastLobbyMessage);
-  //     setLobbyMessage(lastLobbyMessage); // ✅ Set directly
-  //   }
-  // }, [lastLobbyMessage]); // ✅ Only runs when `lastLobbyMessage` changes
+  const sendGameMessage = (message) => {
+    if (!message) return;
 
-  // useEffect(() => {
-  //   if (lastGameMessage) {
-  //     console.log("Processing lastGameMessage:", lastGameMessage);
-  //     setGameMessage(lastGameMessage); // ✅ Set directly
-  //   }
-  // }, [lastGameMessage]);
+    //make sure they have type as game and action and payload
+    if (
+      !message.type ||
+      message.type !== "game" ||
+      !message.action ||
+      !message.payload
+    ) {
+      console.error("⚠️ Invalid game message:", message);
+      return;
+    }
 
-  // useEffect(() => {
-  //   if (!startGameConsole && startWebSocket) {
-  //     console.log("⚠️ Waiting before shutting down WebSocket...");
-  //     setTimeout(() => {
-  //       setStartWebSocket(false);
-  //     }, 200); // 🔥 Prevent instant loop
-  //   }
-  // }, [startGameConsole]);
+    const messageWithUUID = {
+      ...message,
+      uuid: uuidv4(), // 🔥 Generate a new UUID for each message
+    };
 
-  const handleWebSocketOpen = useCallback(() => {
+    console.log("📤 Sending game message with UUID:", messageWithUUID);
+    originalSendGameMessage(messageWithUUID);
+  };
+
+  const handleLobbyWebSocketOpen = useCallback(() => {
     console.log("logging in...");
     if (playerId) {
       const loginMessage = {
@@ -203,14 +195,6 @@ const App = () => {
     console.log("🔥 App.jsx Re-Rendered!");
   });
 
-  // const memoizedMessages = useMemo(() => {
-  //   return {
-  //     lobbyMessage,
-  //     gameMessage,
-  //     messages,
-  //   };
-  // }, [lobbyMessage, gameMessage, messages]);
-
   return (
     <ErrorBoundary>
       <div className="container mt-5">
@@ -221,7 +205,7 @@ const App = () => {
         {lastLobbyMessage && (
           <Lobby
             sendMessage={sendLobbyMessage}
-            message={lastLobbyMessage || {}}
+            message={lobbyMessage}
             playerId={playerId}
             setStartWebSocket={setStartWebSocket}
             setInitialGameState={setInitialGameState}
@@ -234,7 +218,7 @@ const App = () => {
         ) : (
           <GameConsole
             playerId={playerId}
-            message={lastGameMessage || {}}
+            message={gameMessage}
             sendGameMessage={sendGameMessage}
             initialGameState={initialGameState}
             setStartGameConsole={setStartGameConsole}

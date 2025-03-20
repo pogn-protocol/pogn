@@ -6,7 +6,6 @@ const Lobby = ({
   sendMessage,
   playerId,
   setStartWebSocket,
-  // setStartGame,
   setInitialGameState,
   setStartGameConsole,
 }) => {
@@ -24,15 +23,6 @@ const Lobby = ({
     gameId: "",
   });
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
-  //const processedMessagesRef = useRef(new Set());
-
-  // useEffect(() => {
-  //   if (!message || processedMessagesRef.current.has(message.unique)) {
-  //     return;
-  //   }
-  //   processedMessagesRef.current.add(message.unique);
-  //   // Process the message...
-  // }, [message]); // Only re-run when `message` changes
 
   useEffect(() => {
     console.log("lobby useEffect");
@@ -43,8 +33,6 @@ const Lobby = ({
 
     console.log("Processing Lobby message:", message);
     const { action, payload } = message;
-
-    // processedMessagesRef.current.add(message.unique);
 
     switch (action) {
       case "refreshLobby":
@@ -241,7 +229,7 @@ const Lobby = ({
   return (
     <div className="lobby">
       <div className="selectedGameState">
-        <h2>Game State</h2>
+        <h2>Selected Game State</h2>
         <pre>{JSON.stringify(selectedGamestate, null, 2)}</pre>
       </div>
       <h2>Lobby</h2>
