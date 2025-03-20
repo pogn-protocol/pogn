@@ -30,7 +30,7 @@ class LobbyController {
     console.log("Processing lobby message:", message);
 
     const { lobbyId, action, payload } = message;
-    const { playerId, gameId } = payload || {};
+    const { playerId, gameId, gameType } = payload || {};
 
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby) {
@@ -55,7 +55,7 @@ class LobbyController {
       lobby,
       playerId,
       gameId,
-      payload,
+      gameType,
     });
   }
 
@@ -205,8 +205,8 @@ class LobbyController {
     };
   }
 
-  createGame({ lobby, gameType, playerId }) {
-    console.log(playerId, " Creating game: ", gameType);
+  createGame({ lobby, playerId, gameType }) {
+    console.log(playerId, " creating ", gameType, " game.");
     if (!this.gameController.gameClasses[gameType]) {
       console.error(`Unsupported game type: ${gameType}`);
       return {

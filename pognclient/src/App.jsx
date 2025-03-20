@@ -134,6 +134,7 @@ const App = () => {
         },
 
         onClose: (event) => {
+          setStartWebSocket(false);
           console.log("🔴 Game WebSocket closed.", event);
           if (event.wasClean) {
             console.log("💡 WebSocket closed cleanly, resetting game state.");

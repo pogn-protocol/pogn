@@ -35,7 +35,7 @@ const Lobby = ({
   // }, [message]); // Only re-run when `message` changes
 
   useEffect(() => {
-    console.log("lobby");
+    console.log("lobby useEffect");
     if (!message || Object.keys(message).length === 0) {
       console.warn("Invalid message object:", message);
       return;
@@ -107,17 +107,18 @@ const Lobby = ({
 
           // Reset the game state
           setSelectedGameId(null);
-          setSelectedGamestate({
-            players: [],
-            status: "ready-to-join",
-            maxPlayers: 0,
-            minPlayers: 0,
-            gameAction: "",
-            gameId: "",
-          });
+          // setSelectedGamestate({
+          //   players: [],
+          //   status: "ready-to-join",
+          //   maxPlayers: 0,
+          //   minPlayers: 0,
+          //   gameAction: "",
+          //   gameId: "",
+          // });
           setHasJoined(false);
           setInitialGameState({});
           setStartGameConsole(false);
+          setStartWebSocket(false);
         }
         break;
       case "startGame":
@@ -125,7 +126,7 @@ const Lobby = ({
         console.log("Starting game...", game);
         if (new Set(game.players).has(playerId)) {
           console.log(
-            `✅ Player ${playerId} is in the game. Attaching to relay.`
+            `✅ Player ${playerId} is in the game. Attempting to attach to relay.`
           );
 
           setStartWebSocket((prev) => {
@@ -133,9 +134,7 @@ const Lobby = ({
               console.log("🚨 WebSocket already started. Skipping...");
               return true; // Don't change state
             }
-            console.log(
-              `✅ Player ${playerId} is in the game. Attaching to relay.`
-            );
+            console.log(`✅ Attaching to relay.`);
             setInitialGameState({ ...game });
             return true; // Change state to start WebSocket
           });
