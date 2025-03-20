@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 
 const OddsAndEvens = ({
-  sendMessage,
+  sendGameMessage,
   playerId,
   gameState,
-  setLobbyMessage,
+  setGameMessage,
 }) => {
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
@@ -32,7 +32,7 @@ const OddsAndEvens = ({
       Object.keys(gameState.roles || {}).length === 0
     ) {
       console.log("Roles not assigned yet. Fetching from the relay...");
-      sendMessage({
+      sendGameMessage({
         type: "game",
         action: "gameAction",
         payload: {
@@ -44,7 +44,7 @@ const OddsAndEvens = ({
 
       rolesFetched.current = true; // ✅ Prevent multiple fetches
     }
-  }, [gameState, sendMessage, playerId]);
+  }, [gameState, sendGameMessage, playerId]);
 
   useEffect(() => {
     console.log("gameState", localGameState);
@@ -97,7 +97,7 @@ const OddsAndEvens = ({
 
   const handleSubmitNumber = () => {
     console.log("Submitting number:", number);
-    sendMessage({
+    sendGameMessage({
       type: "game",
       action: "gameAction",
       payload: {
@@ -119,7 +119,7 @@ const OddsAndEvens = ({
   //   if (localGameState?.action === "getRoles") {
   //     console.log("Getting roles...");
   //     // rolesFetched.current = true;
-  //     sendMessage({
+  //     sendGameMessage({
   //       type: "game",
   //       action: "gameAction",
   //       payload: {
@@ -204,18 +204,13 @@ const OddsAndEvens = ({
       {/* Kill Game */}
       <button
         onClick={() => {
-          setLobbyMessage((prev) => {
-            // ✅ Prevent redundant updates (avoids unnecessary re-renders)
-            if (prev?.gameId === gameState.gameId) return prev;
-
-            return {
-              type: "lobby",
-              action: "endGame",
-              payload: {
-                playerId,
-                gameId: gameState.gameId,
-              },
-            };
+          sendGameMessage({
+            type: "game",
+            action: "endGame",
+            payload: {
+              playerId,
+              gameId: localGameState.gameId,
+            },
           });
         }}
       >

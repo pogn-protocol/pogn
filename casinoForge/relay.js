@@ -35,13 +35,14 @@ class Relay {
   /** 🔌 Setup Connection Handlers */
   setupWebSocketHandlers() {
     this.wss.on("connection", (ws) => {
-      console.log(`🔌 New connection to ${this.type} Relay ${this.id}`);
+      console.log(`🔌 New connection to ${this.type} Relay id ${this.id}`);
       this.handleConnection(ws);
     });
   }
 
   /** 🔄 Handle  Connection */
   handleConnection(ws) {
+    console.log(`🔌 ${this.type} Relay: WebSocket connected ws: ${ws}`);
     const tempId = `temp-${Date.now()}-${Math.random()}`;
     this.webSocketMap.set(tempId, ws);
 
@@ -123,6 +124,9 @@ class Relay {
   }
 
   sendResponse(id, message) {
+    console.log(`📡 ${this.type} Relay sending to ${id}:`);
+    console.log("Message:", message);
+    console.log("WebSocket Map:", this.webSocketMap);
     const ws = this.webSocketMap.get(id);
     if (!ws || ws.readyState !== ws.OPEN) {
       console.warn(`⚠️ WebSocket not found or not open for ${id}`);

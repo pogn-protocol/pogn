@@ -8,6 +8,7 @@ const Lobby = ({
   setStartWebSocket,
   // setStartGame,
   setInitialGameState,
+  setStartGameConsole,
 }) => {
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
@@ -96,9 +97,10 @@ const Lobby = ({
             // setInitialGameState({
             //   ...playerGame,
             // });
-          } else if (playerGame.status === "readyToStart") {
-            console.log("Game is ready to start. Preparing...");
-            // handleStartGame(playerGame);
+          } else {
+            console.log("Game is not started yet. Staying in the lobby.");
+            setStartGameConsole(false);
+            setInitialGameState({});
           }
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
@@ -114,6 +116,8 @@ const Lobby = ({
             gameId: "",
           });
           setHasJoined(false);
+          setInitialGameState({});
+          setStartGameConsole(false);
         }
         break;
       case "startGame":
@@ -183,6 +187,7 @@ const Lobby = ({
     console.log("Starting game...", selectedGamestate.gameId);
     sendMessage({
       type: "lobby",
+      lobbyId: "default",
       action: "startGame",
       payload: {
         // selectedGamestate,
@@ -196,6 +201,7 @@ const Lobby = ({
     console.log(`${playerId} listing games...`);
     sendMessage({
       type: "lobby",
+      lobbyId: "default",
       action: "refreshLobby",
       payload: {
         playerId,
@@ -208,6 +214,7 @@ const Lobby = ({
     console.log(`${playerId} creating game of type ${selectedGameType}`);
     sendMessage({
       type: "lobby",
+      lobbyId: "default",
       action: "createNewGame",
       payload: {
         gameType: selectedGameType, // Include game type
@@ -222,6 +229,7 @@ const Lobby = ({
     setIsJoining(true);
     sendMessage({
       type: "lobby",
+      lobbyId: "default",
       action: "joinGame",
       payload: {
         game: "rock-paper-scissors",

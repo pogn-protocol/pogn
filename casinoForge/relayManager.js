@@ -13,6 +13,7 @@ class RelayManager {
 
   /** 🔗 Create relay dynamically based on type */
   createRelay(type, id, options = {}) {
+    console.log(`🔗 Creating ${type} Relay ${id} with options`, options);
     if (this.relays.has(id)) {
       console.warn(`⚠️ Relay ${id} already exists.`);
       return this.relays.get(id);
@@ -30,22 +31,55 @@ class RelayManager {
         break;
 
       case "game":
+        console.log(this.gamePorts);
         relay = new GameRelay(
           id,
-          options.players,
           options.ports || this.gamePorts,
           options.controller,
           options.lobbyId
         );
-        if (options.lobby) {
+        console.log(`🔥 Created GameRelay for ${id}`);
+        if (options.lobbyId) {
           const lobbyRelay = this.relays.get(options.lobbyId);
+          console.log("lobbyRelay", lobbyRelay);
           if (lobbyRelay) {
             console.log(
               `🔗 Linking GameRelay ${id} with LobbyRelay ${options.lobbyId}`
             );
-            lobbyRelay.gameRelayConnections.set(id, relay);
-            relay.lobbyWs = lobbyRelay.wss;
+            // lobbyRelay.connectToGameRelay(id, relay.wsAddress);
+            relay.lobbyWs = lobbyRelay.ws;
             relay.lobbyId = options.lobbyId;
+
+            lobbyRelay.relayConnections.set(
+              relay.id,
+              new RelayConnector(
+                lobbyRelay.id,
+                relay.id,
+                relay.wsAddress,
+                (message) => {
+                  console.log(
+                    `📩 lobby relayConnector Recieved Message from GameRelay ${relay.id}:`,
+                    message
+                  );
+                  const relayConnector = lobbyRelay.relayConnections.get(
+                    relay.id
+                  );
+                  let ws = relayConnector?.relaySocket;
+                  if (ws) {
+                    lobbyRelay.processMessage(ws, message);
+                  } else {
+                    console.warn(
+                      `⚠️ No relayConnector found for GameRelay ${relay.id}.`
+                    );
+                  }
+                },
+                () => {
+                  console.log(
+                    `✅ LobbyRelay ${options.lobbyId} connected to GameRelay ${relay.id}`
+                  );
+                }
+              )
+            );
           } else {
             console.warn(`⚠️ No LobbyRelay found for ID ${options.lobbyId}.`);
           }

@@ -15,7 +15,8 @@ class gameController {
 
     this.messageHandlers = {
       gameAction: this.handleGameAction.bind(this),
-      gameEnded: this.handleGameEnd.bind(this),
+      //gameEnded: this.handleGameEnded.bind(this),
+      endGame: this.endGame.bind(this),
     };
 
     this.lobbyWsUrl = lobbyWsUrl;
@@ -86,6 +87,47 @@ class gameController {
     }
   }
 
+  endGame(we, payload) {
+    console.log("Ending game", payload);
+    const { gameId, lobbyId } = payload;
+    console.log(this.activeGames);
+    const game = this.activeGames.get(gameId);
+    if (!game) {
+      console.warn(`⚠️ Cannot end game ${gameId}: Not found.`);
+      return;
+    }
+
+    console.log("Ending game:", game);
+    game.status = "ended";
+    game.gameLog.push("Game ended.");
+    console.log("gameRelay", this.relayManager.relays.get(gameId));
+    this.relayManager.relays.get(gameId).sendToLobbyRelay(game.lobbyId, {
+      type: "lobby",
+      action: "gameEnded",
+      lobbyId: game.lobbyId,
+      payload: {
+        playerId: gameId,
+        gameId: gameId,
+        status: "ended",
+        gameLog: game.gameLog, // Include game history
+      },
+    });
+    setTimeout(() => {
+      console.log("Shutting down game relay...");
+      this.relayManager.relays.get(gameId).shutdown();
+    }, 3000);
+
+    this.activeGames.get(gameId).status = "ended";
+    this.activeGames.get(gameId).gameLog.push("Game ended.");
+    console.log("active games", this.activeGames);
+    return {
+      type: "game",
+      action: "gameEnded",
+      payload: { gameId },
+      broadcast: true,
+    };
+  }
+
   broadcastToGamePlayers(gameId, message) {
     const gameRelay = this.relayManager.relays.get(gameId);
     if (!gameRelay) {
@@ -95,38 +137,43 @@ class gameController {
     gameRelay.broadcastResponse(message);
   }
 
-  handleGameEnd(payload) {
-    console.log(`Game ${payload.gameId} ended.`);
-    this.activeGames.delete(payload.gameId);
+  // handleGameEnded(payload) {
+  //   console.log(`Game ${payload.gameId} ended.`);
+  //   this.activeGames.delete(payload.gameId);
 
-    this.broadcastToGamePlayers(payload.gameId, {
-      type: "game",
-      action: "gameEnded",
-      payload: {},
-      broadcast: true,
-    });
-  }
+  //   this.broadcastToGamePlayers(payload.gameId, {
+  //     type: "game",
+  //     action: "gameEnded",
+  //     payload: {},
+  //     broadcast: true,
+  //   });
+  // }
 
-  createGame(gameType, createRelay, playerId) {
+  createGame(gameType, createRelay, lobbyId) {
     console.log(
       "Creating game ",
       gameType,
-      " by player ",
-      playerId,
-      " relay ",
-      createRelay
+      " with relay: ",
+      createRelay,
+      " in lobby ",
+      lobbyId
     );
     if (!createRelay) {
       console.log("createRelay is false");
+      return;
     }
     const game = new Game(gameType);
+    game.lobbyId = lobbyId;
     const gameInstance = new this.gameClasses[gameType]();
     game.setGameInstance(gameInstance);
 
-    this.relayManager.createRelay("game", game.gameId, {
-      players: [playerId],
+    const relay = this.relayManager.createRelay("game", game.gameId, {
+      ports: this.gamePorts,
       controller: this,
+      lobbyId: lobbyId,
     });
+
+    console.log("relay", relay);
     console.log("game", game);
     return game;
   }
@@ -159,44 +206,12 @@ class gameController {
       return;
     }
     this.activeGames.set(game.gameId, game);
-    console.log(`Game ${game.gameId} added to active games.`);
+    console.log(`activeGames`, this.activeGames);
     game.status = "started";
     game.instance.players = Array.from(game.players.keys());
 
     game.gameLog.push("Game started.");
     console.log("Game started.", game);
-    return;
-  }
-
-  endGame(gameId) {
-    const game = this.gameController.activeGames.get(gameId);
-    if (!game) {
-      console.warn(`⚠️ Cannot end game ${gameId}: Not found.`);
-      return;
-    }
-
-    console.log("Ending game:", game);
-    game.status = "ended";
-    game.gameLog.push("Game ended.");
-    console.log("gameRelay", this.relayManager.relays.get(gameId));
-    this.relayManager.relays.get(gameId).sendResponse(lobby.lobbyId, {
-      type: "lobby",
-      action: "gameEnded",
-      payload: {
-        playerId: "gameController",
-        gameId: gameId,
-        status: "ended",
-        gameLog: game.gameLog, // Include game history
-      },
-    });
-    setTimeout(() => {
-      console.log("Shutting down game relay...");
-      this.relayManager.relays.get(gameId).shutdown();
-    }, 3000);
-
-    this.activeGames.get(gameId).status = "ended";
-    this.activeGames.get(gameId).gameLog.push("Game ended.");
-    console.log("active games", this.activeGames);
     return;
   }
 

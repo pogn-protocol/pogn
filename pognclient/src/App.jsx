@@ -15,6 +15,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import Lobby from "./components/Lobby";
 import GameConsole from "./components/GameConsole";
 import { use } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 window.onerror = function (message, source, lineno, colno, error) {
   console.error(
@@ -104,7 +105,7 @@ const App = () => {
   }, [startWebSocket]);
 
   const {
-    sendJsonMessage: sendLobbyMessage,
+    sendJsonMessage: originalSendLobbyMessage,
     lastJsonMessage: lastLobbyMessage,
   } = useWebSocket(
     useMemo(() => (playerId ? "ws://localhost:8080" : null), [playerId]),
@@ -144,6 +145,19 @@ const App = () => {
         },
       }
     );
+
+  // Wrap sendJsonMessage to add a UUID
+  const sendLobbyMessage = (message) => {
+    if (!message) return;
+
+    const messageWithUUID = {
+      ...message,
+      uuid: uuidv4(), // 🔥 Generate a new UUID for each message
+    };
+
+    console.log("📤 Sending message with UUID:", messageWithUUID);
+    originalSendLobbyMessage(messageWithUUID);
+  };
 
   // useEffect(() => {
   //   if (lastLobbyMessage) {
@@ -210,6 +224,7 @@ const App = () => {
             playerId={playerId}
             setStartWebSocket={setStartWebSocket}
             setInitialGameState={setInitialGameState}
+            setStartGameConsole={setStartGameConsole}
           />
         )}
 
@@ -219,7 +234,7 @@ const App = () => {
           <GameConsole
             playerId={playerId}
             message={lastGameMessage || {}}
-            sendMessage={sendGameMessage}
+            sendGameMessage={sendGameMessage}
             initialGameState={initialGameState}
             setStartGameConsole={setStartGameConsole}
             sendLobbyMessage={sendLobbyMessage}

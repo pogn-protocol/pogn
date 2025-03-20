@@ -3,14 +3,14 @@ const { v4: uuidv4 } = require("uuid");
 const RelayConnector = require("./relayConnector");
 
 class GameRelay extends Relay {
-  constructor(gameId, ports, gameController, targetUrl = null) {
-    console.log("Initializing GameRelay...");
+  constructor(gameId, ports, gameController) {
+    console.log("Initializing GameRelay...", gameId, ports);
     super("game", gameId, ports[0]);
     this.gameController = gameController;
     this.ports = ports;
     this.gameId = gameId;
     this.players = [];
-    this.lobbyWs = new Map();
+    this.lobbyWs = null;
     this.lobbyId = null;
     //console ever 5 seconds if running
     // this.interval = setInterval(() => {
@@ -23,7 +23,18 @@ class GameRelay extends Relay {
   processMessage(ws, message) {
     console.log("🎮 GameRelay Processing Message:", message);
 
-    const { type, payload } = message;
+    const { type, action, payload } = message;
+    //type test console
+    if (action === "test") {
+      console.warn("⚠️ Test Message Recieved:", type);
+      console.log("message", message);
+      this.webSocketMap.set(payload.id, ws);
+      this.sendToLobbyRelay(payload.id, {
+        type: "test",
+        payload: { relayType: this.type, gameId: this.gameId },
+      });
+      return;
+    }
     if (type !== "game") {
       console.warn("⚠️ Message sent to game not of type game:", type);
       return;
@@ -47,9 +58,9 @@ class GameRelay extends Relay {
     }
   }
 
-  sendToLobby(message) {
-    console.log(`📡 Sending to LobbyId ${this.lobbyId}:`, message);
-    this.sendResponse(lobbyWs, message);
+  sendToLobbyRelay(lobbyId, message) {
+    console.log(`📡 Sending to LobbyId ${lobbyId}:`, message);
+    this.sendResponse(lobbyId, message);
   }
 }
 

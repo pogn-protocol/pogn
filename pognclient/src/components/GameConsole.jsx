@@ -4,7 +4,7 @@ import OddsAndEvens from "./oddsAndEvens";
 
 const GameConsole = ({
   message = {},
-  sendMessage,
+  sendGameMessage,
   playerId = "",
   initialGameState = {},
   setStartGameConsole,
@@ -108,20 +108,18 @@ const GameConsole = ({
       case "rock-paper-scissors":
         return (
           <RockPaperScissors
-            sendMessage={sendMessage}
+            sendGameMessage={sendGameMessage}
             playerId={playerId}
             gameState={gameState}
-            setLobbyMessage={setLobbyMessage}
           />
         );
       case "odds-and-evens":
         console.log("Rendering Odds and Evens component...", gameState);
         return (
           <OddsAndEvens
-            sendMessage={sendMessage}
+            sendGameMessage={sendGameMessage}
             playerId={playerId}
             gameState={gameState}
-            setLobbyMessage={setLobbyMessage}
           />
         );
       default:
