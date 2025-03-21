@@ -1,9 +1,9 @@
 const { v4: uuidv4 } = require("uuid");
 
 class Game {
-  constructor(gameType) {
+  constructor(gameType, gameId) {
     this.gameType = gameType;
-    this.gameId = uuidv4();
+    this.gameId = gameId || uuidv4(); // Unique game ID
     this.players = new Map();
     this.gameLog = [];
     this.status = "waiting"; // Possible status: created, joining, started, ended

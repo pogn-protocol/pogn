@@ -39,14 +39,18 @@ class RelayManager {
 
         if (gameRelay) {
           console.log(`⚠️ Relay game already exists.`);
+          gameRelay.gameIds.push(id);
           return gameRelay;
         }
+
         relay = new GameRelay(
-          id,
+          "GAMERELAY",
           options.ports || this.gamePorts,
           options.controller,
           options.lobbyId
         );
+        relay.gameIds.push(id);
+        id = "GAMERELAY";
         console.log(`🔥 Created GameRelay for ${id}`);
 
         if (options.lobbyId) {
@@ -103,8 +107,26 @@ class RelayManager {
     }
 
     this.relays.set(id, relay);
-    console.log(`✅ ${type} Relay ${id} WebSocket started.`);
+    console.log(`✅ ${type} Relay ${id} WebSocket started.`, relay);
     return relay;
+  }
+
+  gameEnded(gameId) {
+    console.log(`Game ${gameId} ended.`);
+    //let gameRelay = this.relays.get(gameId);
+    //get all relays with type game
+    let gameRelays = [...this.relays.values()].filter(
+      (relay) => relay.type === "game"
+    );
+    console.log("gameRelays", gameRelays);
+    gameRelays.forEach((relay) => {
+      console.log("gameEnded checking relay for gameId", relay);
+      relay.gameIds = relay.gameIds.filter((id) => id !== gameId);
+      if (relay.gameIds.length === 0) {
+        console.log("Founded game removing gameId from relay", relay);
+        this.removeRelay(relay.id);
+      }
+    });
   }
 
   /** 🔗 Create and return a relay connector */

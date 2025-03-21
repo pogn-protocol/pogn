@@ -100,6 +100,7 @@ const App = () => {
       setLobbyMessageHistory((prev) => prev.concat(lastLobbyMessage));
       console.log("Added message to lobbyMessageHistory", lobbyMessageHistory);
       if (
+        typeof lastLobbyMessage !== "object" ||
         !lastLobbyMessage.type ||
         lastLobbyMessage.type !== "lobby" ||
         !lastLobbyMessage.action ||
@@ -118,6 +119,7 @@ const App = () => {
       setGameMessageHistory((prev) => prev.concat(lastGameMessage));
       console.log("Added message to gameMessageHistory", gameMessageHistory);
       if (
+        typeof lastGameMessage !== "object" ||
         !lastGameMessage.type ||
         lastGameMessage.type !== "game" ||
         !lastGameMessage.action ||

@@ -1,4 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
+import {
+  JsonView,
+  allExpanded,
+  darkStyles,
+  defaultStyles,
+} from "react-json-view-lite";
+import "react-json-view-lite/dist/index.css";
 
 const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
   const [role, setRole] = useState(null); // Player's assigned role
@@ -123,7 +130,14 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
       {/* Display current local state for debugging */}
       <div className="localState">
         <h3>Local Game State</h3>
-        <pre>{JSON.stringify(localGameState, null, 2)}</pre>
+        {/* <pre>{JSON.stringify(localGameState, null, 2)}</pre> */}
+
+        <JsonView
+          data={localGameState}
+          shouldExpandNode={(level) => level === 0} // Expand only the first level
+          s
+          style={{ fontSize: "14px", lineHeight: "1.2" }}
+        />
       </div>
 
       {/* Game Waiting State */}

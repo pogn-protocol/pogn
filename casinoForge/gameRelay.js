@@ -3,15 +3,16 @@ const { v4: uuidv4 } = require("uuid");
 const RelayConnector = require("./relayConnector");
 
 class GameRelay extends Relay {
-  constructor(gameId, ports, gameController) {
-    console.log("Initializing GameRelay...", gameId, ports);
-    super("game", gameId, ports[0]);
+  constructor(relayId, ports, gameController) {
+    console.log("Initializing GameRelay...", relayId, ports);
+    super("game", relayId, ports[0]);
     this.gameController = gameController;
     this.ports = ports;
-    this.gameId = gameId;
+    this.relayId = relayId;
     this.players = [];
     this.lobbyWs = null;
     this.lobbyId = null;
+    this.gameIds = [];
     //console ever 5 seconds if running
     // this.interval = setInterval(() => {
     //   console.log("GameRelay is running...");
@@ -21,6 +22,7 @@ class GameRelay extends Relay {
   }
 
   processMessage(ws, message) {
+    console.log("GameRelay for games:", this.gameIds);
     console.log("🎮 GameRelay Processing Message:", message);
 
     const { type, action, payload } = message;
@@ -31,7 +33,7 @@ class GameRelay extends Relay {
       this.webSocketMap.set(payload.id, ws);
       this.sendToLobbyRelay(payload.id, {
         type: "test",
-        payload: { relayType: this.type, gameId: this.gameId },
+        payload: { relayType: this.type, gameId: this.relayId },
       });
       return;
     }
@@ -40,6 +42,11 @@ class GameRelay extends Relay {
       return;
     }
     const gameId = payload?.gameId;
+    //check if gameId matches this.gameIds
+    if (!this.gameIds.includes(gameId)) {
+      console.warn("⚠️ Game not found in this relay.");
+      return;
+    }
     const game = this.gameController.activeGames.get(gameId);
     if (!game) {
       console.warn("⚠️ Game not found.");

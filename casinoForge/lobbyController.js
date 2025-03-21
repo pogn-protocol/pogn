@@ -62,8 +62,8 @@ class LobbyController {
   gameEnded({ lobby, gameId }) {
     console.log("Game ended shutting relay down for:", gameId);
     //remove game from lobby
-    this.relayManager.relays.get(gameId).shutdown();
-    this.relayManager.relays.get(lobby.lobbyId).relayConnections.delete(gameId);
+    this.relayManager.gameEnded(gameId);
+    //this.relayManager.relays.get(lobby.lobbyId).relayConnections.delete(gameId);
     lobby.removeGame(gameId);
     return {
       type: "lobby",
@@ -232,12 +232,18 @@ class LobbyController {
 
     const game = this.gameController.createGame(gameType, true, lobby.lobbyId);
 
-    console.log("gameRelay", this.relayManager.relays.get(game.gameId));
-    console.log("relay ws", this.relayManager.relays.get(game.gameId)?.wss);
+    console.log("gameRelay", this.relayManager.relays.get(game.relayId));
+    console.log(
+      "relay wsAddress",
+      this.relayManager.relays.get(game.relayId)?.wsAddress
+    );
     //this.relayManager.connectRelayToWS(lobby.lobbyId, game.relay.wsAddress);
     setTimeout(() => {
-      console.log("gameRelay", this.relayManager.relays.get(game.gameId));
-      console.log("relay ws", this.relayManager.relays.get(game.gameId).wss);
+      console.log("gameRelay", this.relayManager.relays.get(game.relayId));
+      console.log(
+        "relay wsAddress",
+        this.relayManager.relays.get(game.relayId).wsAddress
+      );
       console.log("sending test message");
       console.log("lobby", lobby);
       console.log(this.relayManager.relays.get(lobby.lobbyId));
@@ -380,17 +386,26 @@ class LobbyController {
     const game1 = this.gameController.createGame(
       "odds-and-evens",
       true,
-      lobby.lobbyId
+      lobby.lobbyId,
+      "firstGame"
     );
     const game2 = this.gameController.createGame(
       "odds-and-evens",
       true,
-      lobby.lobbyId
+      lobby.lobbyId,
+      "secondGame"
     );
-    game1.id = "firstGame";
-    game2.id = "secondGame";
+    // game1.id = "firstGame";
+    // game2.id = "secondGame";
     lobby.addGame(game1);
     lobby.addGame(game2);
+
+    // Add players to the lobby
+    players.forEach((playerId) => {
+      if (!lobby.existsInLobby(playerId)) {
+        lobby.players.push(new Player({ playerId, inLobby: true }));
+      }
+    });
 
     game1.players.set(players[0], { playerId: players[0] });
     game1.players.set(players[1], { playerId: players[1] });

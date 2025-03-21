@@ -20,7 +20,9 @@ class RelayConnector {
     this.duration = duration;
     this.tries = 0;
     this.relaySocket = null;
-    console.log(`🚀 Initializing RelayConnector (Target: ${targetUrl})`);
+    console.log(
+      `🚀 Initializing RelayConnector client: ${this.clientId} Target: ${targetUrl}`
+    );
     if (targetUrl) {
       console.log(`🔗 Connecting to relay at ${targetUrl}`);
       this.autoConnect();
@@ -29,7 +31,7 @@ class RelayConnector {
 
   /** 🔄 Automatically attempt connection with retries */
   autoConnect() {
-    console.log(`🔄 Auto-connecting to ${this.targetUrl}...`);
+    console.log(`🔄 Auto-connecting ${this.clientId} to ${this.targetUrl}...`);
     const interval = setInterval(() => {
       if (this.relaySocket && this.relaySocket.readyState === WebSocket.OPEN) {
         console.log(`✅ Successfully connected to relay at ${this.targetUrl}`);

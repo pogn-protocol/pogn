@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import RockPaperScissors from "./RockPaperScissors";
 import OddsAndEvens from "./oddsAndEvens";
+import {
+  JsonView,
+  allExpanded,
+  darkStyles,
+  defaultStyles,
+} from "react-json-view-lite";
+import "react-json-view-lite/dist/index.css";
 
 const GameConsole = ({
   message = {},
@@ -240,23 +247,43 @@ const GameConsole = ({
 
   return (
     <div>
-      {Array.from(gameStates.entries())
-        .filter(([, gameState]) => gameState.status === "started")
-        .map(([gameId, gameState]) => (
-          <div
-            key={gameId}
-            style={{
-              marginBottom: "20px",
-              padding: "10px",
-              border: "1px solid #ccc",
-            }}
-          >
-            <h3>Game ID: {gameId}</h3>
-            <h4>Game Type: {gameState.gameType}</h4>
-            <pre>{JSON.stringify(gameState, null, 2)}</pre>
-            {renderGameComponent(gameId, gameState)}
-          </div>
-        ))}
+      <div
+        style={{
+          marginBottom: "20px",
+          padding: "10px",
+          border: "1px solid #ccc",
+        }}
+      >
+        <h1 className="mb-4">Game Console</h1>
+
+        {Array.from(gameStates.entries())
+          .filter(([, gameState]) => gameState.status === "started")
+          .map(([gameId, gameState]) => {
+            return (
+              <div
+                key={gameId}
+                style={{
+                  marginBottom: "20px",
+                  padding: "10px",
+                  border: "1px solid #ccc",
+                }}
+              >
+                <h3>Game ID: {gameId}</h3>
+                <h4>Game Type: {gameState.gameType}</h4>
+
+                {/* Collapsible and interactive JSON view */}
+                <JsonView
+                  data={gameState}
+                  shouldExpandNode={(level) => level === 0} // Expand only the first level
+                  s
+                  style={{ fontSize: "14px", lineHeight: "1.2" }}
+                />
+
+                {renderGameComponent(gameId, gameState)}
+              </div>
+            );
+          })}
+      </div>
     </div>
   );
 };

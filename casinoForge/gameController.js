@@ -79,6 +79,9 @@ class gameController {
           "gameController Broadcasting gameAction response",
           response
         );
+        console.log("gameController Broadcasting to relay", game.relayId);
+        console.log(this.relayManager.relays);
+        console.log(this.relayManager.relays.get(game.relayId));
         this.relayManager.relays.get(game.relayId).broadcastResponse(response);
         return response;
       } catch (error) {
@@ -115,10 +118,10 @@ class gameController {
         gameLog: game.gameLog, // Include game history
       },
     });
-    setTimeout(() => {
-      console.log("Shutting down game relay...");
-      this.relayManager.relays.get(game.relayId).shutdown();
-    }, 3000);
+    // setTimeout(() => {
+    //   console.log("Shutting down game relay...");
+    //   this.relayManager.relays.get(game.relayId).shutdown();
+    // }, 3000);
 
     this.activeGames.get(gameId).status = "ended";
     this.activeGames.get(gameId).gameLog.push("Game ended.");
@@ -152,7 +155,7 @@ class gameController {
   //   });
   // }
 
-  createGame(gameType, createRelay, lobbyId) {
+  createGame(gameType, createRelay, lobbyId, gameId) {
     console.log(
       "Creating game ",
       gameType,
@@ -165,7 +168,7 @@ class gameController {
       console.log("createRelay is false");
       return;
     }
-    const game = new Game(gameType);
+    const game = new Game(gameType, gameId);
     game.lobbyId = lobbyId;
     const gameInstance = new this.gameClasses[gameType]();
     game.setGameInstance(gameInstance);
