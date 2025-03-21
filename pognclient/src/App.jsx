@@ -32,20 +32,21 @@ const App = () => {
   const [gameMessage, setGameMessage] = useState(null);
   const [playerId, setPlayerId] = useState(null); // Only open WebSocket after this is set
   const [startGameConsole, setStartGameConsole] = useState(false);
-  const [startWebSocket, setStartWebSocket] = useState(false);
+  const [startGameWebSocket, setStartGameWebSocket] = useState(false);
   const [initialGameState, setInitialGameState] = useState({});
   const [lobbyMessageHistory, setLobbyMessageHistory] = useState([]);
   const [gameMessageHistory, setGameMessageHistory] = useState([]);
+  const [playerGames, setPlayerGames] = useState([]);
 
   useEffect(() => {
-    if (startWebSocket) {
+    if (startGameWebSocket) {
       console.log("🕐 Waiting before connecting to game WebSocket...");
       setTimeout(() => {
         console.log("✅ Now connecting to Game WebSocket...");
         setStartGameConsole(true);
       }, 3000); // 🔥 Give the server 3 seconds before attempting connection
     }
-  }, [startWebSocket]);
+  }, [startGameWebSocket]);
 
   const {
     sendJsonMessage: originalSendLobbyMessage,
@@ -70,16 +71,18 @@ const App = () => {
     lastJsonMessage: lastGameMessage,
   } = useWebSocket(
     useMemo(
-      () => (startWebSocket ? "ws://localhost:9000" : null),
-      [startWebSocket]
+      () => (startGameWebSocket ? "ws://localhost:9000" : null),
+      [startGameWebSocket]
     ),
     {
       onOpen: () => {
+        setStartGameConsole(true);
         console.log("🔵 Game WebSocket opened.");
       },
 
       onClose: (event) => {
-        setStartWebSocket(false);
+        setStartGameWebSocket(false);
+        setStartGameConsole(false);
         console.log("🔴 Game WebSocket closed.", event);
         if (event.wasClean) {
           console.log("💡 WebSocket closed cleanly, resetting game state.");
@@ -105,7 +108,7 @@ const App = () => {
         console.warn("⚠️ Skipping empty or invalid message:", lastLobbyMessage);
         return;
       }
-      console.log("Sending Lobby message:", lastLobbyMessage);
+      console.log("Sending Lobby message to Lobby:", lastLobbyMessage);
       setLobbyMessage(lastLobbyMessage);
     }
   }, [lastLobbyMessage]);
@@ -123,7 +126,7 @@ const App = () => {
         console.warn("⚠️ Skipping empty or invalid message:", lastGameMessage);
         return;
       }
-      console.log("Sending Game message:", lastGameMessage);
+      console.log("Sending Game message to Game Console:", lastGameMessage);
       setGameMessage(lastGameMessage);
     }
   }, [lastGameMessage]);
@@ -207,8 +210,9 @@ const App = () => {
             sendMessage={sendLobbyMessage}
             message={lobbyMessage}
             playerId={playerId}
-            setStartWebSocket={setStartWebSocket}
+            setStartGameWebSocket={setStartGameWebSocket}
             setInitialGameState={setInitialGameState}
+            setPlayerGames={setPlayerGames}
             setStartGameConsole={setStartGameConsole}
           />
         )}
@@ -223,7 +227,8 @@ const App = () => {
             initialGameState={initialGameState}
             setStartGameConsole={setStartGameConsole}
             sendLobbyMessage={sendLobbyMessage}
-            setStartWebSocket={setStartWebSocket}
+            setStartGameWebSocket={setStartGameWebSocket}
+            playerGames={playerGames}
           />
         )}
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}

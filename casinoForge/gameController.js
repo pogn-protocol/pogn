@@ -75,8 +75,11 @@ class gameController {
           broadcast: true,
         };
 
-        //game.relay.broadcastResponse(response);
-        this.relayManager.relays.get(game.gameId).broadcastResponse(response);
+        console.log(
+          "gameController Broadcasting gameAction response",
+          response
+        );
+        this.relayManager.relays.get(game.relayId).broadcastResponse(response);
         return response;
       } catch (error) {
         console.error(`❌ Error processing game action:`, error);
@@ -89,7 +92,7 @@ class gameController {
 
   endGame(we, payload) {
     console.log("Ending game", payload);
-    const { gameId, lobbyId } = payload;
+    const { gameId } = payload;
     console.log(this.activeGames);
     const game = this.activeGames.get(gameId);
     if (!game) {
@@ -100,8 +103,8 @@ class gameController {
     console.log("Ending game:", game);
     game.status = "ended";
     game.gameLog.push("Game ended.");
-    console.log("gameRelay", this.relayManager.relays.get(gameId));
-    this.relayManager.relays.get(gameId).sendToLobbyRelay(game.lobbyId, {
+    console.log("gameRelay", this.relayManager.relays.get(game.relayId));
+    this.relayManager.relays.get(game.relayId).sendToLobbyRelay(game.lobbyId, {
       type: "lobby",
       action: "gameEnded",
       lobbyId: game.lobbyId,
@@ -114,7 +117,7 @@ class gameController {
     });
     setTimeout(() => {
       console.log("Shutting down game relay...");
-      this.relayManager.relays.get(gameId).shutdown();
+      this.relayManager.relays.get(game.relayId).shutdown();
     }, 3000);
 
     this.activeGames.get(gameId).status = "ended";
@@ -128,10 +131,10 @@ class gameController {
     };
   }
 
-  broadcastToGamePlayers(gameId, message) {
-    const gameRelay = this.relayManager.relays.get(gameId);
+  broadcastToGamePlayers(relayId, message) {
+    const gameRelay = this.relayManager.relays.get(relayId);
     if (!gameRelay) {
-      console.warn(`Game relay for game ${gameId} not found.`);
+      console.warn(`Game relay for game ${relayId} not found.`);
       return;
     }
     gameRelay.broadcastResponse(message);
@@ -172,6 +175,9 @@ class gameController {
       controller: this,
       lobbyId: lobbyId,
     });
+
+    game.relayId = relay.id;
+    game.wsAddress = relay.wsAddress;
 
     console.log("relay", relay);
     console.log("game", game);

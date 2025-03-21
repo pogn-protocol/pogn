@@ -32,6 +32,15 @@ class RelayManager {
 
       case "game":
         console.log(this.gamePorts);
+        //check if any relays with type game
+        let gameRelay = [...this.relays.values()].find(
+          (relay) => relay.type === "game"
+        );
+
+        if (gameRelay) {
+          console.log(`⚠️ Relay game already exists.`);
+          return gameRelay;
+        }
         relay = new GameRelay(
           id,
           options.ports || this.gamePorts,
@@ -39,6 +48,7 @@ class RelayManager {
           options.lobbyId
         );
         console.log(`🔥 Created GameRelay for ${id}`);
+
         if (options.lobbyId) {
           const lobbyRelay = this.relays.get(options.lobbyId);
           console.log("lobbyRelay", lobbyRelay);

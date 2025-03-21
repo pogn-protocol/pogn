@@ -1,5 +1,4 @@
 const Relay = require("./relay");
-const RelayConnector = require("./relayConnector");
 
 class LobbyRelay extends Relay {
   constructor(lobbyId, ports, lobbyController, targetUrl = null) {
@@ -77,7 +76,7 @@ class LobbyRelay extends Relay {
 
     let response =
       action === "login"
-        ? this.lobbyController.test(playerId)
+        ? this.lobbyController.testGames(playerId)
         : this.lobbyController.processMessage(message);
     console.log("Lobby response", response);
     if (response) {

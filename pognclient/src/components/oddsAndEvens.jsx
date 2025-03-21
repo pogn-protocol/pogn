@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 
-const OddsAndEvens = ({ sendGameMessage, playerId, gameState }) => {
+const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
   const [localGameState, setLocalGameState] = useState({
@@ -10,6 +10,14 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState }) => {
     roles: {}, // Store the roles assigned by the server
     numbers: {}, // Track submitted numbers
   });
+
+  useEffect(() => {
+    console.log(`${gameId} gameState changed`, gameState);
+    // setLocalGameState((prev) => ({
+    //   ...prev,
+    //   ...gameState,
+    // }));
+  }, [gameState]);
 
   const rolesFetched = useRef(false); // Ref to track whether roles have been fetched
 
@@ -26,7 +34,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState }) => {
       gameState?.gameId &&
       Object.keys(gameState.roles || {}).length === 0
     ) {
-      console.log("Roles not assigned yet. Fetching from the relay...");
+      console.log(gameId, "Roles not assigned yet. Fetching from the relay...");
       sendGameMessage({
         type: "game",
         action: "gameAction",
@@ -46,12 +54,13 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState }) => {
     switch (localGameState?.action) {
       case "rolesAssigned":
         rolesFetched.current = true;
-        console.log(`Role assigned`);
+        console.log(gameId, "Roles assigned:", localGameState.roles);
         setRole(localGameState.roles[playerId]);
         setLocalGameState((prev) => ({
           ...prev,
           action: "gotRoles",
           state: "in-progress",
+          //state: "started",
         }));
 
         break;
@@ -65,7 +74,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState }) => {
         break;
 
       case "gotRoles":
-        console.log("Got roles from the relay.");
+        console.log(gameId, "Roles received:", localGameState.roles);
         break;
 
       case "results":

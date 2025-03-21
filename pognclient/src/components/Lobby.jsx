@@ -5,9 +5,10 @@ const Lobby = ({
   message,
   sendMessage,
   playerId,
-  setStartWebSocket,
+  setStartGameWebSocket,
   setInitialGameState,
   setStartGameConsole,
+  setPlayerGames,
 }) => {
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
@@ -40,96 +41,103 @@ const Lobby = ({
         setLobbyGames(payload.lobbyGames || []);
         setLobbyPlayers(payload.lobbyPlayers || []);
         console.log("selectedGameId", selectedGameId);
-        const playerGame = payload.lobbyGames.find(
-          (game) => game.gameId === selectedGameId // ✅ Use the game that was actually selected
+        // const playerGame = payload.lobbyGames.find(
+        //   (game) => game.gameId === selectedGameId // ✅ Use the game that was actually selected
+        // );
+        const playerGames = payload.lobbyGames.filter((game) =>
+          game.players?.some((player) => player === playerId)
         );
+        console.log("playerGames", playerGames);
 
-        if (playerGame) {
-          console.log(
-            `Player ${playerId} is in a valid game (readyToStart/started):`,
-            playerGame
-          );
-
-          // Preselect the game
-          setSelectedGameId(playerGame.gameId);
-          setSelectedGamestate((prevState) => ({
-            ...prevState,
-            ...playerGame,
-          }));
-
-          const isPlayerInGame = playerGame.players?.some(
-            (player) => player === String(playerId)
-          );
-
-          setHasJoined(isPlayerInGame);
-
-          if (playerGame.status === "started") {
-            console.log(
-              "Game has started. Transitioning to GameConsole.",
-              playerGame
-            );
-            // setStartWebSocket(true);
-            // setStartGame(true);
-            setStartWebSocket((prev) => {
-              if (prev) {
-                console.log("🚨 WebSocket already started. Skipping...");
-                return true; // Don't change state
-              }
-              console.log(
-                `✅ Player ${playerId} is in the game. Attaching to relay.`
-              );
-              setInitialGameState({ ...playerGame });
-              return true; // Change state to start WebSocket
-            });
-
-            // setInitialGameState({
-            //   ...playerGame,
-            // });
-          } else {
-            console.log("Game is not started yet. Staying in the lobby.");
-            setStartGameConsole(false);
-            setInitialGameState({});
-          }
+        if (playerGames.length > 0) {
+          console.log("Player is in a valid game:", playerGames);
+          setPlayerGames(playerGames);
+          setStartGameWebSocket(true);
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
-
-          // Reset the game state
           setSelectedGameId(null);
-          // setSelectedGamestate({
-          //   players: [],
-          //   status: "ready-to-join",
-          //   maxPlayers: 0,
-          //   minPlayers: 0,
-          //   gameAction: "",
-          //   gameId: "",
-          // });
           setHasJoined(false);
           setInitialGameState({});
           setStartGameConsole(false);
-          setStartWebSocket(false);
+          setStartGameWebSocket(false);
         }
         break;
-      case "startGame":
-        const game = payload.game;
-        console.log("Starting game...", game);
-        if (new Set(game.players).has(playerId)) {
-          console.log(
-            `✅ Player ${playerId} is in the game. Attempting to attach to relay.`
-          );
 
-          setStartWebSocket((prev) => {
-            if (prev) {
-              console.log("🚨 WebSocket already started. Skipping...");
-              return true; // Don't change state
-            }
-            console.log(`✅ Attaching to relay.`);
-            setInitialGameState({ ...game });
-            return true; // Change state to start WebSocket
-          });
-        } else {
-          console.log(`⚠️ Player ${playerId} is not in this game. Ignoring.`);
-        }
-        break;
+      // if (playerGame) {
+      //   console.log(
+      //     `Player ${playerId} is in a valid game (readyToStart/started):`,
+      //     playerGame
+      //   );
+
+      //   // Preselect the game
+      //   setSelectedGameId(playerGame.gameId);
+      //   setSelectedGamestate((prevState) => ({
+      //     ...prevState,
+      //     ...playerGame,
+      //   }));
+
+      //   const isPlayerInGame = playerGame.players?.some(
+      //     (player) => player === String(playerId)
+      //   );
+
+      //   setHasJoined(isPlayerInGame);
+
+      //   if (playerGame.status === "started") {
+      //     console.log(
+      //       "Game has started. Transitioning to GameConsole.",
+      //       playerGame
+      //     );
+      //     // setStartWebSocket(true);
+      //     // setStartGame(true);
+      //     setStartWebSocket((prev) => {
+      //       if (prev) {
+      //         console.log("🚨 WebSocket already started. Skipping...");
+      //         return true; // Don't change state
+      //       }
+      //       console.log(
+      //         `✅ Player ${playerId} is in the game. Attaching to relay.`
+      //       );
+      //       setInitialGameState({ ...playerGame });
+      //       return true; // Change state to start WebSocket
+      //     });
+
+      //     // setInitialGameState({
+      //     //   ...playerGame,
+      //     // });
+      //   } else {
+      //     console.log("Game is not started yet. Staying in the lobby.");
+      //     setStartGameConsole(false);
+      //     setInitialGameState({});
+      //   }
+      // } else {
+      //   console.log("Player is not in any valid game. Staying in the lobby.");
+      //   setSelectedGameId(null);
+      //   setHasJoined(false);
+      //   setInitialGameState({});
+      //   setStartGameConsole(false);
+      //   setStartWebSocket(false);
+      // }
+      // case "startGame":
+      //   const game = payload.game;
+      //   console.log("Starting game...", game);
+      //   if (new Set(game.players).has(playerId)) {
+      //     console.log(
+      //       `✅ Player ${playerId} is in the game. Attempting to attach to relay.`
+      //     );
+
+      //     setStartGameWebSocket((prev) => {
+      //       if (prev) {
+      //         console.log("🚨 WebSocket already started. Skipping...");
+      //         return true; // Don't change state
+      //       }
+      //       console.log(`✅ Attaching to relay.`);
+      //       setInitialGameState({ ...game });
+      //       return true; // Change state to start WebSocket
+      //     });
+      //   } else {
+      //     console.log(`⚠️ Player ${playerId} is not in this game. Ignoring.`);
+      //   }
+      //   break;
       default:
         console.warn(`Unhandled action: ${action}`);
     }
@@ -170,6 +178,7 @@ const Lobby = ({
       );
     }
   };
+
   const handleStartGame = () => {
     console.log("Starting game...", selectedGamestate.gameId);
     sendMessage({

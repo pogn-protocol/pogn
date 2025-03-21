@@ -86,7 +86,7 @@ class LobbyController {
       };
     }
 
-    lobby.removeGame(gameId); // Remove from lobby
+    //lobby.removeGame(gameId); // Remove from lobby
 
     try {
       const startGameResult = this.gameController.startGame(game);
@@ -104,9 +104,11 @@ class LobbyController {
       console.log("Game started:", gameDetails);
       return {
         type: "lobby",
-        action: "startGame",
+        action: "refreshLobby",
         payload: {
-          game: gameDetails,
+          //game: gameDetails,
+          lobbyPlayers: lobby.getLobbyPlayers(),
+          lobbyGames: lobby.getLobbyGames(),
         },
         broadcast: true,
       };
@@ -274,68 +276,70 @@ class LobbyController {
     };
   }
 
-  test(playerId) {
-    const lobby = this.lobbies.get("default");
-    console.log(`Player ${playerId} is reconnecting or joining a game.`);
-    let testGame = lobby
-      .getLobbyGames()
-      .find((game) => game.status === "joining");
-    console.log("Lobby Games", lobby.getLobbyGames());
-    console.log("testGame", testGame);
-    if (!testGame) {
-      lobby.games = [];
-      lobby.players = [];
-      console.log("No available games. Creating a new game.");
-      this.createGame({
-        lobby: lobby,
-        gameType: "odds-and-evens",
-        playerId: playerId,
-      });
-      console.log(
-        "Created a new game and added to lobby:",
-        lobby.getLobbyGames()
-      );
-      console.log("lobby.games", lobby.games);
-      lobby.games[0].status = "test";
-      testGame = lobby.games[0];
-      console.log("testGame", testGame);
-    } else {
-      console.log(`Player ${playerId} is joining an existing game:`, testGame);
-    }
-    this.joinLobby({
-      lobby: lobby,
-      playerId: playerId,
-    });
+  // test(playerId) {
+  //   const lobby = this.lobbies.get("default");
+  //   console.log(`Player ${playerId} is reconnecting or joining a game.`);
+  //   let testGame = lobby
+  //     .getLobbyGames()
+  //     .find((game) => game.status === "joining");
+  //   console.log("Lobby Games", lobby.getLobbyGames());
+  //   console.log("testGame", testGame);
+  //   if (!testGame) {
+  //     lobby.games = [];
+  //     lobby.players = [];
+  //     console.log("No available games. Creating a new game.");
+  //     this.createGame({
+  //       lobby: lobby,
+  //       gameType: "odds-and-evens",
+  //       playerId: playerId,
+  //     });
+  //     console.log(
+  //       "Created a new game and added to lobby:",
+  //       lobby.getLobbyGames()
+  //     );
+  //     console.log("lobby.games", lobby.games);
+  //     lobby.games[0].status = "test";
+  //     testGame = lobby.games[0];
+  //     console.log("testGame", testGame);
+  //   } else {
+  //     console.log(`Player ${playerId} is joining an existing game:`, testGame);
+  //   }
+  //   this.joinLobby({
+  //     lobby: lobby,
+  //     playerId: playerId,
+  //   });
 
-    console.log("joining player to game", testGame.gameId, playerId);
-    this.processMessage({
-      lobbyId: "default",
-      action: "joinGame",
-      payload: {
-        gameId: testGame.gameId,
-        playerId,
-      },
-    });
-    console.log("joined player to game", testGame.gameId, playerId);
-    testGame = lobby.getGameDetails(testGame.gameId);
-    lobby.games[0].status = "joining";
+  //   console.log("joining player to game", testGame.gameId, playerId);
+  //   this.processMessage({
+  //     lobbyId: "default",
+  //     action: "joinGame",
+  //     payload: {
+  //       gameId: testGame.gameId,
+  //       playerId,
+  //     },
+  //   });
+  //   console.log("joined player to game", testGame.gameId, playerId);
+  //   testGame = lobby.getGameDetails(testGame.gameId);
+  //   lobby.games[0].status = "joining";
 
-    console.log("testGame", testGame);
-    if (Object.keys(testGame.players).length === testGame.instance.maxPlayers) {
-      console.log(`Game ${testGame.gameId} is now full. Starting game.`);
-      lobby.games[0].status = "readyToStart";
-    }
-    console.log("sending refresh lobby");
-    return {
-      type: "lobby",
-      action: "refreshLobby",
-      payload: {
-        lobbyPlayers: lobby.getLobbyPlayers(),
-        lobbyGames: lobby.getLobbyGames(),
-      },
-      broadcast: true,
-    };
-  }
+  //   console.log("testGame", testGame);
+  //   if (Object.keys(testGame.players).length === testGame.instance.maxPlayers) {
+  //     console.log(`Game ${testGame.gameId} is now full. Starting game.`);
+  //     lobby.games[0].status = "readyToStart";
+  //   }
+  //   console.log("sending refresh lobby");
+  //   return {
+  //     type: "lobby",
+  //     action: "refreshLobby",
+  //     payload: {
+  //       lobbyPlayers: lobby.getLobbyPlayers(),
+  //       lobbyGames: lobby.getLobbyGames(),
+  //     },
+  //     broadcast: true,
+  //   };
+  // }
+
+  //
 
   refreshLobby({ lobby }) {
     console.log("Refreshing lobby...");
@@ -348,16 +352,83 @@ class LobbyController {
         lobbyGames: lobby.getLobbyGames(),
       },
     });
-
-    // lobbyRelay.broadcastResponse({
-    //   type: "lobby",
-    //   action: "refreshLobby",
-    //   payload: {
-    //     lobbyPlayers: lobby.getLobbyPlayers(),
-    //     lobbyGames: lobby.getLobbyGames(),
-    //   },
-    // });
   }
+
+  //create two lobby games with 2 players each ids:
+  //     Player 1: d06b8035a89b7eed34b641f8ba1c893d330bd5486308ee649c1884bd69c4ba34
+  // Player 2: 54ec4f8be6db8a27372d257d95310685bc1c7dc59c26f3a4c0a64c10b6e0b9eb
+
+  testGames() {
+    const lobby = this.lobbies.get("default");
+    if (lobby.getLobbyGames().length > 0) {
+      console.log("Test games already created.");
+      return {
+        type: "lobby",
+        action: "refreshLobby",
+        payload: {
+          lobbyPlayers: lobby.getLobbyPlayers(),
+          lobbyGames: lobby.getLobbyGames(),
+        },
+        broadcast: true,
+      };
+    }
+    const players = [
+      "d06b8035a89b7eed34b641f8ba1c893d330bd5486308ee649c1884bd69c4ba34",
+      "54ec4f8be6db8a27372d257d95310685bc1c7dc59c26f3a4c0a64c10b6e0b9eb",
+    ];
+    console.log("Creating test games...");
+    const game1 = this.gameController.createGame(
+      "odds-and-evens",
+      true,
+      lobby.lobbyId
+    );
+    const game2 = this.gameController.createGame(
+      "odds-and-evens",
+      true,
+      lobby.lobbyId
+    );
+    game1.id = "firstGame";
+    game2.id = "secondGame";
+    lobby.addGame(game1);
+    lobby.addGame(game2);
+
+    game1.players.set(players[0], { playerId: players[0] });
+    game1.players.set(players[1], { playerId: players[1] });
+    game1.status = "readyToStart";
+    game1.logAction(`${players[0]} created game.`);
+    game1.logAction(`${players[1]} joined game.`);
+
+    game2.players.set(players[0], { playerId: players[0] });
+    game2.players.set(players[1], { playerId: players[1] });
+    game2.status = "readyToStart";
+    game2.logAction(`${players[0]} created game.`);
+
+    console.log("Test games created:", game1, game2);
+    console.log("Lobby games", lobby.getLobbyGames());
+
+    this.gameController.startGame(game1);
+    this.gameController.startGame(game2);
+
+    return {
+      type: "lobby",
+      action: "refreshLobby",
+      payload: {
+        lobbyPlayers: lobby.getLobbyPlayers(),
+        lobbyGames: lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
+  }
+
+  // lobbyRelay.broadcastResponse({
+  //   type: "lobby",
+  //   action: "refreshLobby",
+  //   payload: {
+  //     lobbyPlayers: lobby.getLobbyPlayers(),
+  //     lobbyGames: lobby.getLobbyGames(),
+  //   },
+  // });
+  // }
 }
 
 module.exports = LobbyController;
