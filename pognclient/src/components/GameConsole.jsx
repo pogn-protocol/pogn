@@ -10,8 +10,8 @@ import {
 import "react-json-view-lite/dist/index.css";
 
 const GameConsole = ({
-  message = {},
   sendGameMessage,
+  message = {},
   playerId = "",
   initialGameState = {},
   setStartGameConsole,
@@ -114,6 +114,10 @@ const GameConsole = ({
           newStates.set(gameId, {
             ...currentGameState,
             ...payload,
+
+            game: payload.game,
+            gameLog: payload.game.gameLog, // Include game history
+            action: payload.action,
           });
           console.log("🛠️ Updated GameState:", newStates);
           break;
@@ -122,6 +126,8 @@ const GameConsole = ({
           newStates.set(gameId, {
             ...currentGameState,
             ...payload,
+            gameLog: payload.game.gameLog, // Include game history
+            action: payload.action,
           });
           console.log("🏁 Game Finished:", newStates);
           break;
@@ -159,56 +165,6 @@ const GameConsole = ({
     });
     setGameStates(gameMap);
   };
-
-  //   // Preselect the game
-  //   setSelectedGameId(playerGame.gameId);
-  //   setSelectedGamestate((prevState) => ({
-  //     ...prevState,
-  //     ...playerGame,
-  //   }));
-
-  //   const isPlayerInGame = playerGame.players?.some(
-  //     (player) => player === String(playerId)
-  //   );
-
-  //   setHasJoined(isPlayerInGame);
-
-  //   if (playerGame.status === "started") {
-  //     console.log(
-  //       "Game has started. Transitioning to GameConsole.",
-  //       playerGame
-  //     );
-  //     // setStartWebSocket(true);
-  //     // setStartGame(true);
-  //     setStartWebSocket((prev) => {
-  //       if (prev) {
-  //         console.log("🚨 WebSocket already started. Skipping...");
-  //         return true; // Don't change state
-  //       }
-  //       console.log(
-  //         `✅ Player ${playerId} is in the game. Attaching to relay.`
-  //       );
-  //       setInitialGameState({ ...playerGame });
-  //       return true; // Change state to start WebSocket
-  //     });
-
-  //     // setInitialGameState({
-  //     //   ...playerGame,
-  //     // });
-  //   } else {
-  //     console.log("Game is not started yet. Staying in the lobby.");
-  //     setStartGameConsole(false);
-  //     setInitialGameState({});
-  //   }
-  // } else {
-  //   console.log("Player is not in any valid game. Staying in the lobby.");
-  //   setSelectedGameId(null);
-  //   setHasJoined(false);
-  //   setInitialGameState({});
-  //   setStartGameConsole(false);
-  //   setStartWebSocket(false);
-  // }
-  // break;
 
   const renderGameComponent = (gameId, gameState) => {
     console.log("Rendering game component:", gameState, "for game ID:", gameId);
@@ -268,16 +224,15 @@ const GameConsole = ({
                   border: "1px solid #ccc",
                 }}
               >
-                <h3>Game ID: {gameId}</h3>
-                <h4>Game Type: {gameState.gameType}</h4>
+                <h2>Game ID: {gameId}</h2>
+                {/* <h4>Game Type: {gameState.gameType}</h4>
 
-                {/* Collapsible and interactive JSON view */}
+                {/* Collapsible and interactive JSON view
                 <JsonView
                   data={gameState}
-                  shouldExpandNode={(level) => level === 0} // Expand only the first level
-                  s
+                  shouldExpandNode={(level) => level === 0} 
                   style={{ fontSize: "14px", lineHeight: "1.2" }}
-                />
+                /> */}
 
                 {renderGameComponent(gameId, gameState)}
               </div>

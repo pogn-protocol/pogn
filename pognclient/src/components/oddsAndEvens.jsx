@@ -20,39 +20,46 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
 
   useEffect(() => {
     console.log(`${gameId} gameState changed`, gameState);
-    // setLocalGameState((prev) => ({
-    //   ...prev,
-    //   ...gameState,
-    // }));
+    setLocalGameState((prev) => ({
+      ...prev,
+      ...gameState,
+    }));
   }, [gameState]);
 
   const rolesFetched = useRef(false); // Ref to track whether roles have been fetched
 
   useEffect(() => {
-    console.log("gameState", gameState);
-    setLocalGameState((prev) => ({
-      ...prev,
-      ...gameState,
-    }));
+    if (!localGameState.initialized) {
+      console.log("Initial gameState", gameState);
+      setLocalGameState((prev) => ({
+        ...gameState,
+        ...prev,
+        action: {},
+        initialized: true,
+      }));
 
-    // ✅ Only request roles if they haven't been fetched yet
-    if (
-      !rolesFetched.current &&
-      gameState?.gameId &&
-      Object.keys(gameState.roles || {}).length === 0
-    ) {
-      console.log(gameId, "Roles not assigned yet. Fetching from the relay...");
-      sendGameMessage({
-        type: "game",
-        action: "gameAction",
-        payload: {
-          gameAction: "getRoles",
-          playerId,
-          gameId: gameState.gameId,
-        },
-      });
+      // ✅ Only request roles if they haven't been fetched yet
+      if (
+        !rolesFetched.current &&
+        gameState?.gameId &&
+        Object.keys(gameState.roles || {}).length === 0
+      ) {
+        console.log(
+          gameId,
+          "Roles not assigned yet. Fetching from the relay..."
+        );
+        sendGameMessage({
+          type: "game",
+          action: "gameAction",
+          payload: {
+            gameAction: "getRoles",
+            playerId,
+            gameId: gameState.gameId,
+          },
+        });
 
-      rolesFetched.current = true; // ✅ Prevent multiple fetches
+        rolesFetched.current = true; // ✅ Prevent multiple fetches
+      }
     }
   }, [gameState, sendGameMessage, playerId]);
 
@@ -65,8 +72,8 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         setRole(localGameState.roles[playerId]);
         setLocalGameState((prev) => ({
           ...prev,
-          action: "gotRoles",
           state: "in-progress",
+          roles: localGameState.roles,
           //state: "started",
         }));
 
@@ -80,9 +87,9 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         }));
         break;
 
-      case "gotRoles":
-        console.log(gameId, "Roles received:", localGameState.roles);
-        break;
+      // case "gotRoles":
+      //   console.log(gameId, "Roles received:", localGameState.roles);
+      //   break;
 
       case "results":
         setLocalGameState((prev) => ({
@@ -135,7 +142,6 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         <JsonView
           data={localGameState}
           shouldExpandNode={(level) => level === 0} // Expand only the first level
-          s
           style={{ fontSize: "14px", lineHeight: "1.2" }}
         />
       </div>

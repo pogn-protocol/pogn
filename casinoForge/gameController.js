@@ -64,9 +64,19 @@ class gameController {
           payload.playerId,
           payload
         );
-        if (gameResponse.logEntry) {
-          game.logAction(gameResponse.logEntry);
+        //verification
+        if (
+          !(
+            gameResponse?.payload &&
+            gameResponse?.logEntry &&
+            gameResponse?.action &&
+            gameResponse?.message
+          )
+        ) {
+          console.warn("Invalid game response:", gameResponse);
         }
+
+        game.logAction(gameResponse.logEntry);
 
         const response = {
           type: "game",
@@ -83,6 +93,21 @@ class gameController {
         console.log(this.relayManager.relays);
         console.log(this.relayManager.relays.get(game.relayId));
         this.relayManager.relays.get(game.relayId).broadcastResponse(response);
+        if (gameResponse.private) {
+          const privateResponse = {
+            type: "game",
+            action: "gameAction",
+            payload: { game, private: gameResponse.private },
+          };
+          console.log(
+            "gameController Sending private gameAction response",
+            privateResponse
+          );
+
+          this.relayManager.relays
+            .get(game.relayId)
+            .sendResponse(payload.playerId, privateResponse);
+        }
         return response;
       } catch (error) {
         console.error(`❌ Error processing game action:`, error);

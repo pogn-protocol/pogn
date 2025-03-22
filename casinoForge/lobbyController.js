@@ -379,7 +379,7 @@ class LobbyController {
       };
     }
     const players = [
-      "d06b8035a89b7eed34b641f8ba1c893d330bd5486308ee649c1884bd69c4ba34",
+      "d02b72213690d342da67142eff87bd69d92ee4c243efb25b7c17a36d8be7e96a",
       "54ec4f8be6db8a27372d257d95310685bc1c7dc59c26f3a4c0a64c10b6e0b9eb",
     ];
     console.log("Creating test games...");

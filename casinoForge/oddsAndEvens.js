@@ -36,15 +36,16 @@ class OddsAndEvens {
       //console state
       case "getRoles":
         // Prevent roles from being reassigned if already assigned
-        if (this.state === "in-progress" || this.state === "complete") {
+        if (this.state !== "waiting") {
+          console.log("Roles already assigned:", this.roles);
           return {
-            // type: "game",
-            logEntry: "Roles assigned.",
+            logEntry: `Roles requested by player: ${this.roles[playerId]}`,
             action: "gameAction",
             payload: {
               action: "rolesAssigned",
               roles: this.roles,
               state: this.state,
+              message: "Roles already assigned and recieved.",
             },
           };
         }
@@ -59,13 +60,13 @@ class OddsAndEvens {
             const roles = this.assignRoles(this.players);
             this.state = "in-progress";
             return {
-              // type: "game",
-              // action: "gameAction",
               logEntry: "Roles assigned.",
+              action: "gameAction",
               payload: {
                 action: "rolesAssigned",
                 roles,
                 state: this.state,
+                message: `Recieved assigned roles requested by player: ${playerId}`,
               },
               broadcast: true, // Broadcast roles to all players
             };
@@ -103,11 +104,13 @@ class OddsAndEvens {
     }
 
     return {
+      logEntry: `Player ${playerId} submitted number.`,
       payload: {
         action: "waitingForOpponent",
         playerId,
-        message: "Waiting for the other player to submit their number.",
+        message: `Player ${playerId} submitted number`,
       },
+      private: `Player ${playerId} submitted number ${number}`,
     };
   }
 
@@ -125,6 +128,7 @@ class OddsAndEvens {
     this.state = "complete";
 
     return {
+      logEntry: `Game complete. Winner: ${winner}, Sum: ${sum}, Numbers: ${this.numbers}`,
       payload: {
         action: "results",
         winner,
@@ -132,6 +136,7 @@ class OddsAndEvens {
         sum,
         roles: this.roles,
         numbers: this.numbers,
+        message: `Game complete. Winner: ${winner}, Sum: ${sum}`,
       },
       broadcast: true,
     };
