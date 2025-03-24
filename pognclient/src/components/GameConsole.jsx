@@ -26,12 +26,13 @@ const GameConsole = ({
   const [gameStates, setGameStates] = useState(new Map());
   const [lobbyMessage, setLobbyMessage] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
+  const [gameStartedMap, setGameStartedMap] = useState(new Map());
 
   useEffect(() => {
     console.log("Lobby message:", lobbyMessage);
     if (lobbyMessage && Object.keys(lobbyMessage).length > 0) {
       console.log("Sending lobby message:", lobbyMessage);
-      sendLobbyMessage(lobbyUrl, lobbyMessage);
+      sendLobbyMessage(gameId, lobbyMessage);
 
       setTimeout(() => {
         console.log("Clearing lobby message...");
@@ -44,6 +45,7 @@ const GameConsole = ({
   //   console.log("Checking game state for start condition...");
   //   console.log("gamestate", gameStates);
   //   // setGameStarted(gameStates.status === "started");
+  //   setGameStartedMap((prev) => new Map(prev).set(gameId, true));
   // }, [gameStates]);
 
   // useEffect(() => {
@@ -190,7 +192,7 @@ const GameConsole = ({
         return (
           <RockPaperScissors
             sendGameMessage={
-              (msg) => sendGameMessage(gameUrl, { ...msg, gameId }) // Include gameId in every message
+              (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
             }
             playerId={playerId}
             gameState={gameState}
@@ -202,7 +204,7 @@ const GameConsole = ({
         return (
           <OddsAndEvens
             sendGameMessage={
-              (msg) => sendGameMessage(gameUrl, { ...msg, gameId }) // Include gameId in every message
+              (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
             }
             playerId={playerId}
             gameState={gameState}

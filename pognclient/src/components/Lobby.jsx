@@ -71,7 +71,10 @@ const Lobby = ({
           //   startGameRelays(game.wsAddress);
           //   // addConnection(game.wsAddress, "game");
           // });
-          let gameRelays = playerGames.map((game) => game.wsAddress);
+          let gameRelays = playerGames.map((game) => ({
+            wsAddress: game.wsAddress,
+            gameId: game.gameId,
+          }));
           console.log("gameRelays", gameRelays);
           startGameRelays(gameRelays);
         } else {
@@ -79,7 +82,7 @@ const Lobby = ({
           setSelectedGameId(null);
           setHasJoined(false);
           setInitialGameState({});
-          setStartGameConsole(false);
+          // setStartGameConsole(false);
           //setStartGameWebSocket(false);
         }
         break;

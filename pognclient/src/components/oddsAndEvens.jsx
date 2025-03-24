@@ -32,9 +32,10 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
     if (!localGameState.initialized) {
       console.log("Initial gameState", gameState);
       setLocalGameState((prev) => ({
-        ...gameState,
         ...prev,
-        action: {},
+        ...gameState,
+
+        // action: {},
         initialized: true,
       }));
 
@@ -45,7 +46,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         Object.keys(gameState.roles || {}).length === 0
       ) {
         console.log(
-          gameId,
+          gameState.gameId,
           "Roles not assigned yet. Fetching from the relay..."
         );
         sendGameMessage({
