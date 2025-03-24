@@ -3,14 +3,25 @@ import "./css/lobby.css";
 import { JsonView } from "react-json-view-lite";
 import "react-json-view-lite/dist/index.css";
 
+// key={index}
+// connection={connection}
+// playerId={playerId}
+// startGameRelay={handleStartGameRelay}
+// setStartGameConsole={setStartGameConsole}
+// setInitialGameState={setInitialGameState}
+// setPlayerGames = { setPlayerGames };
+// sendMessage={sendMessage}
+
 const Lobby = ({
-  message,
-  sendMessage,
+  addConnection,
   playerId,
-  setStartGameWebSocket,
+  //message,
+  startGameRelays,
   setInitialGameState,
   setStartGameConsole,
   setPlayerGames,
+  sendMessage,
+  message,
 }) => {
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
@@ -53,15 +64,23 @@ const Lobby = ({
 
         if (playerGames.length > 0) {
           console.log("Player is in a valid game:", playerGames);
+          console.log(playerGames);
           setPlayerGames(playerGames);
-          setStartGameWebSocket(true);
+          // playerGames.forEach((game) => {
+          //   console.log("game", game.wsAddress);
+          //   startGameRelays(game.wsAddress);
+          //   // addConnection(game.wsAddress, "game");
+          // });
+          let gameRelays = playerGames.map((game) => game.wsAddress);
+          console.log("gameRelays", gameRelays);
+          startGameRelays(gameRelays);
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
           setSelectedGameId(null);
           setHasJoined(false);
           setInitialGameState({});
           setStartGameConsole(false);
-          setStartGameWebSocket(false);
+          //setStartGameWebSocket(false);
         }
         break;
       default:

@@ -1,72 +1,94 @@
 import React, { useState, useEffect } from "react";
 import { Button, Form, Row, Col, Badge } from "react-bootstrap";
+import useWebSocketManager from "./hooks/webSocketManager";
 
-const ConnectionInterface = ({
-  lobbyUrl,
-  gameUrl,
-  onConnect,
-  onDisconnect,
-  onUrlChange,
-  lobbyStatus,
-  gameStatus,
-}) => {
-  const [customLobbyUrl, setCustomLobbyUrl] = useState(lobbyUrl);
-  const [customGameUrl, setCustomGameUrl] = useState(gameUrl);
+const ConnectionInterface = () => {
+  const {
+    addConnection,
+    removeConnection,
+    sendMessage,
+    connectionList,
+    messages,
+  } = useWebSocketManager();
 
-  useEffect(() => {
-    setCustomLobbyUrl(lobbyUrl);
-    setCustomGameUrl(gameUrl);
-  }, [lobbyUrl, gameUrl]);
+  const [connections, setConnections] = useState([]);
+  const [url, setUrl] = useState("");
+  const [type, setType] = useState("lobby");
+  const [message, setMessage] = useState("");
 
-  const handleConnect = () => {
-    onConnect(customLobbyUrl, customGameUrl);
+  const handleAddConnection = () => {
+    const id = addConnection(url, type, handleMessage, handleOpen, handleClose);
+    updateConnectionList();
   };
 
-  const handleDisconnect = () => {
-    onDisconnect();
+  const handleRemoveConnection = (id) => {
+    removeConnection(id);
+    updateConnectionList();
+  };
+
+  const handleMessage = (id, data) => {
+    console.log(`Received message from ${id}:`, data);
+  };
+
+  const handleOpen = (id) => {
+    console.log(`Connection ${id} opened.`);
+    updateConnectionList();
+  };
+
+  const handleClose = (id) => {
+    console.log(`Connection ${id} closed.`);
+    updateConnectionList();
+  };
+
+  const updateConnectionList = () => {
+    setConnections(listConnections());
+  };
+
+  const handleSendMessage = (id) => {
+    sendMessage(id, { type, message });
   };
 
   return (
-    <div className="connection-interface p-3 mb-4 bg-light rounded border">
-      <h3>WebSocket Connection</h3>
+    <div className="connection-interface">
+      <h3>Connection Interface</h3>
       <Row>
         <Col>
-          <Form.Label>Lobby URL:</Form.Label>
+          <Form.Label>URL:</Form.Label>
           <Form.Control
             type="text"
-            value={customLobbyUrl}
-            onChange={(e) => setCustomLobbyUrl(e.target.value)}
-            onBlur={() => onUrlChange("lobby", customLobbyUrl)}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
           />
-          <Badge
-            bg={lobbyStatus === "connected" ? "success" : "danger"}
-            className="mt-2"
+          <Form.Label>Type:</Form.Label>
+          <Form.Control
+            as="select"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
           >
-            {lobbyStatus === "connected" ? "Connected" : "Disconnected"}
-          </Badge>
+            <option value="lobby">Lobby</option>
+            <option value="game">Game</option>
+          </Form.Control>
+          <Button onClick={handleAddConnection}>Add Connection</Button>
         </Col>
         <Col>
-          <Form.Label>Game URL:</Form.Label>
-          <Form.Control
-            type="text"
-            value={customGameUrl}
-            onChange={(e) => setCustomGameUrl(e.target.value)}
-            onBlur={() => onUrlChange("game", customGameUrl)}
-          />
-          <Badge
-            bg={gameStatus === "connected" ? "success" : "danger"}
-            className="mt-2"
-          >
-            {gameStatus === "connected" ? "Connected" : "Disconnected"}
-          </Badge>
+          <h4>Active Connections</h4>
+          {connections.map((conn) => (
+            <div key={conn.id}>
+              <Badge>{conn.type}</Badge> {conn.url} [{conn.status}]
+              <Button onClick={() => handleRemoveConnection(conn.id)}>
+                Remove
+              </Button>
+              <Form.Control
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Message to send"
+              />
+              <Button onClick={() => handleSendMessage(conn.id)}>Send</Button>
+            </div>
+          ))}
         </Col>
       </Row>
-      <Button className="mt-3" variant="primary" onClick={handleConnect}>
-        Connect
-      </Button>
-      <Button className="mt-3 ms-2" variant="danger" onClick={handleDisconnect}>
-        Disconnect
-      </Button>
     </div>
   );
 };

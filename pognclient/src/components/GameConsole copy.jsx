@@ -18,7 +18,6 @@ const GameConsole = ({
   sendLobbyMessage,
   //setStartGameWebSocket,
   playerGames,
-  lobbyUrl,
 }) => {
   // const [gameState, setGameState] = useState({
   //   ...initialGameState,
@@ -31,7 +30,7 @@ const GameConsole = ({
     console.log("Lobby message:", lobbyMessage);
     if (lobbyMessage && Object.keys(lobbyMessage).length > 0) {
       console.log("Sending lobby message:", lobbyMessage);
-      sendLobbyMessage(lobbyUrl, lobbyMessage);
+      sendLobbyMessage(lobbyMessage);
 
       setTimeout(() => {
         console.log("Clearing lobby message...");
@@ -99,12 +98,7 @@ const GameConsole = ({
 
     console.log("Processing Game message:", message);
     const { action, payload } = message;
-    const gameId = payload?.game?.gameId;
-
-    if (!action || !payload || !gameId) {
-      console.warn("Invalid message received:", message);
-      return;
-    }
+    const gameId = payload.gameId || payload.game?.gameId;
 
     setGameStates((prevStates) => {
       const newStates = new Map(prevStates);
@@ -120,7 +114,7 @@ const GameConsole = ({
           newStates.set(gameId, {
             ...currentGameState,
             ...payload,
-            wsAddress: payload.game.wsAddress,
+
             game: payload.game,
             gameLog: payload.game.gameLog, // Include game history
             action: payload.action,
@@ -172,15 +166,8 @@ const GameConsole = ({
     setGameStates(gameMap);
   };
 
-  const renderGameComponent = (gameId, gameState, gameUrl) => {
-    console.log(
-      "Rendering game component:",
-      gameState,
-      "for game ID:",
-      gameId,
-      "at URL:",
-      gameUrl
-    );
+  const renderGameComponent = (gameId, gameState) => {
+    console.log("Rendering game component:", gameState, "for game ID:", gameId);
     if (gameState.status !== "started") {
       console.log("Game not started:", gameId);
       return null; // Do not render anything if the game has not started
@@ -190,7 +177,7 @@ const GameConsole = ({
         return (
           <RockPaperScissors
             sendGameMessage={
-              (msg) => sendGameMessage(gameUrl, { ...msg, gameId }) // Include gameId in every message
+              (msg) => sendGameMessage({ ...msg, gameId }) // Include gameId in every message
             }
             playerId={playerId}
             gameState={gameState}
@@ -202,7 +189,7 @@ const GameConsole = ({
         return (
           <OddsAndEvens
             sendGameMessage={
-              (msg) => sendGameMessage(gameUrl, { ...msg, gameId }) // Include gameId in every message
+              (msg) => sendGameMessage({ ...msg, gameId }) // Include gameId in every message
             }
             playerId={playerId}
             gameState={gameState}
@@ -228,7 +215,6 @@ const GameConsole = ({
         {Array.from(gameStates.entries())
           .filter(([, gameState]) => gameState.status === "started")
           .map(([gameId, gameState]) => {
-            const wsAddress = gameState.wsAddress; // Access wsAddress from gameState
             return (
               <div
                 key={gameId}
@@ -239,8 +225,16 @@ const GameConsole = ({
                 }}
               >
                 <h2>Game ID: {gameId}</h2>
-                {console.log("gameState", gameState, "wsAddress", wsAddress)}
-                {renderGameComponent(gameId, gameState, wsAddress)}
+                {/* <h4>Game Type: {gameState.gameType}</h4>
+
+                {/* Collapsible and interactive JSON view
+                <JsonView
+                  data={gameState}
+                  shouldExpandNode={(level) => level === 0} 
+                  style={{ fontSize: "14px", lineHeight: "1.2" }}
+                /> */}
+
+                {renderGameComponent(gameId, gameState)}
               </div>
             );
           })}

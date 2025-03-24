@@ -1,24 +1,20 @@
+import { use } from "react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import useWebSocket from "react-use-websocket";
 import { v4 as uuidv4 } from "uuid";
 
 const useWebSockets = (
-  playerId,
-  startGameWebSocket,
-  initialLobbyUrl,
-  initialGameUrl,
   setLobbyWebSocketOpen,
-  setStartGameWebSocket,
   setStartGameConsole,
   setLobbyMessage,
   setGameMessage
 ) => {
-  const [lobbyUrl, setLobbyUrl] = useState(initialLobbyUrl);
-  const [gameUrl, setGameUrl] = useState(initialGameUrl);
   const [lobbyStatus, setLobbyStatus] = useState("disconnected");
   const [gameStatus, setGameStatus] = useState("disconnected");
   const [lobbyMessageHistory, setLobbyMessageHistory] = useState([]);
   const [gameMessageHistory, setGameMessageHistory] = useState([]);
+  const [lobbyUrl, setLobbyUrl] = useState(null);
+  const [gameUrl, setGameUrl] = useState(null);
 
   const sendLobbyMessage = (message) => {
     if (!message) return;
@@ -68,8 +64,16 @@ const useWebSockets = (
 
   const updateUrl = (type, url) => {
     if (type === "lobby") {
+      if (lobbyUrl === url) {
+        console.log("Lobby URL is the same as the current URL");
+        return;
+      }
       setLobbyUrl(url);
     } else if (type === "game") {
+      if (gameUrl === url) {
+        console.log("Game URL is the same as the current URL");
+        return;
+      }
       setGameUrl(url);
     }
   };

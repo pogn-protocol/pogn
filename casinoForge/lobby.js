@@ -67,12 +67,13 @@ class Lobby {
   getLobbyGames() {
     console.log("Getting lobby games...", this.games);
     return this.games.map((game) => ({
-      gameId: game.gameId,
-      gameType: game.gameType,
-      status: game.status,
+      ...game,
+      // gameId: game.gameId,
+      // gameType: game.gameType,
+      // status: game.status,
       players: Array.from(game.players.keys()), // Convert players map to array
-      gameLog: game.gameLog,
-      instance: game.instance,
+      // gameLog: game.gameLog,
+      // instance: game.instance,
     }));
   }
   addGame(game) {
