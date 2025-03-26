@@ -33,8 +33,6 @@ const App = () => {
   const [gamesToInit, setGamesToInit] = useState([]);
   const [messages, setMessages] = useState({});
   const [sendMessageToUrl, setSendMessageToUrl] = useState(() => () => {}); // ✅ State to hold the sendMessageToUrl funct
-  const [lobbiesLoggedIn, setLobbiesLoggedIn] = useState(false);
-  const connectionsRef = useRef(new Map());
   const [addRelayConnections, setAddRelayConnections] = useState([]);
   const [gameMessages, setGameMessages] = useState({});
   const [lobbyMessages, setLobbyMessages] = useState({});
@@ -68,7 +66,7 @@ const App = () => {
     if (sendMessageToUrl) {
       console.log(`🚀 Sending message to ${id}:`, message);
       message.uuid = uuidv4();
-      let connection = connectionsRef.current.get(id);
+      const connection = connections.get(id);
       console.log("connection", connection);
       connection.sendJsonMessage(message);
     } else {
@@ -165,13 +163,10 @@ const App = () => {
               sendMessage={(msg) => handleSendMessage(id, msg)}
               message={Object.values(lobbyMessages).flat().slice(-1)[0] || {}}
               connectionUrl={connection.url}
+              setGamesToInit={setGamesToInit}
             />
           ))}
         {connections.size === 0 && <p>Lobby not started...</p>}
-
-        {/* {!startGameConsole ? (
-          <p>Game Console Not Started...</p>
-        ) : ( */}
         <GameConsole
           playerId={playerId}
           message={Object.values(gameMessages).flat().slice(-1)[0] || {}}
@@ -181,6 +176,7 @@ const App = () => {
           gamesToInit={gamesToInit}
           lobbyUrl={"ws://localhost:8080"}
           gameRelaysReady={gameRelaysReady}
+          setConnections={setConnections}
           connections={
             new Map(
               Array.from(connections.entries()).filter(

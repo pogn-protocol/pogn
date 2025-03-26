@@ -3,20 +3,12 @@ import "./css/lobby.css";
 import { JsonView } from "react-json-view-lite";
 import "react-json-view-lite/dist/index.css";
 
-// key={index}
-// connection={connection}
-// playerId={playerId}
-// startGameRelay={handleStartGameRelay}
-// setStartGameConsole={setStartGameConsole}
-// setPlayerGames = { setPlayerGames };
-// sendMessage={sendMessage}
-
 const Lobby = ({
   playerId,
-  startGameRelays,
   sendMessage,
   message,
   connectionUrl,
+  setGamesToInit,
 }) => {
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
@@ -49,9 +41,6 @@ const Lobby = ({
         setLobbyGames(payload.lobbyGames || []);
         setLobbyPlayers(payload.lobbyPlayers || []);
         console.log("selectedGameId", selectedGameId);
-        // const playerGame = payload.lobbyGames.find(
-        //   (game) => game.gameId === selectedGameId // ✅ Use the game that was actually selected
-        // );
         const playerGames = payload.lobbyGames.filter((game) =>
           game.players?.some((player) => player === playerId)
         );
@@ -60,25 +49,17 @@ const Lobby = ({
         if (playerGames.length > 0) {
           console.log("Player is in a valid game:", playerGames);
           console.log(playerGames);
-          //setPlayerGames(playerGames);
-          // playerGames.forEach((game) => {
-          //   console.log("game", game.wsAddress);
-          //   startGameRelays(game.wsAddress);
-          //   // addConnection(game.wsAddress, "game");
-          // });
           let gameRelays = playerGames.map((game) => ({
             url: game.wsAddress,
             id: game.gameId,
             type: "game",
           }));
           console.log("gameRelays", gameRelays);
-          startGameRelays(playerGames);
+          setGamesToInit(playerGames);
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
           setSelectedGameId(null);
           setHasJoined(false);
-          // setStartGameConsole(false);
-          //setStartGameWebSocket(false);
         }
         break;
       default:
@@ -222,12 +203,6 @@ const Lobby = ({
             selectedGamestate.instance.maxPlayers
         }
       >
-        {/* {console.log({
-          hasJoined,
-          isJoining,
-          lobbyPlayersLength: lobbyPlayers.length,
-          gameId: selectedGamestate.gameId,
-        })} */}
         {hasJoined
           ? "Joined" // If the player has joined
           : isJoining

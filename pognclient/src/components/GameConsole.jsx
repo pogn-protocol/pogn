@@ -13,33 +13,11 @@ const GameConsole = ({
   sendGameMessage,
   message = {},
   playerId = "",
-  setStartGameConsole,
-  sendLobbyMessage,
-  setStartGameWebSocket,
   gamesToInit,
   lobbyUrl,
-  gameRelaysReady,
   connections,
 }) => {
-  // const [gameState, setGameState] = useState({
-  //   ...initialGameState,
-  // });
   const [gameStates, setGameStates] = useState(new Map());
-  const [lobbyMessage, setLobbyMessage] = useState({});
-
-  useEffect(() => {
-    console.log("Lobby message:", lobbyMessage);
-    if (lobbyMessage && Object.keys(lobbyMessage).length > 0) {
-      console.log("Sending lobby message:", lobbyMessage);
-      sendLobbyMessage(gameId, lobbyMessage);
-
-      setTimeout(() => {
-        console.log("Clearing lobby message...");
-        setLobbyMessage(null); // Use `null` instead of `{}`
-      }, 100);
-    }
-  }, [lobbyMessage, sendLobbyMessage]);
-
   useEffect(() => {
     if (!message || Object.keys(message).length === 0) {
       console.log("No message received.");
@@ -54,120 +32,92 @@ const GameConsole = ({
       console.warn("Invalid message received:", message);
       return;
     }
+    switch (action) {
+      case "gameAction":
+      case "results":
+        updateGameState(gameId, payload); // ✅ Centralized update
+        console.log(`🛠️ Updated GameState for ${gameId}:`, payload);
+        break;
 
-    setGameStates((prevStates) => {
-      const newStates = new Map(prevStates);
-      const currentGameState = newStates.get(gameId) || {};
+      case "gameEnded":
+        setGameStates((prevStates) => {
+          const updatedMap = new Map(prevStates);
+          updatedMap.delete(gameId);
+          return updatedMap;
+        });
+        console.log("🛑 Game Ended:", gameId);
+        break;
 
-      console.log(`Updating game ID: ${gameId}`, currentGameState);
+      default:
+        console.warn(`Unhandled action: ${action}`);
+    }
+    //   console.log(`Updating game ID: ${gameId}`, currentGameState);
 
-      switch (action) {
-        case "gameAction":
-          newStates.set(gameId, {
-            ...payload,
-          });
-          console.log("🛠️ Updated GameState:", newStates);
-          break;
+    //   switch (action) {
+    //     case "gameAction":
+    //       newStates.set(gameId, {
+    //         ...payload,
+    //       });
+    //       console.log("🛠️ Updated GameState:", newStates);
+    //       break;
 
-        case "results":
-          newStates.set(gameId, {
-            ...payload,
-          });
-          console.log("🏁 Game Finished:", newStates);
-          break;
+    //     case "results":
+    //       newStates.set(gameId, {
+    //         ...payload,
+    //       });
+    //       console.log("🏁 Game Finished:", newStates);
+    //       break;
 
-        case "gameEnded":
-          newStates.delete(gameId);
-          console.log("🛑 Game Ended:", newStates);
-          console.log("Game ended.");
-          break;
+    //     case "gameEnded":
+    //       newStates.delete(gameId);
+    //       console.log("🛑 Game Ended:", newStates);
+    //       console.log("Game ended.");
+    //       break;
 
-        default:
-          console.warn(`Unhandled action: ${action}`);
-      }
+    //     default:
+    //       console.warn(`Unhandled action: ${action}`);
+    //   }
 
-      return newStates;
-    });
+    //   return newStates;
+    // });
   }, [message]);
 
-  // useEffect(() => {
-  //   console.log(
-  //     "Games to init:",
-  //     gamesToInit,
-  //     "Game relays ready:",
-  //     gameRelaysReady
-  //   );
-  //   if (!gameRelaysReady) {
-  //     console.log("Game relays not ready. Waiting to initGames...");
-  //     return;
-  //   }
-  //   if (gamesToInit && gamesToInit.length > 0) {
-  //     console.log("Game console initing new games:", gamesToInit);
-  //     initNewGames(gamesToInit);
-  //   }
-  // }, [gamesToInit, gameRelaysReady]);
-
-  // const initNewGames = (gamesToInit) => {
-  //   console.log("gamesToInit", gamesToInit);
-
-  //   setGameStates((prevGameUpdates) => {
-  //     gamesToInit.forEach((gameToInit) => {
-  //       console.log("gameToInit:", gameToInit);
-  //       if (gameToInit.gameId !== undefined) {
-  //         prevGameUpdates.set(gameToInit.gameId, gameToInit);
-  //         console.log(`🗺️ Game ${gameToInit.gameId} stored in gameMap.`);
-  //       }
-  //     });
-
-  //     return new Map(prevGameUpdates); // Return updated map to trigger re-render
-  //   });
-  // };
-
-  // useEffect(() => {
-  //   console.log(
-  //     "Games to init:",
-  //     gamesToInit,
-  //     "Game relays ready:",
-  //     gameRelaysReady
-  //   );
-  //   if (!gameRelaysReady) {
-  //     console.log("Game relays not ready. Waiting to initGames...");
-  //     return;
-  //   }
-  //   if (gamesToInit && gamesToInit.length > 0) {
-  //     // gamesToInit.forEach((game) => {
-  //     //   console.log(`🚀 Initializing game for relay ${game.gameId}`);
-  //     //   initNewGame(game);  // Call a function to initialize the game
-  //     // });
-  //     console.log("Game console initing new games:", gamesToInit);
-  //     initNewGames(gamesToInit);
-  //   }
-  // }, [gamesToInit, gameRelaysReady]);
-
   useEffect(() => {
-    const activeGames = Array.from(connections.entries())
-      .filter(([, conn]) => conn.type === "game" && conn.readyState === 1)
-      .map(([id, conn]) => ({ gameId: id, ...conn }));
-
-    if (activeGames.length > 0) {
-      console.log("🔗 Active game connections:", activeGames);
-      initNewGames(activeGames);
+    if (gamesToInit.length > 0) {
+      console.log("🚀 Initializing new games:", gamesToInit);
+      initNewGames(gamesToInit);
     }
-  }, [connections]);
+  }, [gamesToInit]);
 
   const initNewGames = (gamesToInit) => {
-    console.log("gamesToInit", gamesToInit);
+    console.log("Initializing gamesToInit", gamesToInit);
 
-    setGameStates((prevGameUpdates) => {
-      gamesToInit.forEach((gameToInit) => {
+    gamesToInit.forEach((gameToInit) => {
+      const gameId = gameToInit.gameId;
+      const connection = connections.get(gameId);
+
+      // Check if connection exists and is ready
+      if (connection && connection.readyState === 1) {
         console.log("gameToInit:", gameToInit);
-        if (gameToInit.gameId !== undefined) {
-          prevGameUpdates.set(gameToInit.gameId, gameToInit);
-          console.log(`🗺️ Game ${gameToInit.gameId} stored in gameMap.`);
-        }
+        updateGameState(gameId, gameToInit); // ✅ Centralized update
+        console.log(`🗺️ Game ${gameId} stored in gameMap.`);
+      } else {
+        console.warn(`❌ Connection not ready for game ID: ${gameId}`);
+      }
+    });
+  };
+
+  const updateGameState = (gameId, newState) => {
+    setGameStates((prevStates) => {
+      const updatedMap = new Map(prevStates);
+      const currentGameState = updatedMap.get(gameId) || {};
+
+      updatedMap.set(gameId, {
+        ...currentGameState,
+        ...newState, // Merge new state with existing state
       });
 
-      return new Map(prevGameUpdates); // Return updated map to trigger re-render
+      return updatedMap;
     });
   };
 
@@ -180,10 +130,6 @@ const GameConsole = ({
       "at URL:",
       gameUrl
     );
-    if (gameState.lobbyStatus !== "started") {
-      console.log("Game not started:", gameId);
-      return null; // Do not render anything if the game has not started
-    }
     switch (gameState.gameType) {
       case "rock-paper-scissors":
         return (
