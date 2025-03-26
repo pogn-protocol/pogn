@@ -87,34 +87,20 @@ class LobbyController {
     }
 
     //lobby.removeGame(gameId); // Remove from lobby
-
-    try {
-      const startGameResult = this.gameController.startGame(game);
-      if (startGameResult?.error) {
-        console.error(`Error starting game: ${game.message}`);
-        return {
-          type: "error",
-          action: "startGameFailed",
-          payload: { message: game.message },
-        };
-      }
-
-      console.log(this.gameController.activeGames);
-      let gameDetails = game.getGameDetails();
-      console.log("Game started:", gameDetails);
-      return {
-        type: "lobby",
-        action: "refreshLobby",
-        payload: {
-          //game: gameDetails,
-          lobbyPlayers: lobby.getLobbyPlayers(),
-          lobbyGames: lobby.getLobbyGames(),
-        },
-        broadcast: true,
-      };
-    } catch (error) {
-      console.error(`Error starting game: ${error}`);
-    }
+    this.gameController.startGame(game);
+    console.log(this.gameController.activeGames);
+    let gameDetails = game.getGameDetails();
+    console.log("Game started:", gameDetails);
+    return {
+      type: "lobby",
+      action: "refreshLobby",
+      payload: {
+        //game: gameDetails,
+        lobbyPlayers: lobby.getLobbyPlayers(),
+        lobbyGames: lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
   }
 
   joinLobby({ lobby, playerId }) {
@@ -189,10 +175,10 @@ class LobbyController {
     );
 
     if (game.players.size >= game.instance.maxPlayers) {
-      game.status = "readyToStart";
+      game.lobbyStatus = "readyToStart";
       console.log("The game is ready to start.");
     } else if (game.players.size >= game.instance.minPlayers) {
-      game.status = "canStart";
+      game.lobbyStatus = "canStart";
       console.log("The game can start.");
     }
 
@@ -287,7 +273,7 @@ class LobbyController {
   //   console.log(`Player ${playerId} is reconnecting or joining a game.`);
   //   let testGame = lobby
   //     .getLobbyGames()
-  //     .find((game) => game.status === "joining");
+  //     .find((game) => game.lobbyStatus === "joining");
   //   console.log("Lobby Games", lobby.getLobbyGames());
   //   console.log("testGame", testGame);
   //   if (!testGame) {
@@ -304,7 +290,7 @@ class LobbyController {
   //       lobby.getLobbyGames()
   //     );
   //     console.log("lobby.games", lobby.games);
-  //     lobby.games[0].status = "test";
+  //     lobby.games[0].lobbyStatus = "test";
   //     testGame = lobby.games[0];
   //     console.log("testGame", testGame);
   //   } else {
@@ -326,12 +312,12 @@ class LobbyController {
   //   });
   //   console.log("joined player to game", testGame.gameId, playerId);
   //   testGame = lobby.getGameDetails(testGame.gameId);
-  //   lobby.games[0].status = "joining";
+  //   lobby.games[0].lobbyStatus = "joining";
 
   //   console.log("testGame", testGame);
   //   if (Object.keys(testGame.players).length === testGame.instance.maxPlayers) {
   //     console.log(`Game ${testGame.gameId} is now full. Starting game.`);
-  //     lobby.games[0].status = "readyToStart";
+  //     lobby.games[0].lobbyStatus = "readyToStart";
   //   }
   //   console.log("sending refresh lobby");
   //   return {
@@ -409,13 +395,13 @@ class LobbyController {
 
     game1.players.set(players[0], { playerId: players[0] });
     game1.players.set(players[1], { playerId: players[1] });
-    game1.status = "readyToStart";
+    game1.lobbyStatus = "readyToStart";
     game1.logAction(`${players[0]} created game.`);
     game1.logAction(`${players[1]} joined game.`);
 
     game2.players.set(players[0], { playerId: players[0] });
     game2.players.set(players[1], { playerId: players[1] });
-    game2.status = "readyToStart";
+    game2.lobbyStatus = "readyToStart";
     game2.logAction(`${players[0]} created game.`);
 
     console.log("Test games created:", game1, game2);

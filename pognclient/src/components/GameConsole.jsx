@@ -13,20 +13,19 @@ const GameConsole = ({
   sendGameMessage,
   message = {},
   playerId = "",
-  initialGameState = {},
   setStartGameConsole,
   sendLobbyMessage,
-  //setStartGameWebSocket,
-  playerGames,
+  setStartGameWebSocket,
+  gamesToInit,
   lobbyUrl,
+  gameRelaysReady,
+  connections,
 }) => {
   // const [gameState, setGameState] = useState({
   //   ...initialGameState,
   // });
   const [gameStates, setGameStates] = useState(new Map());
   const [lobbyMessage, setLobbyMessage] = useState({});
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameStartedMap, setGameStartedMap] = useState(new Map());
 
   useEffect(() => {
     console.log("Lobby message:", lobbyMessage);
@@ -41,58 +40,6 @@ const GameConsole = ({
     }
   }, [lobbyMessage, sendLobbyMessage]);
 
-  // useEffect(() => {
-  //   console.log("Checking game state for start condition...");
-  //   console.log("gamestate", gameStates);
-  //   // setGameStarted(gameStates.status === "started");
-  //   setGameStartedMap((prev) => new Map(prev).set(gameId, true));
-  // }, [gameStates]);
-
-  // useEffect(() => {
-  //   if (!message || Object.keys(message).length === 0) {
-  //     console.log("No message received.");
-  //     return;
-  //   }
-
-  //   console.log("Processing Game message:", message);
-  //   const { action, payload } = message;
-  //   console.log("action", action);
-  //   console.log("payload", payload);
-  //   //check if the action is not in switch statement
-  //   console.log("Switching on action:", action);
-  //   switch (action) {
-  //     case "gameAction":
-  //       console.log("Game action received:", payload);
-  //       setGameState((prevState) => {
-  //         const newState = { ...prevState, ...payload };
-  //         console.log("🛠️ Updated GameState:", newState);
-  //         setGameStarted(newState.status === "started"); // ✅ Set it inside
-  //         return newState;
-  //       });
-
-  //       break;
-  //     case "results":
-  //       console.log("Game finished. Winner determined.");
-  //       setGameState((prevState) => ({
-  //         ...prevState,
-  //         status: "complete",
-  //         winner: payload.winner,
-  //         loser: payload.loser,
-  //         choices: payload.choices,
-  //       }));
-  //       break;
-  //     case "gameEnded":
-  //       console.log("Game ended.");
-  //       setGameState({});
-  //       setGameStarted(false);
-  //       setStartWebSocket(false);
-  //       setStartGameConsole(false);
-  //       break;
-
-  //     default:
-  //       console.warn(`Unhandled action: ${action}`);
-  //   }
-  // }, [message]);
   useEffect(() => {
     if (!message || Object.keys(message).length === 0) {
       console.log("No message received.");
@@ -101,7 +48,7 @@ const GameConsole = ({
 
     console.log("Processing Game message:", message);
     const { action, payload } = message;
-    const gameId = payload?.game?.gameId;
+    const gameId = payload?.gameId;
 
     if (!action || !payload || !gameId) {
       console.warn("Invalid message received:", message);
@@ -112,30 +59,19 @@ const GameConsole = ({
       const newStates = new Map(prevStates);
       const currentGameState = newStates.get(gameId) || {};
 
-      console.log(
-        `Updating game state for game ID: ${gameId}`,
-        currentGameState
-      );
+      console.log(`Updating game ID: ${gameId}`, currentGameState);
 
       switch (action) {
         case "gameAction":
           newStates.set(gameId, {
-            ...currentGameState,
             ...payload,
-            wsAddress: payload.game.wsAddress,
-            game: payload.game,
-            gameLog: payload.game.gameLog, // Include game history
-            action: payload.action,
           });
           console.log("🛠️ Updated GameState:", newStates);
           break;
 
         case "results":
           newStates.set(gameId, {
-            ...currentGameState,
             ...payload,
-            gameLog: payload.game.gameLog, // Include game history
-            action: payload.action,
           });
           console.log("🏁 Game Finished:", newStates);
           break;
@@ -154,24 +90,85 @@ const GameConsole = ({
     });
   }, [message]);
 
-  useEffect(() => {
-    if (playerGames && playerGames.length > 0) {
-      console.log("Player games received:", playerGames);
-      handlePlayerGames(playerGames);
-    }
-  }, [playerGames]);
+  // useEffect(() => {
+  //   console.log(
+  //     "Games to init:",
+  //     gamesToInit,
+  //     "Game relays ready:",
+  //     gameRelaysReady
+  //   );
+  //   if (!gameRelaysReady) {
+  //     console.log("Game relays not ready. Waiting to initGames...");
+  //     return;
+  //   }
+  //   if (gamesToInit && gamesToInit.length > 0) {
+  //     console.log("Game console initing new games:", gamesToInit);
+  //     initNewGames(gamesToInit);
+  //   }
+  // }, [gamesToInit, gameRelaysReady]);
 
-  const handlePlayerGames = (playerGames) => {
-    console.log("handlePlayergames", playerGames);
-    const gameMap = new Map();
-    playerGames.forEach((playerGame) => {
-      console.log("Handling player game:", playerGame);
-      if (playerGame.gameId !== undefined) {
-        gameMap.set(playerGame.gameId, playerGame);
-        console.log(`🗺️ Game ${playerGame.gameId} stored in gameMap.`);
-      }
+  // const initNewGames = (gamesToInit) => {
+  //   console.log("gamesToInit", gamesToInit);
+
+  //   setGameStates((prevGameUpdates) => {
+  //     gamesToInit.forEach((gameToInit) => {
+  //       console.log("gameToInit:", gameToInit);
+  //       if (gameToInit.gameId !== undefined) {
+  //         prevGameUpdates.set(gameToInit.gameId, gameToInit);
+  //         console.log(`🗺️ Game ${gameToInit.gameId} stored in gameMap.`);
+  //       }
+  //     });
+
+  //     return new Map(prevGameUpdates); // Return updated map to trigger re-render
+  //   });
+  // };
+
+  // useEffect(() => {
+  //   console.log(
+  //     "Games to init:",
+  //     gamesToInit,
+  //     "Game relays ready:",
+  //     gameRelaysReady
+  //   );
+  //   if (!gameRelaysReady) {
+  //     console.log("Game relays not ready. Waiting to initGames...");
+  //     return;
+  //   }
+  //   if (gamesToInit && gamesToInit.length > 0) {
+  //     // gamesToInit.forEach((game) => {
+  //     //   console.log(`🚀 Initializing game for relay ${game.gameId}`);
+  //     //   initNewGame(game);  // Call a function to initialize the game
+  //     // });
+  //     console.log("Game console initing new games:", gamesToInit);
+  //     initNewGames(gamesToInit);
+  //   }
+  // }, [gamesToInit, gameRelaysReady]);
+
+  useEffect(() => {
+    const activeGames = Array.from(connections.entries())
+      .filter(([, conn]) => conn.type === "game" && conn.readyState === 1)
+      .map(([id, conn]) => ({ gameId: id, ...conn }));
+
+    if (activeGames.length > 0) {
+      console.log("🔗 Active game connections:", activeGames);
+      initNewGames(activeGames);
+    }
+  }, [connections]);
+
+  const initNewGames = (gamesToInit) => {
+    console.log("gamesToInit", gamesToInit);
+
+    setGameStates((prevGameUpdates) => {
+      gamesToInit.forEach((gameToInit) => {
+        console.log("gameToInit:", gameToInit);
+        if (gameToInit.gameId !== undefined) {
+          prevGameUpdates.set(gameToInit.gameId, gameToInit);
+          console.log(`🗺️ Game ${gameToInit.gameId} stored in gameMap.`);
+        }
+      });
+
+      return new Map(prevGameUpdates); // Return updated map to trigger re-render
     });
-    setGameStates(gameMap);
   };
 
   const renderGameComponent = (gameId, gameState, gameUrl) => {
@@ -183,7 +180,7 @@ const GameConsole = ({
       "at URL:",
       gameUrl
     );
-    if (gameState.status !== "started") {
+    if (gameState.lobbyStatus !== "started") {
       console.log("Game not started:", gameId);
       return null; // Do not render anything if the game has not started
     }
@@ -195,7 +192,7 @@ const GameConsole = ({
               (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
             }
             playerId={playerId}
-            gameState={gameState}
+            localGameState={gameState}
             gameId={gameId}
           />
         );
@@ -207,7 +204,7 @@ const GameConsole = ({
               (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
             }
             playerId={playerId}
-            gameState={gameState}
+            localGameState={gameStates}
             gameId={gameId}
           />
         );
@@ -228,7 +225,7 @@ const GameConsole = ({
         <h1 className="mb-4">Game Console</h1>
 
         {Array.from(gameStates.entries())
-          .filter(([, gameState]) => gameState.status === "started")
+          .filter(([, gameState]) => gameState.lobbyStatus === "started")
           .map(([gameId, gameState]) => {
             const wsAddress = gameState.wsAddress; // Access wsAddress from gameState
             return (
@@ -241,7 +238,9 @@ const GameConsole = ({
                 }}
               >
                 <h2>Game ID: {gameId}</h2>
-                {console.log("gameState", gameState, "wsAddress", wsAddress)}
+                {console.log(
+                  `Rendering game component gameType: ${gameState.gameType} for game ID: ${gameId} at URL: ${wsAddress}`
+                )}
                 {renderGameComponent(gameId, gameState, wsAddress)}
               </div>
             );

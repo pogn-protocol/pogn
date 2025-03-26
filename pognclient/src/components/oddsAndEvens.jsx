@@ -11,12 +11,14 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
   const [localGameState, setLocalGameState] = useState({
-    //status: "started",
+    //lobbyStatus: "started",
     winner: null,
     sum: null,
     roles: {}, // Store the roles assigned by the server
     numbers: {}, // Track submitted numbers
   });
+
+  // Update the localGameState when the gameState changes
 
   useEffect(() => {
     console.log(`${gameId} gameState changed`, gameState);
@@ -26,83 +28,56 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
     }));
   }, [gameState]);
 
-  const rolesFetched = useRef(false); // Ref to track whether roles have been fetched
-
   useEffect(() => {
+    console.log("gameState.action fired", localGameState);
     if (!localGameState.initialized) {
-      console.log("Initial gameState", gameState);
+      console.log(
+        gameState.gameId,
+        "Roles not assigned yet. Fetching from the relay..."
+      );
       setLocalGameState((prev) => ({
-        ...prev,
-        ...gameState,
-
-        // action: {},
-        initialized: true,
+        gameStatus: gameState.gameStatus,
       }));
-
-      // ✅ Only request roles if they haven't been fetched yet
-      if (
-        !rolesFetched.current &&
-        gameState?.gameId &&
-        Object.keys(gameState.roles || {}).length === 0
-      ) {
-        console.log(
-          gameState.gameId,
-          "Roles not assigned yet. Fetching from the relay..."
-        );
-        sendGameMessage({
-          type: "game",
-          action: "gameAction",
-          payload: {
-            gameAction: "getRoles",
-            playerId,
-            gameId: gameState.gameId,
-          },
-        });
-
-        rolesFetched.current = true; // ✅ Prevent multiple fetches
-      }
+      sendGameMessage({
+        type: "game",
+        action: "gameAction",
+        payload: {
+          gameAction: "getRoles",
+          playerId,
+          gameId: gameState.gameId,
+        },
+      });
+      return;
     }
-  }, [gameState, sendGameMessage, playerId]);
 
-  useEffect(() => {
-    console.log("gameState", localGameState);
     switch (localGameState?.action) {
       case "rolesAssigned":
-        rolesFetched.current = true;
         console.log(gameId, "Roles assigned:", localGameState.roles);
         setRole(localGameState.roles[playerId]);
         setLocalGameState((prev) => ({
           ...prev,
-          state: "in-progress",
+          gameStatus: gameState.gameStatus,
           roles: localGameState.roles,
-          //state: "started",
+          initialized: true,
         }));
-
         break;
-
       case "waitingForOpponent":
         console.log("Waiting for the other player...");
         setLocalGameState((prev) => ({
           ...prev,
-          waitingForOpponent: true,
+          gameStatus: gameState.gameStatus,
         }));
         break;
-
-      // case "gotRoles":
-      //   console.log(gameId, "Roles received:", localGameState.roles);
-      //   break;
-
       case "results":
         setLocalGameState((prev) => ({
           ...prev,
-          state: "complete",
+          gameStatus: gameState.gameStatus,
           winner: localGameState.winner,
           sum: localGameState.sum,
           roles: localGameState.roles,
           numbers: localGameState.numbers,
         }));
         console.log("Game results received.");
-
         break;
 
       default:
@@ -124,7 +99,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         gameAction: "submitNumber",
         playerId,
         number: parseInt(number, 10),
-        state: localGameState.state,
+        gameStatus: localGameState.gameStatus,
         gameId: localGameState.gameId,
       },
     });
@@ -135,8 +110,8 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
     <div className="mb-5">
       <h2>Odds and Evens</h2>
 
-      {/* Display current local state for debugging */}
-      <div className="localState">
+      {/* Display current local gameStatus for debugging */}
+      <div>
         <h3>Local Game State</h3>
         {/* <pre>{JSON.stringify(localGameState, null, 2)}</pre> */}
 
@@ -148,12 +123,12 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
       </div>
 
       {/* Game Waiting State */}
-      {localGameState.state === "waiting" && (
+      {localGameState.gameStatus === "waiting" && (
         <p>Odds and Evens Waiting to start...</p>
       )}
 
       {/* Game In Progress */}
-      {localGameState.state === "in-progress" && role && (
+      {localGameState.gameStatus === "in-progress" && role && (
         <div>
           <p>
             Your Role: <strong>{role.toUpperCase()}</strong>
@@ -173,7 +148,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
       )}
 
       {/* Game Complete */}
-      {localGameState.state === "complete" && (
+      {localGameState.gameStatus === "complete" && (
         <div>
           <p>
             <strong>Winner:</strong> {localGameState.winner}

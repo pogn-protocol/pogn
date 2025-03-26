@@ -1,206 +1,118 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { use } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import useWebSocket from "react-use-websocket";
 
-const WebSocketConnection = ({
-  connectionId,
-  url,
-  type,
-  onMessage,
-  onConnect,
-  onError,
-  registerSendMessage,
-  setWsOpenSuccess,
-}) => {
-  const { sendJsonMessage, readyState } = useWebSocket(url, {
-    share: true,
-    onOpen: () => {
-      console.log(`✅ Connected to ${connectionId} ${url} [${type}]`);
-      if (onConnect) onConnect(connectionId);
-      if (registerSendMessage)
-        registerSendMessage(connectionId, sendJsonMessage);
-      if (setWsOpenSuccess) setWsOpenSuccess(Date.now());
-    },
-    onMessage: (event) => {
-      const message = JSON.parse(event.data);
-      console.log(`📥 Message from ${connectionId} [${type}]:`, message);
-      if (onMessage) onMessage(connectionId, message, type);
-    },
-    onError: (event) => {
-      console.error(`❌ WebSocket error at ${connectionId} [${type}]:`, event);
-      if (onError) onError(connectionId, event, type);
-    },
-  });
-
-  useEffect(() => {
-    if (readyState === 1) {
-      console.log(
-        `✅ Connection already open: ${connectionId} ${url} [${type}]`
-      );
-      if (onConnect) onConnect(connectionId);
-      if (setWsOpenSuccess) setWsOpenSuccess(Date.now());
-    }
-  }, [readyState, connectionId, url, type, onConnect, setWsOpenSuccess]);
-
-  return (
-    <div>
-      <h3>
-        WebSocket: {url} [{type}]
-      </h3>
-      <p>Connection ID: {connectionId}</p>
-      <p>Ready State: {readyState}</p>
-      <button onClick={() => sendJsonMessage({ action: "ping" })}>
-        Send Ping
-      </button>
-    </div>
-  );
-};
-
-const WebSocketManager = ({
+const RelayManager = ({
   addRelayConnections,
   onMessage,
-  onConnect,
-  onError,
   setSendMessage,
-  connectionsRef,
-  setWsOpenSuccess,
-  initConnections,
-  setInitConnections,
+  connections,
+  setConnections,
 }) => {
-  const [refreshConnections, setRefreshConnections] = useState(Date.now());
-  const sendMessage = useCallback(
-    (id, message) => {
-      console.log(`📤 Sending message to ${id}:`, message);
-      const sendFunction = connectionsRef.current.get(id);
-      if (sendFunction) {
-        try {
-          sendFunction(message);
-          console.log(`✅ Message sent to ${id}`);
-        } catch (error) {
-          console.error(`❌ Failed to send message to ${id}:`, error);
+  // 🔥 Create a single connection
+  const createConnection = useCallback(
+    ({ id, url, type }) => {
+      console.log(`🔌 Creating WebSocket for ${id} at ${url} [${type}]`);
+
+      const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
+        url,
+        {
+          onOpen: () => {
+            console.log(`✅ Connected to ${id}`);
+            setConnections((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(id, { sendJsonMessage, readyState: 1 });
+              return newMap;
+            });
+          },
+          onClose: () => {
+            console.log(`🛑 Connection closed for ${id}`);
+            setConnections((prev) => {
+              const newMap = new Map(prev);
+              const conn = newMap.get(id);
+              if (conn) {
+                newMap.set(id, { ...conn, readyState: 3 });
+              }
+              return newMap;
+            });
+          },
+          onError: (event) => {
+            console.error(`❌ WebSocket error at ${id}:`, event);
+            setConnections((prev) => {
+              const newMap = new Map(prev);
+              const conn = newMap.get(id);
+              if (conn) {
+                newMap.set(id, { ...conn, readyState: -1 });
+              }
+              return newMap;
+            });
+          },
+          onMessage: (event) => {
+            const message = lastJsonMessage;
+            console.log(`📥 Message from ${id}:`, message);
+            onMessage(id, message);
+          },
+          share: true,
         }
+      );
+
+      setConnections((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(id, { sendJsonMessage, readyState });
+        return newMap;
+      });
+    },
+    [onMessage]
+  );
+
+  // 📤 Send a message to a specific relay
+  const sendMessageToRelay = useCallback(
+    (id, message) => {
+      const relay = connections.get(id);
+      if (relay && relay.sendJsonMessage) {
+        console.log(`📤 Sending message to ${id}:`, message);
+        relay.sendJsonMessage(message);
       } else {
-        console.warn(`⚠️ No active WebSocket connection for ${id}`);
+        console.warn(`⚠️ Relay ${id} not found or not ready`);
       }
     },
-    [connectionsRef]
+    [connections]
   );
 
-  // Register send functions in the connection map
-  const registerSendMessage = useCallback(
-    (id, sendJsonMessage) => {
-      const existingConnection = connectionsRef.current.get(id) || {};
-      connectionsRef.current.set(id, {
-        ...existingConnection, // Preserve existing properties
-        sendJsonMessage, // Update or add the sendJsonMessage function
-        //readyState: 1, // Make sure to update the ready state
-      });
-      console.log(`💾 Registered send function for ${id}`);
-    },
-    [connectionsRef]
-  );
-
-  const handleOnOpen = useCallback(
-    (id) => {
-      console.log(`
-        ✅ Connected to ${id}
-        `);
-      const existingConnection = connectionsRef.current.get(id) || {};
-      connectionsRef.current.set(id, {
-        ...existingConnection, // Preserve existing properties
-        readyState: 1, // Make sure to update the ready state
-      });
-    },
-    [connectionsRef]
-  );
-
-  // Set the sendMessage function once on mount
+  // Expose the send function once
   useEffect(() => {
-    setSendMessage(() => sendMessage);
-  }, [sendMessage, setSendMessage]);
+    setSendMessage(() => sendMessageToRelay);
+  }, [setSendMessage, sendMessageToRelay]);
 
-  const addConnection = (id, url, type, sendJsonMessage, readyState) => {
-    console.log("🔄 Adding new connection...");
-    console.log("Params:", id, url, type, sendJsonMessage, readyState);
-
-    // Update the connections map
-    const newConnection = {
-      id,
-      url,
-      type,
-      sendJsonMessage,
-      readyState,
-    };
-    connectionsRef.current.set(id, newConnection);
-
-    console.log(
-      "✅ Added new connection:",
-      Array.from(connectionsRef.current.entries())
-    );
-    setRefreshConnections(Date.now());
-  };
-
+  // 🔥 Dynamically add connections without looping in hooks
   useEffect(() => {
     if (!addRelayConnections || addRelayConnections.length === 0) {
-      console.warn("No WebSocket connections to create.");
+      console.warn("⚠️ No relays to add");
       return;
     }
-    console.log(
-      "Creating WebSocket connections for URLs:",
-      addRelayConnections
-    );
-    addRelayConnections.forEach((connection, index) => {
-      const { id, url, type } = connection;
-      if (connectionsRef.current.has(id)) {
-        console.log(`⚠️ Connection for ${id} already exists. Skipping...`);
-        return;
-      }
 
-      console.log(`🔌 Creating WebSocket connection for: ${url} [${type}]`);
-
-      // Update the connections map
-      addConnection(id, url, type, () => {}, 0);
-
-      if (!initConnections) {
-        setInitConnections(true);
+    addRelayConnections.forEach((relay) => {
+      if (!connections.has(relay.id)) {
+        createConnection(relay);
+      } else {
+        console.log(`✅ Relay ${relay.id} already exists`);
       }
     });
-  }, [addRelayConnections, initConnections]);
+  }, [addRelayConnections, createConnection, connections]);
 
   return (
     <div>
-      <h2>Dynamic WebSocket Component</h2>
-      {console.log(
-        "initConnections:",
-        initConnections,
-        " Connections: ",
-        Array.from(connectionsRef.current.entries())
-      )}
-      {initConnections && connectionsRef.current.size > 0 ? (
-        <>
-          {Array.from(connectionsRef.current.entries()).map(
-            ([id, connection], index) => (
-              <WebSocketConnection
-                key={`${id}-${index}`}
-                connectionId={connection.id}
-                url={connection.url}
-                type={connection.type}
-                onMessage={onMessage}
-                onConnect={handleOnOpen}
-                onError={(err) =>
-                  console.error(`Error on ${connection.url}`, err)
-                }
-                registerSendMessage={registerSendMessage}
-                setWsOpenSuccess={setWsOpenSuccess}
-              />
-            )
-          )}
-        </>
-      ) : (
-        <p>No connections.</p>
-      )}
+      <h2>Relay Manager</h2>
+      {Array.from(connections.entries()).map(([id, { readyState }]) => (
+        <div key={id}>
+          <h3>Relay ID: {id}</h3>
+          <p>Ready State: {readyState === 1 ? "Connected" : "Disconnected"}</p>
+          <button onClick={() => sendMessageToRelay(id, { action: "ping" })}>
+            Send Ping
+          </button>
+        </div>
+      ))}
     </div>
   );
 };
 
-export default WebSocketManager;
+export default RelayManager;

@@ -4,7 +4,7 @@ class OddsAndEvens {
     this.roles = {}; // { playerId: "odd" or "even" }
     this.choices = {}; // Tracks player choices
     this.numbers = {}; // Tracks submitted numbers
-    this.state = "waiting"; // Possible states: waiting, in-progress, complete
+    this.gameStatus = "waiting"; // Possible gameStatuss: waiting, in-progress, complete
     this.minPlayers = 2;
     this.maxPlayers = 2;
     this.players = new Map();
@@ -29,59 +29,37 @@ class OddsAndEvens {
 
   // Process an action from the controller
   processAction(playerId, payload) {
-    console.log("state", this.state);
+    console.log("gameStatus", this.gameStatus);
     const gameAction = payload.gameAction;
     console.log("game action", gameAction);
     switch (gameAction) {
-      //console state
+      //console gameStatus
       case "getRoles":
         // Prevent roles from being reassigned if already assigned
-        if (this.state !== "waiting") {
+        if (this.roles && Object.keys(this.roles).length === 2) {
           console.log("Roles already assigned:", this.roles);
           return {
             logEntry: `Roles requested by player: ${this.roles[playerId]}`,
-            action: "gameAction",
-            payload: {
-              action: "rolesAssigned",
-              roles: this.roles,
-              state: this.state,
-              message: "Roles already assigned and recieved.",
-            },
+            action: "rolesAssigned",
+            roles: this.roles,
+            gameStatus: this.gameStatus,
+            message: "Roles already assigned and recieved.",
           };
         }
-
-        if (this.state === "waiting") {
-          console.log("Assigning roles...");
-          this.state = "in-progress";
-          console.log("roles", this.roles);
-          // Ensure roles are only assigned once
-          if (!this.roles || Object.keys(this.roles).length === 0) {
-            console.log("Assigning roles to This.players...", this.players);
-            const roles = this.assignRoles(this.players);
-            this.state = "in-progress";
-            return {
-              logEntry: "Roles assigned.",
-              action: "gameAction",
-              payload: {
-                action: "rolesAssigned",
-                roles,
-                state: this.state,
-                message: `Recieved assigned roles requested by player: ${playerId}`,
-              },
-              broadcast: true, // Broadcast roles to all players
-            };
-          } else {
-            console.log("Roles already assigned:", this.roles);
-            return {
-              type: "error",
-              message: "Unable to assign roles due to unexpected state.",
-            };
-          }
-        }
-
+        console.log("Getting roles...");
+        this.gameStatus = "in-progress";
+        console.log("roles", this.roles);
+        console.log("Assigning roles to players...", this.players);
+        const roles = this.assignRoles(this.players);
+        return {
+          logEntry: "Roles assigned.",
+          action: "rolesAssigned",
+          roles,
+          gameStatus: this.gameStatus,
+          message: `Recieved assigned roles requested by player: ${playerId}`,
+        };
       case "submitNumber":
         return this.submitNumber(playerId, payload.number);
-
       default:
         return { type: "error", message: `Unknown action: ${gameAction}` };
     }
@@ -95,9 +73,7 @@ class OddsAndEvens {
         message: "Invalid number. Please submit an integer.",
       };
     }
-
     this.numbers[playerId] = number;
-
     if (Object.keys(this.numbers).length === 2) {
       // Calculate the result once both players have submitted their numbers
       return this.calculateWinner();
@@ -105,11 +81,10 @@ class OddsAndEvens {
 
     return {
       logEntry: `Player ${playerId} submitted number.`,
-      payload: {
-        action: "waitingForOpponent",
-        playerId,
-        message: `Player ${playerId} submitted number`,
-      },
+      action: "waitingForOpponent",
+      gameStatus: this.gameStatus,
+      playerId,
+      message: `Player ${playerId} submitted number`,
       private: `Player ${playerId} submitted number ${number}`,
     };
   }
@@ -125,20 +100,18 @@ class OddsAndEvens {
       ? Object.keys(this.roles).find((id) => this.roles[id] === "even")
       : Object.keys(this.roles).find((id) => this.roles[id] === "odd");
 
-    this.state = "complete";
+    this.gameStatus = "complete";
 
     return {
       logEntry: `Game complete. Winner: ${winner}, Sum: ${sum}, Numbers: ${this.numbers}`,
-      payload: {
-        action: "results",
-        winner,
-        loser: winner === player1 ? player2 : player1,
-        sum,
-        roles: this.roles,
-        numbers: this.numbers,
-        message: `Game complete. Winner: ${winner}, Sum: ${sum}`,
-      },
-      broadcast: true,
+      action: "results",
+      gameStatus: this.gameStatus,
+      winner,
+      loser: winner === player1 ? player2 : player1,
+      sum,
+      roles: this.roles,
+      numbers: this.numbers,
+      message: `Game complete. Winner: ${winner}, Sum: ${sum}`,
     };
   }
 
@@ -146,7 +119,7 @@ class OddsAndEvens {
   getGameDetails() {
     return {
       roles: this.roles,
-      state: this.state,
+      gameStatus: this.gameStatus,
       numbers: this.numbers,
       minPlayers: this.minPlayers,
       maxPlayers: this.maxPlayers,

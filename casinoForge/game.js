@@ -6,7 +6,7 @@ class Game {
     this.gameId = gameId || uuidv4(); // Unique game ID
     this.players = new Map();
     this.gameLog = [];
-    this.status = "waiting"; // Possible status: created, joining, started, ended
+    this.lobbyStatus = "waiting"; // Possible lobbyStatus: created, joining, started, ended
     this.instance = null; // Game-specific logic instance (e.g., RockPaperScissors)
     this.gamePorts = [];
     this.lobbyId = null; // Reference to the lobby ID
@@ -36,7 +36,7 @@ class Game {
     const instanceDetails = this.instance.getGameDetails(); // Dynamically get details
     return {
       gameId: this.gameId,
-      status: this.status,
+      lobbyStatus: this.lobbyStatus,
       gameType: this.gameType,
       players: Array.from(this.players.keys()),
       gameLog: this.gameLog,

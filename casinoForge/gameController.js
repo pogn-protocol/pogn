@@ -64,24 +64,26 @@ class gameController {
           payload.playerId,
           payload
         );
-        //verification
-        if (
-          !(
-            gameResponse?.payload &&
-            gameResponse?.logEntry &&
-            gameResponse?.action &&
-            gameResponse?.message
-          )
-        ) {
-          console.warn("Invalid game response:", gameResponse);
-        }
 
         game.logAction(gameResponse.logEntry);
+        console.log("gameResponse", gameResponse);
+        console.log("logEntry", gameResponse.logEntry);
+        // const response = {
+        //   type: "game",
+        //   action: "gameAction",
+        //   payload: { ...gameResponse, gameState: game.gameState, game },
+        //   broadcast: true,
+        // };
 
         const response = {
           type: "game",
           action: "gameAction",
-          payload: { ...gameResponse.payload, game },
+          payload: {
+            ...Object.fromEntries(
+              Object.entries(gameResponse).filter(([key]) => key !== "private")
+            ),
+            gameId: game.gameId,
+          },
           broadcast: true,
         };
 
@@ -97,7 +99,7 @@ class gameController {
           const privateResponse = {
             type: "game",
             action: "gameAction",
-            payload: { game, private: gameResponse.private },
+            payload: { gameId: game.gameId, private: gameResponse.private },
           };
           console.log(
             "gameController Sending private gameAction response",
@@ -129,7 +131,7 @@ class gameController {
     }
 
     console.log("Ending game:", game);
-    game.status = "ended";
+    game.lobbyStatus = "ended";
     game.gameLog.push("Game ended.");
     console.log("gameRelay", this.relayManager.relays.get(game.relayId));
     this.relayManager.relays.get(game.relayId).sendToLobbyRelay(game.lobbyId, {
@@ -139,7 +141,7 @@ class gameController {
       payload: {
         playerId: gameId,
         gameId: gameId,
-        status: "ended",
+        lobbyStatus: "ended",
         gameLog: game.gameLog, // Include game history
       },
     });
@@ -148,7 +150,7 @@ class gameController {
     //   this.relayManager.relays.get(game.relayId).shutdown();
     // }, 3000);
 
-    this.activeGames.get(gameId).status = "ended";
+    this.activeGames.get(gameId).lobbyStatus = "ended";
     this.activeGames.get(gameId).gameLog.push("Game ended.");
     console.log("active games", this.activeGames);
     return {
@@ -228,7 +230,10 @@ class gameController {
       };
     }
 
-    if (game.status !== "canStart" && game.status !== "readyToStart") {
+    if (
+      game.lobbyStatus !== "canStart" &&
+      game.lobbyStatus !== "readyToStart"
+    ) {
       return {
         type: "error",
         payload: { message: "Game is not ready to start." },
@@ -241,7 +246,7 @@ class gameController {
     }
     this.activeGames.set(game.gameId, game);
     console.log(`activeGames`, this.activeGames);
-    game.status = "started";
+    game.lobbyStatus = "started";
     game.instance.players = Array.from(game.players.keys());
 
     game.gameLog.push("Game started.");
@@ -270,10 +275,10 @@ class gameController {
       Array.from(game.players.keys())
     );
     if (game.players.size >= game.instance.maxPlayers) {
-      game.status = "readyToStart";
+      game.lobbyStatus = "readyToStart";
       console.log("The game is ready to start.");
     } else if (game.players.size >= game.instance.minPlayers) {
-      game.status = "canStart";
+      game.lobbyStatus = "canStart";
       console.log("The game can start.");
     }
     return game;

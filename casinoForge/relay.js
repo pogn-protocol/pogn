@@ -50,16 +50,19 @@ class Relay {
 
     ws.on("message", (message) => {
       console.log(`📨 ${this.type} Relay Received Message`);
-      console.log("Message:", message);
+      //console.log("Message:", message);
 
       try {
         // ✅ Handle binary buffer messages
         if (Buffer.isBuffer(message)) {
           message = message.toString("utf-8");
         }
-        console.log("Converting message to JSON", message);
         const parsedMessage = JSON.parse(message);
+        if (parsedMessage?.uuid) {
+          console.log(`🔗 Message UUID: ${parsedMessage.uuid}`);
+        }
         console.log("Parsed message", parsedMessage);
+
         if (parsedMessage.type !== this.type) {
           console.warn(
             `⚠️ Message sent to ${this.type} not of type ${this.type}:`,

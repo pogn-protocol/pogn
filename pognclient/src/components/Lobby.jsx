@@ -8,20 +8,15 @@ import "react-json-view-lite/dist/index.css";
 // playerId={playerId}
 // startGameRelay={handleStartGameRelay}
 // setStartGameConsole={setStartGameConsole}
-// setInitialGameState={setInitialGameState}
 // setPlayerGames = { setPlayerGames };
 // sendMessage={sendMessage}
 
 const Lobby = ({
-  addConnection,
   playerId,
-  //message,
   startGameRelays,
-  setInitialGameState,
-  setStartGameConsole,
-  setPlayerGames,
   sendMessage,
   message,
+  connectionUrl,
 }) => {
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
@@ -30,7 +25,7 @@ const Lobby = ({
   const [selectedGameType, setSelectedGameType] = useState("odds-and-evens");
   const [selectedGamestate, setSelectedGamestate] = useState({
     players: [],
-    status: "ready-to-join",
+    lobbyStatus: "ready-to-join",
     maxPlayers: 0,
     minPlayers: 0,
     gameAction: "",
@@ -65,23 +60,23 @@ const Lobby = ({
         if (playerGames.length > 0) {
           console.log("Player is in a valid game:", playerGames);
           console.log(playerGames);
-          setPlayerGames(playerGames);
+          //setPlayerGames(playerGames);
           // playerGames.forEach((game) => {
           //   console.log("game", game.wsAddress);
           //   startGameRelays(game.wsAddress);
           //   // addConnection(game.wsAddress, "game");
           // });
           let gameRelays = playerGames.map((game) => ({
-            wsAddress: game.wsAddress,
-            gameId: game.gameId,
+            url: game.wsAddress,
+            id: game.gameId,
+            type: "game",
           }));
           console.log("gameRelays", gameRelays);
-          startGameRelays(gameRelays);
+          startGameRelays(playerGames);
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
           setSelectedGameId(null);
           setHasJoined(false);
-          setInitialGameState({});
           // setStartGameConsole(false);
           //setStartGameWebSocket(false);
         }
@@ -242,8 +237,8 @@ const Lobby = ({
 
       {hasJoined &&
         selectedGameId &&
-        (selectedGamestate.status === "canStart" ||
-          selectedGamestate.status === "readyToStart") && (
+        (selectedGamestate.lobbyStatus === "canStart" ||
+          selectedGamestate.lobbyStatus === "readyToStart") && (
           <button
             onClick={handleStartGame}
             disabled={
