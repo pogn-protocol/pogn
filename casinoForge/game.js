@@ -10,6 +10,7 @@ class Game {
     this.instance = null; // Game-specific logic instance (e.g., RockPaperScissors)
     this.gamePorts = [];
     this.lobbyId = null; // Reference to the lobby ID
+    this.wsAddress;
   }
 
   removePlayer(playerId) {
@@ -38,9 +39,12 @@ class Game {
       gameId: this.gameId,
       lobbyStatus: this.lobbyStatus,
       gameType: this.gameType,
-      players: Array.from(this.players.keys()),
+      players: Array.from(this.players.values()).map(
+        (player) => player.playerId
+      ),
       gameLog: this.gameLog,
       ...instanceDetails, // Merge game-specific details
+      wsAddress: this.wsAddress,
     };
   }
 }

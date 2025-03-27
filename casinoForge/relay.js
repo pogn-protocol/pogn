@@ -2,30 +2,157 @@ const { Server } = require("ws");
 const { v4: uuidv4 } = require("uuid");
 
 class Relay {
-  constructor(type, id, port, host = "localhost") {
-    console.log(`🚀 Initializing ${type} Relay (ID: ${id}, Port: ${port})`);
+  // constructor(type, id, port, host = "localhost") {
+  //   console.log(`🚀 Initializing ${type} Relay (ID: ${id}, Port: ${port})`);
+  //   this.type = type;
+  //   this.id = id; // Unique relay ID
+  //   this.port = port; // WebSocket port
+  //   this.webSocketMap = new Map(); // Track  WebSocket connections
+  //   this.wsAddress = `ws://${host}:${port}`; // WebSocket address
+  //   this.wss = null; // WebSocket server instance
+
+  //   try {
+  //     this.wss = new Server({ port }, () => {
+  //       console.log(
+  //         `✅ ${this.type} Relay  ${this.id} running on ws://localhost:${this.port}`
+  //       );
+  //     });
+
+  //     this.setupWebSocketHandlers();
+  //   } catch (error) {
+  //     console.error(`❌ WebSocket Server Error in ${this.type} Relay:`, error);
+  //   }
+
+  //   // ✅ Handle WebSocket server errors
+  //   this.wss?.on("error", (error) => this.handleServerError(error));
+  // }
+  constructor(type, id, ports, host = "localhost") {
+    console.log(`🚀 Initializing ${type} Relay (ID: ${id}, Ports: ${ports})`);
     this.type = type;
     this.id = id; // Unique relay ID
-    this.port = port; // WebSocket port
-    this.webSocketMap = new Map(); // Track  WebSocket connections
-    this.wsAddress = `ws://${host}:${port}`; // WebSocket address
+    this.ports = ports;
+    this.host = host;
+    this.webSocketMap = new Map(); // Track WebSocket connections
     this.wss = null; // WebSocket server instance
+    this.wsAddress = null; // WebSocket address
 
-    try {
-      this.wss = new Server({ port }, () => {
-        console.log(
-          `✅ ${this.type} Relay running on ws://localhost:${this.port}`
+    //this.initializeServer(host); // Start the WebSocket server
+    // this.tryInitializeServer(host);
+    //this.initialize();
+
+    this.consoleTest(Date.now(), 15000); // Broadcast every 5 seconds
+  }
+
+  consoleTest(start, duration) {
+    setInterval(() => {
+      const uptime = ((Date.now() - start) / 1000).toFixed(2);
+      console.log(
+        `🚢 Relay ID: ${this.id} - Type: ${this.type} - Uptime: ${uptime}s -
+        wsAddress: ${this.wsAddress}`
+      );
+    }, duration);
+  }
+
+  async init() {
+    let initialized = false;
+
+    for (const port of this.ports) {
+      try {
+        await new Promise((resolve, reject) => {
+          const server = new Server({ port });
+          server.on("listening", () => {
+            this.wss = server;
+            this.wsAddress = `ws://${this.host}:${port}`;
+            console.log(`✅ Relay ${this.id} running on ${this.wsAddress}`);
+            this.setupWebSocketHandlers();
+            initialized = true;
+            resolve();
+          });
+
+          server.on("error", (error) => {
+            if (error.code === "EADDRINUSE") {
+              console.warn(`⚠️ Port ${port} is already in use, trying next...`);
+              resolve(); // Continue trying other ports
+            } else {
+              console.error(
+                `❌ Unexpected error on port ${port}:`,
+                error.message
+              );
+              reject(error);
+            }
+          });
+
+          server.on("close", () => {
+            console.log(`🛑 Server on port ${port} closed.`);
+          });
+        });
+
+        if (initialized) {
+          break;
+        }
+      } catch (error) {
+        console.error(
+          `❌ Error initializing Relay ${this.id} on port ${port}:`,
+          error.message
         );
-      });
-
-      this.setupWebSocketHandlers();
-    } catch (error) {
-      console.error(`❌ WebSocket Server Error in ${this.type} Relay:`, error);
+      }
     }
 
-    // ✅ Handle WebSocket server errors
-    this.wss?.on("error", (error) => this.handleServerError(error));
+    if (!initialized) {
+      console.error(
+        `❌ All specified ports failed for Relay ${this.id}. Ports: ${this.ports}`
+      );
+    }
+
+    return initialized;
   }
+
+  // tryInitializeServer(host) {
+  //   const tryNextPort = (ports, index) => {
+  //     if (index >= ports.length) {
+  //       console.error(`❌ All specified ports failed for ${this.type} Relay.`);
+  //       return;
+  //     }
+
+  //     const port = ports[index];
+  //     console.log(`🚀 Attempting to start server on port ${port}...`);
+
+  //     try {
+  //       const server = new Server({ port });
+
+  //       server.on("listening", () => {
+  //         this.wss = server;
+  //         this.wsAddress = `ws://${host}:${port}`;
+  //         console.log(
+  //           `✅ ${this.type} Relay ${this.id} running on ${this.wsAddress}`
+  //         );
+  //         this.setupWebSocketHandlers();
+  //       });
+
+  //       server.on("error", (error) => {
+  //         if (error.code === "EADDRINUSE") {
+  //           console.warn(
+  //             `⚠️ Port ${port} is already in use. Skipping to the next port...`
+  //           );
+  //           tryNextPort(ports, index + 1); // Move to the next port
+  //         } else {
+  //           console.error(
+  //             `❌ WebSocket Server Error on port ${port}:`,
+  //             error.message
+  //           );
+  //         }
+  //       });
+  //     } catch (error) {
+  //       console.error(
+  //         `❌ Failed to initialize server on port ${port}:`,
+  //         error.message
+  //       );
+  //       tryNextPort(ports, index + 1); // Move to the next port
+  //     }
+  //   };
+
+  //   tryNextPort(this.ports, 0);
+  // }
 
   /** 🔥 Handle WebSocket Server Errors */
   handleServerError(error) {
@@ -49,6 +176,7 @@ class Relay {
     console.log(`📌 Temporary WebSocket stored for ${tempId}`);
 
     ws.on("message", (message) => {
+      console.log("📨 Relay Received Message");
       console.log(`📨 ${this.type} Relay Received Message`);
       //console.log("Message:", message);
 

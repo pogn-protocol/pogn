@@ -2,17 +2,24 @@ const Relay = require("./relay");
 
 class LobbyRelay extends Relay {
   constructor(lobbyId, ports, lobbyController, targetUrl = null) {
-    super("lobby", lobbyId, ports[0]); // Pass targetUrl for potential relay connections
+    super("lobby", lobbyId, ports); // Pass targetUrl for potential relay connections
     this.lobbyController = lobbyController;
     this.relayConnections = new Map();
   }
 
-  processMessage(ws, message) {
+  async processMessage(ws, message) {
     console.log("🎰 LobbyRelay Processing Message:", message);
     //console.log("ws", ws);
     // ✅ Extract type, action and payload from message
 
     const { type, action, payload } = message;
+    if (payload.lobbyId !== this.id) {
+      console.error(
+        "Lobby relay received message for different lobby:",
+        payload.lobbyId
+      );
+      return;
+    }
     if (type === "test") {
       console.warn("Lobby relay received test message:", type);
       console.log("message", message);
@@ -76,9 +83,13 @@ class LobbyRelay extends Relay {
 
     let response =
       action === "login"
-        ? this.lobbyController.testGames(playerId)
+        ? await this.lobbyController.testGames(payload.lobbyId)
         : this.lobbyController.processMessage(message);
     console.log("Lobby response", response);
+    //if no response.lobbyId add this.id
+    if (response && !response.lobbyId) {
+      response.lobbyId = this.id;
+    }
     if (response) {
       console.log("Sending lobby response to player:", playerId);
       this.sendResponse(playerId, response);

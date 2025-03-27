@@ -5,7 +5,7 @@ const RelayConnector = require("./relayConnector");
 class GameRelay extends Relay {
   constructor(relayId, ports, gameController) {
     console.log("Initializing GameRelay...", relayId, ports);
-    super("game", relayId, ports[0]);
+    super("game", relayId, ports);
     this.gameController = gameController;
     this.ports = ports;
     this.relayId = relayId;
@@ -33,7 +33,11 @@ class GameRelay extends Relay {
       this.webSocketMap.set(payload.id, ws);
       this.sendToLobbyRelay(payload.id, {
         type: "test",
-        payload: { relayType: this.type, gameId: this.relayId },
+        payload: {
+          lobbyId: this.lobbyId,
+          relayType: this.type,
+          gameId: this.relayId,
+        },
       });
       return;
     }

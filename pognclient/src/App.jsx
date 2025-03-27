@@ -39,26 +39,29 @@ const App = () => {
   const [connections, setConnections] = useState(new Map());
   //setRemoveRelayConnections
   const [removeRelayConnections, setRemoveRelayConnections] = useState([]);
+  const [lobbiesInitialized, setLobbiesInitialized] = useState(false);
 
   useEffect(() => {
+    if (lobbiesInitialized) {
+      console.warn("⚠️ Lobbies already initialized. Skipping URL setup...");
+      return;
+    }
     if (!playerId) {
       console.warn("⚠️ Player ID not set. Skipping URL setup...");
       return;
     }
+
     console.log("✅ Setting lobby and game URLs...");
     const initialLobbyUrls = [
-      { id: "default", url: "ws://localhost:8080", type: "lobby" },
+      { id: "lobby1", url: "ws://localhost:8080", type: "lobby" },
+      { id: "lobby2", url: "ws://localhost:8081", type: "lobby" },
     ];
     console.log("🔧 Cleaning up old WebSocket connections on load...");
 
-    if (addRelayConnections.length === 0) {
-      setAddRelayConnections(initialLobbyUrls);
-      console.log("🔗 Initial URLs set:", initialLobbyUrls);
-    } else {
-      console.log("⚠️ URLs already set, skipping initialization.");
-    }
+    setAddRelayConnections(initialLobbyUrls);
+    setLobbiesInitialized(true);
     //}
-  }, [playerId]);
+  }, [lobbiesInitialized, playerId]);
 
   //send lobby login mg for all lobby connections when they are ready
 
@@ -82,16 +85,24 @@ const App = () => {
   });
 
   const handleSendMessage = (id, message) => {
-    if (sendMessageToUrl) {
-      console.log(`🚀 Sending message to ${id}:`, message);
-      message.uuid = uuidv4();
-      const connection = connections.get(id);
-      console.log("connection", connection);
-      connection.sendJsonMessage(message);
-      //sendMessageToUrl(id, message);
-    } else {
-      console.warn(`⚠️ No sendMessage function available for ${id}`);
+    console.log("handleSendMessage", id, message);
+    const connection = connections.get(id);
+    console.log("connection", connection);
+    if (!connection) {
+      console.warn(`⚠️ Connection ${id} not found`);
+      return;
     }
+    if (connection.readyState !== 1) {
+      console.warn(`⚠️ Connection ${id} not ready`);
+      return;
+    }
+    message.uuid = uuidv4();
+    console.log(
+      `🚀 Sending message to ${id} with UUID ${message.uuid}`,
+      message
+    );
+    //connection.sendJsonMessage(message);
+    sendMessageToUrl(id, message);
   };
   const handleMessage = (id, message) => {
     console.log(`📩 Received from ${id}:`, message);
@@ -149,7 +160,9 @@ const App = () => {
                   handleSendMessage("defaultLobby1", {
                     type: "lobby",
                     action: "login",
-                    payload: { playerId: playerId },
+                    payload: {
+                      playerId: playerId,
+                    },
                   })
                 }
               >
@@ -261,6 +274,7 @@ const App = () => {
                 message={lobbyMessages[id]?.slice(-1)[0] || {}} // Use string key here just to be sure
                 connectionUrl={connection.url}
                 setGamesToInit={setGamesToInit}
+                lobbyConnections={connections}
                 setRemoveRelayConnections={setRemoveRelayConnections}
               />
             );
@@ -283,6 +297,7 @@ const App = () => {
             )
           }
           setAddRelayConnections={setAddRelayConnections}
+          setGamesToInit={setGamesToInit}
         />
         {/* )} */}
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}

@@ -11,6 +11,7 @@ const Lobby = ({
   setGamesToInit,
   lobbyId,
   setRemoveRelayConnections,
+  lobbyConnections,
 }) => {
   const [signedIntoLobby, setSignedIntoLobby] = useState(false);
   const [lobbyGames, setLobbyGames] = useState([]);
@@ -31,21 +32,61 @@ const Lobby = ({
 
   useEffect(() => {
     if (!signedIntoLobby) {
-      console.log("Signing into lobby...");
-      sendMessage({
-        type: "lobby",
-        lobbyId: lobbyId,
-        action: "login",
-        payload: {
-          playerId,
-        },
-      });
-      setSignedIntoLobby(true);
+      const connection = lobbyConnections.get(lobbyId);
+      console.log("Connection", connection);
+      if (connection?.readyState === 1) {
+        console.log(
+          `✅ Lobby ${lobbyId} connection established. Sending login...`
+        );
+        sendMessage({
+          type: "lobby",
+          action: "login",
+          payload: {
+            lobbyId: lobbyId,
+            playerId,
+          },
+        });
+        setSignedIntoLobby(true);
+
+        // sendMessage({
+        //   type: "lobby",
+        //   action: "login",
+        //   payload: {
+        //     lobbyId: lobbyId,
+        //     playerId,
+        //   },
+        // });
+      } else {
+        console.warn(`❌ Lobby ${lobbyId} connection not ready yet.`);
+      }
     }
-  }, [signedIntoLobby, playerId, sendMessage, lobbyId]);
+  }, [signedIntoLobby]);
+
+  // useEffect(() => {
+  //   console.log("Checking lobby connection for lobbyId:", lobbyId);
+  //   console.log(lobbyConnections);
+  //   const connection = lobbyConnections.get(lobbyId);
+  //   console.log("connection", connection);
+  //   if (!signedIntoLobby && connection?.readyState === 1) {
+  //     console.log(
+  //       `✅ Lobby ${lobbyId} connection established. Sending login...`
+  //     );
+  //     sendMessage({
+  //       type: "lobby",
+  //       action: "login",
+  //       payload: {
+  //         lobbyId: lobbyId,
+  //         playerId,
+  //       },
+  //     });
+  //     setSignedIntoLobby(true);
+  //   } else if (!signedIntoLobby && connection?.readyState !== 1) {
+  //     console.warn(`❌ Lobby ${lobbyId} connection not ready yet.`);
+  //   }
+  // }, [lobbyConnections, signedIntoLobby, playerId, sendMessage, lobbyId]);
 
   useEffect(() => {
-    console.log("Lobby Message Received by Loobby");
+    console.log("Lobby Message Received by Lobby");
     if (!message || Object.keys(message).length === 0) {
       console.warn("Invalid message object:", message);
       return;
@@ -75,32 +116,32 @@ const Lobby = ({
           }));
           console.log("gameRelays", gameRelays);
           //check if activePlayerGames has games not in player games
-          let staleGames = activePlayerGames
-            .filter(
-              (game) =>
-                !playerGames.some(
-                  (playerGame) => playerGame.gameId === game.gameId
-                )
-            )
-            .map((game) => game.gameId);
+          // let staleGames = activePlayerGames
+          //   .filter(
+          //     (game) =>
+          //       !playerGames.some(
+          //         (playerGame) => playerGame.gameId === game.gameId
+          //       )
+          //   )
+          //   .map((game) => game.gameId);
 
-          console.log("staleGames", staleGames);
+          // console.log("staleGames", staleGames);
           setActivePlayerGames(playerGames);
-          setRemoveRelayConnections(staleGames);
+          //setRemoveRelayConnections(staleGames);
           setGamesToInit(playerGames);
         } else {
-          let staleGames = activePlayerGames
-            .filter(
-              (game) =>
-                !playerGames.some(
-                  (playerGame) => playerGame.gameId === game.gameId
-                )
-            )
-            .map((game) => game.gameId);
+          // let staleGames = activePlayerGames
+          //   .filter(
+          //     (game) =>
+          //       !playerGames.some(
+          //         (playerGame) => playerGame.gameId === game.gameId
+          //       )
+          //   )
+          //   .map((game) => game.gameId);
 
-          console.log("staleGames", staleGames);
+          //console.log("staleGames", staleGames);
           setActivePlayerGames([]);
-          setRemoveRelayConnections(staleGames);
+          //setRemoveRelayConnections(staleGames);
           console.log("Player is not in any valid game. Staying in the lobby.");
           setSelectedGameId(null);
           setHasJoined(false);
@@ -213,13 +254,13 @@ const Lobby = ({
           style={{ fontSize: "14px", lineHeight: "1.2" }}
         />
       </div>
-      <h2>Lobby</h2>
+      <h2>LobbyId: {lobbyId}</h2>
       <p>Players in Lobby: {lobbyPlayers.length}</p>
       <ul>
         {lobbyPlayers.length > 0 ? (
           lobbyPlayers.map((player, index) => (
             <li key={index}>
-              <strong>Player {index + 1}:</strong> {player.playerId}
+              <strong>Player {index + 1}:</strong> {player}
             </li>
           ))
         ) : (

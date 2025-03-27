@@ -204,22 +204,46 @@ class gameController {
       return;
     }
     const game = new Game(gameType, gameId);
+    console.log("game", game);
     game.lobbyId = lobbyId;
     const gameInstance = new this.gameClasses[gameType]();
     game.setGameInstance(gameInstance);
 
-    const relay = this.relayManager.createRelay("game", game.gameId, {
-      ports: this.gamePorts,
-      controller: this,
-      lobbyId: lobbyId,
-    });
+    // const relay = this.relayManager.createRelay("game", game.gameId, {
+    //   ports: this.gamePorts,
+    //   controller: this,
+    //   lobbyId: lobbyId,
+    // });
 
-    game.relayId = relay.id;
-    game.wsAddress = relay.wsAddress;
+    // const relay = relays[0];
+    // console.log("relay", relay);
+    //   game.relayId = relay.id;
+    //game.wsAddress = relay.wsAddress;
 
-    console.log("relay", relay);
     console.log("game", game);
     return game;
+  }
+
+  async createGameRelay(gameId, lobbyId, ports) {
+    console.log("Creating game relay", gameId, ports);
+    try {
+      const gameRelay = await this.relayManager.createRelays([
+        {
+          type: "game",
+          id: gameId,
+          options: {
+            ports: this.gamePorts,
+            controller: this,
+            lobbyId: lobbyId,
+          },
+        },
+      ]);
+
+      console.log("gameRelay", gameRelay);
+      return gameRelay[0];
+    } catch (error) {
+      console.error(`❌ Error creating game relay ${gameId}:`, error.message);
+    }
   }
 
   startGame(game) {

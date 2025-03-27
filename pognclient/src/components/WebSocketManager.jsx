@@ -54,26 +54,57 @@ const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
       setConnections((prev) => {
         const newMap = new Map(prev);
         const existing = newMap.get(id) || {};
-        newMap.set(id, { ...existing, ...stateUpdate });
-        return new Map([...newMap]);
+        newMap.set(id, {
+          ...existing,
+          sendJsonMessage,
+          readyState,
+          url,
+          type,
+          ...stateUpdate,
+        });
+        return newMap;
       });
     },
-    [id, setConnections]
+    [id, sendJsonMessage, readyState, url, type, setConnections]
   );
 
   // ✅ Handle connection state changes
   useEffect(() => {
+    updateConnection({ sendJsonMessage, readyState, url, type });
+
     if (readyState === 1) {
       console.log(`✅ WebSocket connected for ${id}`);
-      updateConnection({ sendJsonMessage, readyState: 1, url, type }); // Include 'type' here
     } else if (readyState === 3) {
       console.log(`🛑 WebSocket closed for ${id}`);
-      updateConnection({ readyState: 3 });
     } else if (readyState === -1) {
       console.log(`❌ WebSocket error for ${id}`);
-      updateConnection({ readyState: -1 });
     }
   }, [readyState, updateConnection]);
+  // const updateConnection = useCallback(
+  //   (stateUpdate) => {
+  //     setConnections((prev) => {
+  //       const newMap = new Map(prev);
+  //       const existing = newMap.get(id) || {};
+  //       newMap.set(id, { ...existing, ...stateUpdate });
+  //       return new Map([...newMap]);
+  //     });
+  //   },
+  //   [id, setConnections]
+  // );
+
+  // // ✅ Handle connection state changes
+  // useEffect(() => {
+  //   if (readyState === 1) {
+  //     console.log(`✅ WebSocket connected for ${id}`);
+  //     updateConnection({ sendJsonMessage, readyState: 1, url, type }); // Include 'type' here
+  //   } else if (readyState === 3) {
+  //     console.log(`🛑 WebSocket closed for ${id}`);
+  //     updateConnection({ readyState: 3 });
+  //   } else if (readyState === -1) {
+  //     console.log(`❌ WebSocket error for ${id}`);
+  //     updateConnection({ readyState: -1 });
+  //   }
+  // }, [readyState, sendJsonMessage, updateConnection]);
 
   // ✅ Handle incoming messages
 
@@ -88,6 +119,7 @@ const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
       setPrevMessage(lastJsonMessage);
     }
   }, [lastJsonMessage, id, onMessage, prevMessage]);
+
   return { sendJsonMessage, readyState };
 };
 
@@ -100,7 +132,7 @@ const RelayItem = ({
   setConnections,
   sendMessageToRelay,
 }) => {
-  const { readyState } = useRelayConnection({
+  const { readyState, sendJsonMessage } = useRelayConnection({
     id,
     url,
     type,
@@ -121,7 +153,12 @@ const RelayItem = ({
           ? "Closed"
           : "Unknown"}
       </p>
-      <button onClick={() => sendMessageToRelay(id, { action: "ping" })}>
+      <button
+        onClick={() => {
+          console.log("🔔 Ping button clicked!");
+          sendMessageToRelay(id, { action: "ping" });
+        }}
+      >
         Send Ping
       </button>
     </div>
@@ -139,8 +176,10 @@ const RelayManager = ({
 }) => {
   const sendMessageToRelay = useCallback(
     (id, message) => {
+      console.log(`📤 sendMessageToRelay ${id}:`, message);
       console.log(connections);
       const relay = connections.get(id);
+      console.log(relay);
       if (relay && relay.sendJsonMessage) {
         console.log(`📤 Sending message to ${id}:`, message);
         relay.sendJsonMessage(message);

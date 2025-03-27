@@ -17,6 +17,7 @@ const GameConsole = ({
   lobbyUrl,
   gameConnections,
   setAddRelayConnections,
+  setGamesToInit,
 }) => {
   const [gameStates, setGameStates] = useState(new Map());
   useEffect(() => {
@@ -52,35 +53,6 @@ const GameConsole = ({
       default:
         console.warn(`Unhandled action: ${action}`);
     }
-    //   console.log(`Updating game ID: ${gameId}`, currentGameState);
-
-    //   switch (action) {
-    //     case "gameAction":
-    //       newStates.set(gameId, {
-    //         ...payload,
-    //       });
-    //       console.log("🛠️ Updated GameState:", newStates);
-    //       break;
-
-    //     case "results":
-    //       newStates.set(gameId, {
-    //         ...payload,
-    //       });
-    //       console.log("🏁 Game Finished:", newStates);
-    //       break;
-
-    //     case "gameEnded":
-    //       newStates.delete(gameId);
-    //       console.log("🛑 Game Ended:", newStates);
-    //       console.log("Game ended.");
-    //       break;
-
-    //     default:
-    //       console.warn(`Unhandled action: ${action}`);
-    //   }
-
-    //   return newStates;
-    // });
   }, [message]);
 
   useEffect(() => {
@@ -99,6 +71,10 @@ const GameConsole = ({
   }, [gamesToInit, setAddRelayConnections]);
 
   useEffect(() => {
+    if (gamesToInit.length === 0) {
+      console.log("No games to initialize.");
+      return;
+    }
     if (gameConnections.size > 0) {
       // Check that all games have an active connection
       const allReady = gamesToInit.every((game) => {
@@ -109,50 +85,17 @@ const GameConsole = ({
       if (allReady) {
         console.log("✅ All game connections are ready, initializing games.");
         initNewGames(gamesToInit);
+        //setGamesToInit([]);
       } else {
         console.log("⏳ Waiting for all game connections to be ready.");
       }
     }
   }, [gameConnections, gamesToInit]);
 
-  useEffect(() => {
-    console.log("🔄 Checking for changes in game connections...");
-    if (gameConnections.size > 0) {
-      const connectedGames = Array.from(gameConnections.keys());
-      const gameIds = Array.from(gameStates.keys());
-
-      // Handle lost connections
-      const lostConnections = gameIds.filter(
-        (gameId) => !connectedGames.includes(gameId)
-      );
-      if (lostConnections.length > 0) {
-        console.log("❌ Lost connections for games:", lostConnections);
-        setGameStates((prevStates) => {
-          const updatedMap = new Map(prevStates);
-          lostConnections.forEach((gameId) => updatedMap.delete(gameId));
-          return updatedMap;
-        });
-      }
-
-      // Reinitialize games for newly connected games
-      const newConnections = connectedGames.filter(
-        (gameId) => !gameIds.includes(gameId)
-      );
-      if (newConnections.length > 0) {
-        console.log("✅ New connections found for games:", newConnections);
-        const newGames = newConnections.map((gameId) => ({
-          gameId,
-          ...gameConnections.get(gameId),
-        }));
-        initNewGames(newGames);
-      }
-    }
-  }, [gameConnections]);
-
   // Initialize new games based on connection updates
   const initNewGames = (games) => {
     console.log("Initializing games", games);
-
+    console.log("gameConnections", gameConnections);
     games.forEach((game) => {
       const gameId = game.gameId;
       const connection = gameConnections.get(gameId);
@@ -177,7 +120,7 @@ const GameConsole = ({
         ...currentGameState,
         ...newState, // Merge new state with existing state
       });
-
+      console.log(updatedMap);
       return updatedMap;
     });
   };
