@@ -9,7 +9,7 @@ class LobbyRelay extends Relay {
 
   processMessage(ws, message) {
     console.log("🎰 LobbyRelay Processing Message:", message);
-    console.log("ws", ws);
+    //console.log("ws", ws);
     // ✅ Extract type, action and payload from message
 
     const { type, action, payload } = message;
@@ -30,7 +30,7 @@ class LobbyRelay extends Relay {
 
       // Set the WebSocket with the correct gameId as the key
       this.webSocketMap.set(payload.gameId, ws);
-      console.log("WebSocket Map:", this.webSocketMap);
+      //console.log("WebSocket Map:", this.webSocketMap);
       return;
     }
 

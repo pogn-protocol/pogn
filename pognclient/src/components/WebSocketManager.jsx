@@ -1,72 +1,145 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import useWebSocket from "react-use-websocket";
 
+// Custom hook to manage a single WebSocket connection
+const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
+  const [prevMessage, setPrevMessage] = useState(null);
+
+  const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(url, {
+    // onOpen: () => {
+    //   console.log(`✅ Connected to ${id}`);
+    //   setConnections((prev) => {
+    //     const newMap = new Map(prev);
+    //     newMap.set(id, { sendJsonMessage, readyState, url, type });        return new Map([...newMap]);
+    //   });
+    // },
+    // onClose: () => {
+    //   console.log(`🛑 Connection closed for ${id}`);
+    //   setConnections((prev) => {
+    //     const newMap = new Map(prev);
+    //     const conn = newMap.get(id);
+    //     if (conn) {
+    //       newMap.set(id, { ...conn, readyState: 3 });
+    //     }
+    //     return new Map([...newMap]);
+    //   });
+    // },
+    // onError: (event) => {
+    //   console.error(`❌ WebSocket error at ${id}:`, event);
+    //   setConnections((prev) => {
+    //     const newMap = new Map(prev);
+    //     const conn = newMap.get(id);
+    //     if (conn) {
+    //       newMap.set(id, { ...conn, readyState: -1 });
+    //     }
+    //     return new Map([...newMap]);
+    //   });
+    // },
+    // onMessage: (event) => {
+    //   const rawMessage = event.data;
+    //   let message;
+    //   try {
+    //     message = JSON.parse(rawMessage);
+    //     console.log(`✅ Successfully parsed message from ${id}:`, message);
+    //   } catch (error) {
+    //     console.error(`❌ Error parsing JSON message from ${id}:`, error);
+    //     return; // Stop further processing if the message is invalid
+    //   }
+    // },
+    share: true,
+  });
+
+  const updateConnection = useCallback(
+    (stateUpdate) => {
+      setConnections((prev) => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(id) || {};
+        newMap.set(id, { ...existing, ...stateUpdate });
+        return new Map([...newMap]);
+      });
+    },
+    [id, setConnections]
+  );
+
+  // ✅ Handle connection state changes
+  useEffect(() => {
+    if (readyState === 1) {
+      console.log(`✅ WebSocket connected for ${id}`);
+      updateConnection({ sendJsonMessage, readyState: 1, url, type }); // Include 'type' here
+    } else if (readyState === 3) {
+      console.log(`🛑 WebSocket closed for ${id}`);
+      updateConnection({ readyState: 3 });
+    } else if (readyState === -1) {
+      console.log(`❌ WebSocket error for ${id}`);
+      updateConnection({ readyState: -1 });
+    }
+  }, [readyState, updateConnection]);
+
+  // ✅ Handle incoming messages
+
+  useEffect(() => {
+    if (
+      lastJsonMessage !== null &&
+      lastJsonMessage !== prevMessage &&
+      lastJsonMessage !== undefined
+    ) {
+      console.log(`📥 Received message from ${id}:`, lastJsonMessage);
+      onMessage(id, lastJsonMessage);
+      setPrevMessage(lastJsonMessage);
+    }
+  }, [lastJsonMessage, id, onMessage, prevMessage]);
+  return { sendJsonMessage, readyState };
+};
+
+// Component for a single relay
+const RelayItem = ({
+  id,
+  url,
+  type,
+  onMessage,
+  setConnections,
+  sendMessageToRelay,
+}) => {
+  const { readyState } = useRelayConnection({
+    id,
+    url,
+    type,
+    onMessage,
+    setConnections,
+  });
+
+  return (
+    <div>
+      <h5>Relay ID: {id}</h5>
+      <p>
+        Ready State:{" "}
+        {readyState === 1
+          ? "Connected"
+          : readyState === 0
+          ? "Connecting"
+          : readyState === 3
+          ? "Closed"
+          : "Unknown"}
+      </p>
+      <button onClick={() => sendMessageToRelay(id, { action: "ping" })}>
+        Send Ping
+      </button>
+    </div>
+  );
+};
+
+// Main RelayManager component
 const RelayManager = ({
   addRelayConnections,
   onMessage,
   setSendMessage,
   connections,
   setConnections,
+  removeRelayConnections,
 }) => {
-  // 🔥 Create a single connection
-  const createConnection = useCallback(
-    ({ id, url, type }) => {
-      console.log(`🔌 Creating WebSocket for ${id} at ${url} [${type}]`);
-
-      const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
-        url,
-        {
-          onOpen: () => {
-            console.log(`✅ Connected to ${id}`);
-            setConnections((prev) => {
-              const newMap = new Map(prev);
-              newMap.set(id, { sendJsonMessage, readyState: 1 });
-              return newMap;
-            });
-          },
-          onClose: () => {
-            console.log(`🛑 Connection closed for ${id}`);
-            setConnections((prev) => {
-              const newMap = new Map(prev);
-              const conn = newMap.get(id);
-              if (conn) {
-                newMap.set(id, { ...conn, readyState: 3 });
-              }
-              return newMap;
-            });
-          },
-          onError: (event) => {
-            console.error(`❌ WebSocket error at ${id}:`, event);
-            setConnections((prev) => {
-              const newMap = new Map(prev);
-              const conn = newMap.get(id);
-              if (conn) {
-                newMap.set(id, { ...conn, readyState: -1 });
-              }
-              return newMap;
-            });
-          },
-          onMessage: (event) => {
-            const message = lastJsonMessage;
-            console.log(`📥 Message from ${id}:`, message);
-            onMessage(id, message);
-          },
-          share: true,
-        }
-      );
-
-      setConnections((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(id, { sendJsonMessage, readyState });
-        return newMap;
-      });
-    },
-    [onMessage]
-  );
-
-  // 📤 Send a message to a specific relay
   const sendMessageToRelay = useCallback(
     (id, message) => {
+      console.log(connections);
       const relay = connections.get(id);
       if (relay && relay.sendJsonMessage) {
         console.log(`📤 Sending message to ${id}:`, message);
@@ -78,38 +151,66 @@ const RelayManager = ({
     [connections]
   );
 
-  // Expose the send function once
   useEffect(() => {
     setSendMessage(() => sendMessageToRelay);
   }, [setSendMessage, sendMessageToRelay]);
 
-  // 🔥 Dynamically add connections without looping in hooks
   useEffect(() => {
     if (!addRelayConnections || addRelayConnections.length === 0) {
       console.warn("⚠️ No relays to add");
       return;
     }
 
-    addRelayConnections.forEach((relay) => {
-      if (!connections.has(relay.id)) {
-        createConnection(relay);
-      } else {
-        console.log(`✅ Relay ${relay.id} already exists`);
-      }
+    console.log("🚀 Adding new relays to connections:", addRelayConnections);
+
+    setConnections((prev) => {
+      const newMap = new Map(prev);
+      addRelayConnections.forEach((relay) => {
+        if (!newMap.has(relay.id)) {
+          newMap.set(relay.id, relay);
+          console.log(`✅ Relay ${relay.id} added to connections`);
+        } else {
+          console.warn(`⚠️ Relay ${relay.id} already exists`);
+        }
+      });
+      return newMap;
     });
-  }, [addRelayConnections, createConnection, connections]);
+  }, [addRelayConnections]);
+
+  useEffect(() => {
+    console.log("Removing relays from connections:", removeRelayConnections);
+    if (removeRelayConnections && removeRelayConnections.length > 0) {
+      console.log(
+        "🗑 Removing relays from connections:",
+        removeRelayConnections
+      );
+
+      setConnections((prev) => {
+        const newMap = new Map(prev);
+        removeRelayConnections.forEach((id) => {
+          if (newMap.has(id)) {
+            newMap.delete(id);
+            console.log(`✅ Relay ${id} removed from connections`);
+          } else {
+            console.warn(`⚠️ Relay ${id} not found in connections`);
+          }
+        });
+        return newMap;
+      });
+    }
+  }, [removeRelayConnections, setConnections]);
 
   return (
     <div>
-      <h2>Relay Manager</h2>
-      {Array.from(connections.entries()).map(([id, { readyState }]) => (
-        <div key={id}>
-          <h3>Relay ID: {id}</h3>
-          <p>Ready State: {readyState === 1 ? "Connected" : "Disconnected"}</p>
-          <button onClick={() => sendMessageToRelay(id, { action: "ping" })}>
-            Send Ping
-          </button>
-        </div>
+      <h2>Relays</h2>
+      {Array.from(connections.values()).map((relay) => (
+        <RelayItem
+          key={relay.id}
+          {...relay}
+          onMessage={onMessage}
+          setConnections={setConnections}
+          sendMessageToRelay={sendMessageToRelay}
+        />
       ))}
     </div>
   );

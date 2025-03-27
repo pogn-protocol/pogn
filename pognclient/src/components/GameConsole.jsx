@@ -15,7 +15,8 @@ const GameConsole = ({
   playerId = "",
   gamesToInit,
   lobbyUrl,
-  connections,
+  gameConnections,
+  setAddRelayConnections,
 }) => {
   const [gameStates, setGameStates] = useState(new Map());
   useEffect(() => {
@@ -85,21 +86,81 @@ const GameConsole = ({
   useEffect(() => {
     if (gamesToInit.length > 0) {
       console.log("🚀 Initializing new games:", gamesToInit);
-      initNewGames(gamesToInit);
+      //initNewGames(gamesToInit);
+
+      setAddRelayConnections(
+        gamesToInit.map((game) => ({
+          id: game.gameId,
+          url: game.wsAddress,
+          type: "game",
+        }))
+      );
     }
-  }, [gamesToInit]);
+  }, [gamesToInit, setAddRelayConnections]);
 
-  const initNewGames = (gamesToInit) => {
-    console.log("Initializing gamesToInit", gamesToInit);
+  useEffect(() => {
+    if (gameConnections.size > 0) {
+      // Check that all games have an active connection
+      const allReady = gamesToInit.every((game) => {
+        const connection = gameConnections.get(game.gameId);
+        return connection && connection.readyState === 1;
+      });
 
-    gamesToInit.forEach((gameToInit) => {
-      const gameId = gameToInit.gameId;
-      const connection = connections.get(gameId);
+      if (allReady) {
+        console.log("✅ All game connections are ready, initializing games.");
+        initNewGames(gamesToInit);
+      } else {
+        console.log("⏳ Waiting for all game connections to be ready.");
+      }
+    }
+  }, [gameConnections, gamesToInit]);
+
+  useEffect(() => {
+    console.log("🔄 Checking for changes in game connections...");
+    if (gameConnections.size > 0) {
+      const connectedGames = Array.from(gameConnections.keys());
+      const gameIds = Array.from(gameStates.keys());
+
+      // Handle lost connections
+      const lostConnections = gameIds.filter(
+        (gameId) => !connectedGames.includes(gameId)
+      );
+      if (lostConnections.length > 0) {
+        console.log("❌ Lost connections for games:", lostConnections);
+        setGameStates((prevStates) => {
+          const updatedMap = new Map(prevStates);
+          lostConnections.forEach((gameId) => updatedMap.delete(gameId));
+          return updatedMap;
+        });
+      }
+
+      // Reinitialize games for newly connected games
+      const newConnections = connectedGames.filter(
+        (gameId) => !gameIds.includes(gameId)
+      );
+      if (newConnections.length > 0) {
+        console.log("✅ New connections found for games:", newConnections);
+        const newGames = newConnections.map((gameId) => ({
+          gameId,
+          ...gameConnections.get(gameId),
+        }));
+        initNewGames(newGames);
+      }
+    }
+  }, [gameConnections]);
+
+  // Initialize new games based on connection updates
+  const initNewGames = (games) => {
+    console.log("Initializing games", games);
+
+    games.forEach((game) => {
+      const gameId = game.gameId;
+      const connection = gameConnections.get(gameId);
 
       // Check if connection exists and is ready
       if (connection && connection.readyState === 1) {
-        console.log("gameToInit:", gameToInit);
-        updateGameState(gameId, gameToInit); // ✅ Centralized update
+        console.log("Game to Init:", game);
+        updateGameState(gameId, game); // ✅ Centralized update
         console.log(`🗺️ Game ${gameId} stored in gameMap.`);
       } else {
         console.warn(`❌ Connection not ready for game ID: ${gameId}`);
@@ -138,7 +199,7 @@ const GameConsole = ({
               (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
             }
             playerId={playerId}
-            localGameState={gameState}
+            gameState={gameState}
             gameId={gameId}
           />
         );
@@ -150,7 +211,7 @@ const GameConsole = ({
               (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
             }
             playerId={playerId}
-            localGameState={gameStates}
+            gameState={gameState}
             gameId={gameId}
           />
         );

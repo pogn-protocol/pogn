@@ -365,8 +365,8 @@ class LobbyController {
       };
     }
     const players = [
-      "72a0285a1076e284b9fee56e40da0e5c284e4048e05b6d04c4f9a945d015a8b5",
       "dcf52a360ff78e1ec864fa635ea21c81dbc2ef297a788ac9a91664a0ef95b7c1",
+      "37b71d6b946b60bdaf3fdd5982e8b0a1886841b5859347637a7b07b81a933a4e",
     ];
     console.log("Creating test games...");
     const game1 = this.gameController.createGame(

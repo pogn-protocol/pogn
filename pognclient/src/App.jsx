@@ -37,6 +37,8 @@ const App = () => {
   const [gameMessages, setGameMessages] = useState({});
   const [lobbyMessages, setLobbyMessages] = useState({});
   const [connections, setConnections] = useState(new Map());
+  //setRemoveRelayConnections
+  const [removeRelayConnections, setRemoveRelayConnections] = useState([]);
 
   useEffect(() => {
     if (!playerId) {
@@ -45,7 +47,7 @@ const App = () => {
     }
     console.log("✅ Setting lobby and game URLs...");
     const initialLobbyUrls = [
-      { id: "defaultLobby1", url: "ws://localhost:8080", type: "lobby" },
+      { id: "default", url: "ws://localhost:8080", type: "lobby" },
     ];
     console.log("🔧 Cleaning up old WebSocket connections on load...");
 
@@ -58,6 +60,23 @@ const App = () => {
     //}
   }, [playerId]);
 
+  //send lobby login mg for all lobby connections when they are ready
+
+  //add lobby connection when playerId is set
+  // useEffect(() => {
+  //   if (!playerId) {
+  //     console.warn("⚠️ Player ID not set. Skipping URL setup...");
+  //     return;
+  //   }
+  //   console.log("🔗 Adding lobby connection...");
+  //   const lobbyUrl = {
+  //     id: "defaultLobby1",
+  //     url: "ws://localhost:8080",
+  //     type: "lobby",
+  //   };
+  //   setAddRelayConnections([lobbyUrl]);
+  // }, [playerId]);
+
   useEffect(() => {
     console.log("🔥 App.jsx Re-Rendered!");
   });
@@ -69,6 +88,7 @@ const App = () => {
       const connection = connections.get(id);
       console.log("connection", connection);
       connection.sendJsonMessage(message);
+      //sendMessageToUrl(id, message);
     } else {
       console.warn(`⚠️ No sendMessage function available for ${id}`);
     }
@@ -79,21 +99,30 @@ const App = () => {
       ...prev,
       [id]: [...(prev[id] || []), message],
     }));
-
+    console.log(messages);
     if (message.type === "lobby") {
-      setLobbyMessages((prev) => ({
-        ...prev,
-        [id]: [...(prev[id] || []), message],
-      }));
+      const lobbyId = message.payload.lobbyId || id; // Fallback to connection ID if lobbyId is not present
+      console.log("🎰 Setting Lobby Message lobbyId:", lobbyId, message);
+      setLobbyMessages((prev) => {
+        const newMessages = {
+          ...prev,
+          [lobbyId]: [...(prev[lobbyId] || []), message],
+        };
+        console.log("Updated lobbyMessages", newMessages); // <<<< Correct logging
+        return newMessages;
+      });
+      console.log(lobbyMessages);
       return;
     }
 
     if (message.type === "game") {
-      console.log("🎰 Received lobby message:", message);
+      const gameId = message.payload.gameId || id; // Fallback to connection ID if gameId is not present
+      console.log("🎰 Setting Game Message gameId:", gameId, message);
       setGameMessages((prev) => ({
         ...prev,
-        [id]: [...(prev[id] || []), message],
+        [gameId]: [...(prev[gameId] || []), message],
       }));
+      console.log(gameMessages);
       return;
     }
 
@@ -104,49 +133,111 @@ const App = () => {
     console.log("All messages", messages);
   }, [messages]);
 
+  useEffect(() => {
+    console.log("Connections set", connections);
+  }, [connections]);
+
   return (
     <ErrorBoundary>
       <div className="container mt-5">
         <div>
           {addRelayConnections && addRelayConnections.length > 0 ? (
             <>
-              <h1>Game App with Dynamic WebSockets</h1>
-              <WebSocketManager
-                addRelayConnections={addRelayConnections}
-                onMessage={handleMessage}
-                setSendMessage={setSendMessageToUrl}
-                setRelayStates={setRelayStates}
-                setConnections={setConnections}
-              />
+              <h1>WebSocketManager</h1>
               <button
                 onClick={() =>
-                  handleSendMessage("ws://localhost:8080", {
+                  handleSendMessage("defaultLobby1", {
+                    type: "lobby",
                     action: "login",
-                    playerId,
+                    payload: { playerId: playerId },
                   })
                 }
               >
                 Send Login Message
               </button>
+              <WebSocketManager
+                addRelayConnections={addRelayConnections}
+                onMessage={handleMessage}
+                setSendMessage={setSendMessageToUrl}
+                setConnections={setConnections}
+                connections={connections}
+                removeRelayConnections={removeRelayConnections}
+              />
             </>
           ) : (
             <p>No initial URLs provided.</p>
           )}
 
           <div>
-            {Object.keys(messages).map((id, index) => (
-              <div key={index}>
-                <h3>Messages from {id}:</h3>
-                {messages[id].map((msg, index) => (
-                  <JsonView
-                    data={msg}
-                    key={index}
-                    shouldExpandNode={(level) => level === 0}
-                    style={{ fontSize: "14px", lineHeight: "1.2" }}
-                  />
-                ))}
-              </div>
-            ))}
+            {/* Render Lobby Messages */}
+            {Object.keys(lobbyMessages)
+              .sort()
+              .map((id, index) => (
+                <div key={index}>
+                  <h3>Lobby Messages from {id}:</h3>
+
+                  {lobbyMessages[id].length > 1 && (
+                    <details style={{ marginBottom: "8px" }}>
+                      <summary>
+                        Previous Messages ({lobbyMessages[id].length - 1})
+                      </summary>
+                      {lobbyMessages[id].slice(0, -1).map((msg, msgIndex) => (
+                        <JsonView
+                          data={msg}
+                          key={`prev-lobby-${id}-${msgIndex}`}
+                          shouldExpandNode={() => false} // Always collapsed
+                          style={{ fontSize: "14px", lineHeight: "1.2" }}
+                        />
+                      ))}
+                    </details>
+                  )}
+
+                  {/* Last message displayed open */}
+                  {lobbyMessages[id].slice(-1).map((msg, msgIndex) => (
+                    <JsonView
+                      data={msg}
+                      key={`last-lobby-${id}-${msgIndex}`}
+                      shouldExpandNode={(level) => level === 0} // Only expand the first level of the latest message
+                      style={{ fontSize: "14px", lineHeight: "1.2" }}
+                    />
+                  ))}
+                </div>
+              ))}
+
+            {/* Render Game Messages */}
+            {Object.keys(gameMessages)
+              .sort()
+              .map((id, index) => (
+                <div key={index}>
+                  <h3>Game Messages from {id}:</h3>
+
+                  {gameMessages[id].length > 1 && (
+                    <details style={{ marginBottom: "8px" }}>
+                      <summary>
+                        Previous Messages ({gameMessages[id].length - 1})
+                      </summary>
+                      {gameMessages[id].slice(0, -1).map((msg, msgIndex) => (
+                        <JsonView
+                          data={msg}
+                          key={`prev-game-${id}-${msgIndex}`}
+                          shouldExpandNode={() => false} // Always collapsed
+                          style={{ fontSize: "14px", lineHeight: "1.2" }}
+                        />
+                      ))}
+                    </details>
+                  )}
+
+                  {/* Last message displayed open */}
+                  {gameMessages[id].slice(-1).map((msg, msgIndex) => (
+                    <JsonView
+                      data={msg}
+                      key={`last-game-${id}-${msgIndex}`}
+                      shouldExpandNode={(level) => level === 0} // Only expand the first level of the latest message
+                      style={{ fontSize: "14px", lineHeight: "1.2" }}
+                    />
+                  ))}
+                </div>
+              ))}
           </div>
         </div>
         <h1>Game App</h1>
@@ -154,36 +245,44 @@ const App = () => {
         <Player setPlayerId={setPlayerId} />
         {playerId && <Dashboard playerName="Player" playerId={playerId} />}
         {Array.from(connections.entries())
-          .filter(([id, connection]) => connection.type === "lobby")
-          .map(([id, connection], index) => (
-            <Lobby
-              key={index}
-              playerId={playerId}
-              startGameRelays={handleStartGameRelays}
-              sendMessage={(msg) => handleSendMessage(id, msg)}
-              message={Object.values(lobbyMessages).flat().slice(-1)[0] || {}}
-              connectionUrl={connection.url}
-              setGamesToInit={setGamesToInit}
-            />
-          ))}
+          .filter(
+            ([id, connection]) =>
+              connection.type === "lobby" && connection.readyState === 1
+          )
+          .map(([id, connection], index) => {
+            console.log("🔍 Checking lobby connection:", id, connection);
+            console.log("🔍 Checking lobby message:", lobbyMessages[id]);
+            return (
+              <Lobby
+                key={index}
+                lobbyId={id}
+                playerId={playerId}
+                sendMessage={(msg) => handleSendMessage(id, msg)}
+                message={lobbyMessages[id]?.slice(-1)[0] || {}} // Use string key here just to be sure
+                connectionUrl={connection.url}
+                setGamesToInit={setGamesToInit}
+                setRemoveRelayConnections={setRemoveRelayConnections}
+              />
+            );
+          })}
+
         {connections.size === 0 && <p>Lobby not started...</p>}
         <GameConsole
           playerId={playerId}
           message={Object.values(gameMessages).flat().slice(-1)[0] || {}}
           sendGameMessage={(id, msg) => handleSendMessage(id, msg)}
-          initialGameState={initialGameState}
           sendLobbyMessage={(id, msg) => handleSendMessage(id, msg)}
           gamesToInit={gamesToInit}
           lobbyUrl={"ws://localhost:8080"}
-          gameRelaysReady={gameRelaysReady}
-          setConnections={setConnections}
-          connections={
+          // setConnections={setConnections}
+          gameConnections={
             new Map(
               Array.from(connections.entries()).filter(
                 ([id, connection]) => connection.type === "game"
               )
             )
           }
+          setAddRelayConnections={setAddRelayConnections}
         />
         {/* )} */}
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}

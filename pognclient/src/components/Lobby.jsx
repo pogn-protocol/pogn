@@ -9,7 +9,10 @@ const Lobby = ({
   message,
   connectionUrl,
   setGamesToInit,
+  lobbyId,
+  setRemoveRelayConnections,
 }) => {
+  const [signedIntoLobby, setSignedIntoLobby] = useState(false);
   const [lobbyGames, setLobbyGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [hasJoined, setHasJoined] = useState(false); // Track if the player has joined the game
@@ -24,9 +27,25 @@ const Lobby = ({
     gameId: "",
   });
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
+  const [activePlayerGames, setActivePlayerGames] = useState([]);
 
   useEffect(() => {
-    console.log("lobby useEffect");
+    if (!signedIntoLobby) {
+      console.log("Signing into lobby...");
+      sendMessage({
+        type: "lobby",
+        lobbyId: lobbyId,
+        action: "login",
+        payload: {
+          playerId,
+        },
+      });
+      setSignedIntoLobby(true);
+    }
+  }, [signedIntoLobby, playerId, sendMessage, lobbyId]);
+
+  useEffect(() => {
+    console.log("Lobby Message Received by Loobby");
     if (!message || Object.keys(message).length === 0) {
       console.warn("Invalid message object:", message);
       return;
@@ -55,8 +74,33 @@ const Lobby = ({
             type: "game",
           }));
           console.log("gameRelays", gameRelays);
+          //check if activePlayerGames has games not in player games
+          let staleGames = activePlayerGames
+            .filter(
+              (game) =>
+                !playerGames.some(
+                  (playerGame) => playerGame.gameId === game.gameId
+                )
+            )
+            .map((game) => game.gameId);
+
+          console.log("staleGames", staleGames);
+          setActivePlayerGames(playerGames);
+          setRemoveRelayConnections(staleGames);
           setGamesToInit(playerGames);
         } else {
+          let staleGames = activePlayerGames
+            .filter(
+              (game) =>
+                !playerGames.some(
+                  (playerGame) => playerGame.gameId === game.gameId
+                )
+            )
+            .map((game) => game.gameId);
+
+          console.log("staleGames", staleGames);
+          setActivePlayerGames([]);
+          setRemoveRelayConnections(staleGames);
           console.log("Player is not in any valid game. Staying in the lobby.");
           setSelectedGameId(null);
           setHasJoined(false);

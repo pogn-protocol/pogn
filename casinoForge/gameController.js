@@ -121,8 +121,16 @@ class gameController {
   }
 
   endGame(we, payload) {
-    console.log("Ending game", payload);
-    const { gameId } = payload;
+    const { gameId, playerId } = payload;
+    console.log(
+      "Player",
+      playerId,
+      "is ending game",
+      gameId,
+      "Payload",
+      payload
+    );
+
     console.log(this.activeGames);
     const game = this.activeGames.get(gameId);
     if (!game) {

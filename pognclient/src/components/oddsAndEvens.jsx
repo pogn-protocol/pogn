@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   JsonView,
   allExpanded,
@@ -11,32 +11,45 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
   const [localGameState, setLocalGameState] = useState({
-    //lobbyStatus: "started",
+    gameId: gameId,
+    gameStatus: null,
+    action: null,
     winner: null,
     sum: null,
     roles: {}, // Store the roles assigned by the server
     numbers: {}, // Track submitted numbers
+    initialized: false,
   });
 
-  // Update the localGameState when the gameState changes
-
+  /**
+   * Updates local game state when the game state changes.
+   */
   useEffect(() => {
     console.log(`${gameId} gameState changed`, gameState);
+    if (!gameState) {
+      console.warn("No gameState received.");
+      return;
+    }
     setLocalGameState((prev) => ({
       ...prev,
       ...gameState,
     }));
   }, [gameState]);
 
+  /**
+   * Initializes the game by fetching roles if not already assigned.
+   */
   useEffect(() => {
     console.log("gameState.action fired", localGameState);
+
+    // If the game state is not initialized, fetch roles.
     if (!localGameState.initialized) {
       console.log(
-        gameState.gameId,
-        "Roles not assigned yet. Fetching from the relay..."
+        `${gameId} Roles not assigned yet. Fetching from the relay...`
       );
       setLocalGameState((prev) => ({
-        gameStatus: gameState.gameStatus,
+        ...prev,
+        initialized: true, // Mark as initialized to prevent re-triggering
       }));
       sendGameMessage({
         type: "game",
@@ -44,38 +57,46 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         payload: {
           gameAction: "getRoles",
           playerId,
-          gameId: gameState.gameId,
+          gameId: localGameState.gameId,
         },
       });
+
       return;
     }
-
+    if (localGameState.action == null) {
+      console.log("No action received.");
+      return;
+    }
     switch (localGameState?.action) {
       case "rolesAssigned":
         console.log(gameId, "Roles assigned:", localGameState.roles);
         setRole(localGameState.roles[playerId]);
         setLocalGameState((prev) => ({
           ...prev,
-          gameStatus: gameState.gameStatus,
+          gameStatus: localGameState.gameStatus,
           roles: localGameState.roles,
           initialized: true,
+          action: null,
         }));
         break;
+
       case "waitingForOpponent":
         console.log("Waiting for the other player...");
         setLocalGameState((prev) => ({
           ...prev,
-          gameStatus: gameState.gameStatus,
+          action: null,
         }));
         break;
+
       case "results":
         setLocalGameState((prev) => ({
           ...prev,
-          gameStatus: gameState.gameStatus,
+          gameStatus: localGameState.gameStatus,
           winner: localGameState.winner,
           sum: localGameState.sum,
           roles: localGameState.roles,
           numbers: localGameState.numbers,
+          action: null,
         }));
         console.log("Game results received.");
         break;
@@ -87,100 +108,57 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
           } with message: ${JSON.stringify(localGameState)}`
         );
     }
-  }, [localGameState.action]);
+  }, [
+    localGameState.action,
+    localGameState.roles,
+    gameId,
+    playerId,
+    sendGameMessage,
+  ]);
 
-  const handleSubmitNumber = () => {
-    console.log("Submitting number:", number);
+  /**
+   * Handle number submission.
+   */
+  const handleNumberSubmit = () => {
+    if (number.trim() === "" || isNaN(number)) {
+      console.warn("Invalid number submission");
+      return;
+    }
+
     sendGameMessage({
       type: "game",
       action: "gameAction",
       payload: {
-        game: "odds-and-evens",
         gameAction: "submitNumber",
         playerId,
-        number: parseInt(number, 10),
-        gameStatus: localGameState.gameStatus,
         gameId: localGameState.gameId,
+        number: parseInt(number, 10), // Ensure it's an integer
       },
     });
-    setNumber(""); // Clear input after submission
+
+    setNumber(""); // Clear the input after submission
   };
 
   return (
-    <div className="mb-5">
-      <h2>Odds and Evens</h2>
-
-      {/* Display current local gameStatus for debugging */}
-      <div>
-        <h3>Local Game State</h3>
-        {/* <pre>{JSON.stringify(localGameState, null, 2)}</pre> */}
-
-        <JsonView
-          data={localGameState}
-          shouldExpandNode={(level) => level === 0} // Expand only the first level
-          style={{ fontSize: "14px", lineHeight: "1.2" }}
-        />
-      </div>
-
-      {/* Game Waiting State */}
-      {localGameState.gameStatus === "waiting" && (
-        <p>Odds and Evens Waiting to start...</p>
-      )}
-
-      {/* Game In Progress */}
-      {localGameState.gameStatus === "in-progress" && role && (
-        <div>
-          <p>
-            Your Role: <strong>{role.toUpperCase()}</strong>
-          </p>
-          <p>Enter a number:</p>
-          <input
-            type="number"
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            min="1"
-            required
-          />
-          <button onClick={handleSubmitNumber} disabled={!number}>
-            Submit Number
-          </button>
-        </div>
-      )}
-
-      {/* Game Complete */}
-      {localGameState.gameStatus === "complete" && (
-        <div>
-          <p>
-            <strong>Winner:</strong> {localGameState.winner}
-          </p>
-          <p>
-            <strong>Sum of Numbers:</strong> {localGameState.sum}
-          </p>
-          <h4>Roles:</h4>
-          <ul>
-            {Object.entries(localGameState.roles).map(
-              ([player, assignedRole]) => (
-                <li key={player}>
-                  Player {player}: <strong>{assignedRole.toUpperCase()}</strong>
-                </li>
-              )
-            )}
-          </ul>
-          <h4>Numbers:</h4>
-          <ul>
-            {Object.entries(localGameState.numbers).map(
-              ([player, submittedNumber]) => (
-                <li key={player}>
-                  Player {player}: <strong>{submittedNumber}</strong>
-                </li>
-              )
-            )}
-          </ul>
-        </div>
-      )}
-      {/* Kill Game */}
+    <div>
+      <h2>Odds and Evens Game</h2>
+      <p>Game ID: {gameId}</p>
+      <p>Role: {role || "Unknown"}</p>
+      <p>Number: {number || "None"}</p>
+      <input
+        type="number"
+        value={number}
+        onChange={(e) => setNumber(e.target.value)}
+        placeholder="Enter a number"
+      />
+      <button onClick={handleNumberSubmit}>Submit Number</button>
+      <JsonView
+        data={localGameState}
+        shouldExpandNode={(level) => level === 0}
+        style={{ fontSize: "14px", lineHeight: "1.2" }}
+      />
       <button
-        onClick={() => {
+        onClick={() =>
           sendGameMessage({
             type: "game",
             action: "endGame",
@@ -188,8 +166,8 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
               playerId,
               gameId: localGameState.gameId,
             },
-          });
-        }}
+          })
+        }
       >
         Kill Game
       </button>
