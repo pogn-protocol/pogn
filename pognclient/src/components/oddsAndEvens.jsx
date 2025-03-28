@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { use } from "react";
 import {
   JsonView,
   allExpanded,
@@ -20,6 +21,10 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
     numbers: {}, // Track submitted numbers
     initialized: false,
   });
+
+  useEffect(() => {
+    console.log("Warning gameId changed", gameId);
+  }, [gameId]);
 
   /**
    * Updates local game state when the game state changes.
@@ -52,9 +57,9 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         initialized: true, // Mark as initialized to prevent re-triggering
       }));
       sendGameMessage({
-        type: "game",
-        action: "gameAction",
         payload: {
+          type: "game",
+          action: "gameAction",
           gameAction: "getRoles",
           playerId,
           gameId: localGameState.gameId,
@@ -126,9 +131,9 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
     }
 
     sendGameMessage({
-      type: "game",
-      action: "gameAction",
       payload: {
+        type: "game",
+        action: "gameAction",
         gameAction: "submitNumber",
         playerId,
         gameId: localGameState.gameId,
@@ -160,9 +165,9 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
       <button
         onClick={() =>
           sendGameMessage({
-            type: "game",
-            action: "endGame",
             payload: {
+              type: "game",
+              action: "endGame",
               playerId,
               gameId: localGameState.gameId,
             },

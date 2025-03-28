@@ -87,9 +87,10 @@ class RelayConnector {
     console.log(`✅ Relay-to-relay connection established.`);
     socket.send(
       JSON.stringify({
-        type: "game",
-        action: "test",
+        relayId: this.targetId,
         payload: {
+          type: "hello",
+          type: "game",
           id: this.clientId,
           message: "Hello from relay connector",
         },

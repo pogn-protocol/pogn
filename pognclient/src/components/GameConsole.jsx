@@ -26,13 +26,25 @@ const GameConsole = ({
       console.log("No message received.");
       return;
     }
-
     console.log("Processing Game message:", message);
-    const { action, payload } = message;
+    const { payload } = message;
+    if (!payload) {
+      console.warn("No payload in message:", message);
+      return;
+    }
+    const { type, action } = payload;
+    if (type !== "game") {
+      console.warn("Message sent to game not of type game:", type);
+      return;
+    }
+    if (!action) {
+      console.warn("No action in payload:", payload);
+      return;
+    }
     const gameId = payload?.gameId;
 
-    if (!action || !payload || !gameId) {
-      console.warn("Invalid message received:", message);
+    if (!gameId) {
+      console.warn("No gameId in payload:", payload);
       return;
     }
     switch (action) {
@@ -59,8 +71,6 @@ const GameConsole = ({
   useEffect(() => {
     if (gamesToInit.length > 0) {
       console.log("🚀 Initializing new games:", gamesToInit);
-      //initNewGames(gamesToInit);
-
       setAddRelayConnections(
         gamesToInit.map((game) => ({
           id: game.gameId,
@@ -94,15 +104,12 @@ const GameConsole = ({
     }
   }, [gameConnections, gamesToInit]);
 
-  // Initialize new games based on connection updates
   const initNewGames = (games) => {
     console.log("Initializing games", games);
     console.log("gameConnections", gameConnections);
     games.forEach((game) => {
       const gameId = game.gameId;
       const connection = gameConnections.get(gameId);
-
-      // Check if connection exists and is ready
       if (connection && connection.readyState === 1) {
         console.log("Game to Init:", game);
         updateGameState(gameId, game); // ✅ Centralized update
@@ -117,10 +124,9 @@ const GameConsole = ({
     setGameStates((prevStates) => {
       const updatedMap = new Map(prevStates);
       const currentGameState = updatedMap.get(gameId) || {};
-
       updatedMap.set(gameId, {
         ...currentGameState,
-        ...newState, // Merge new state with existing state
+        ...newState,
       });
       console.log(updatedMap);
       return updatedMap;
@@ -140,9 +146,7 @@ const GameConsole = ({
       case "rock-paper-scissors":
         return (
           <RockPaperScissors
-            sendGameMessage={
-              (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
-            }
+            sendGameMessage={(msg) => sendGameMessage(gameId, { ...msg })}
             playerId={playerId}
             gameState={gameState}
             gameId={gameId}
@@ -152,9 +156,7 @@ const GameConsole = ({
         console.log("Rendering Odds and Evens component...", gameState);
         return (
           <OddsAndEvens
-            sendGameMessage={
-              (msg) => sendGameMessage(gameId, { ...msg }) // Include gameId in every message
-            }
+            sendGameMessage={(msg) => sendGameMessage(gameId, { ...msg })}
             playerId={playerId}
             gameState={gameState}
             gameId={gameId}
@@ -179,7 +181,7 @@ const GameConsole = ({
         {Array.from(gameStates.entries())
           .filter(([, gameState]) => gameState.lobbyStatus === "started")
           .map(([gameId, gameState]) => {
-            const wsAddress = gameState.wsAddress; // Access wsAddress from gameState
+            const wsAddress = gameState.wsAddress;
             const connectionState = gameConnections.get(gameId)?.readyState;
             console.log(gameConnections);
             console.log("Connection state:", connectionState);

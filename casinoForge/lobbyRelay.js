@@ -2,28 +2,56 @@ const Relay = require("./relay");
 
 class LobbyRelay extends Relay {
   constructor(lobbyId, ports, lobbyController, targetUrl = null) {
-    super("lobby", lobbyId, ports); // Pass targetUrl for potential relay connections
+    super("lobby", lobbyId, ports);
     this.lobbyController = lobbyController;
     this.relayConnections = new Map();
   }
 
   async processMessage(ws, message) {
-    console.log("🎰 LobbyRelay Processing Message:", message);
-    //console.log("ws", ws);
-    // ✅ Extract type, action and payload from message
-
-    const { type, action, payload } = message;
-    if (payload.lobbyId !== this.id) {
+    const response = {
+      relayId: this.id,
+      payload: {
+        type: null,
+        action: null,
+        lobbyId: null,
+        playerId: null,
+      },
+    };
+    console.log(`Processing message in lobby relay ${this.id}:`, message);
+    if (message?.relayId !== this.id) {
       console.error(
-        "Lobby relay received message for different lobby:",
-        payload.lobbyId
+        `Lobby relay ${this.id} received message for ${message.relayId} relay:`,
+        message
       );
       return;
     }
+
+    const payload = message.payload;
+    if (!payload) {
+      console.error("No payload in message:", message);
+      return;
+    }
+    const { type, action, lobbyId, playerId } = payload;
+    if (!lobbyId) {
+      console.error("No lobbyId in payload:", payload);
+      return;
+    }
+    if (!type || type !== "lobby") {
+      console.error("Type not set to lobby:", type);
+      return;
+    }
+    if (!action) {
+      console.error("No action in payload:", payload);
+      return;
+    }
+    if (!playerId) {
+      console.warn("No playerId in payload.");
+      return; // ✅ Return early
+    }
+
     if (type === "test") {
       console.warn("Lobby relay received test message:", type);
       console.log("message", message);
-      //set websocket
       const oldId = [...this.webSocketMap.keys()].find(
         (key) => this.webSocketMap.get(key) === ws
       );
@@ -35,32 +63,22 @@ class LobbyRelay extends Relay {
         this.webSocketMap.delete(oldId); // Remove the old ID
       }
 
-      // Set the WebSocket with the correct gameId as the key
       this.webSocketMap.set(payload.gameId, ws);
-      //console.log("WebSocket Map:", this.webSocketMap);
       return;
     }
 
-    if (type !== "lobby") {
-      console.warn("Message sent to lobby not of type lobby:", type);
-      return; // ✅ Return early
-    }
     console.log("Processing lobby message:", { action, payload });
-
-    if (!payload?.playerId) {
-      console.warn("No playerId in payload.");
-      return; // ✅ Return early
-    }
-
-    const playerId = payload.playerId;
     const existingSocket = this.webSocketMap.get(playerId);
 
     if (existingSocket && existingSocket !== ws) {
       console.log(`Player ${playerId} reconnected. Replacing old WebSocket.`);
       existingSocket.send(
         JSON.stringify({
-          type: "notification",
           payload: {
+            type: "lobby",
+            action: "disconnected",
+            playerId,
+            lobbyId: payload.lobbyId,
             message: "You have been disconnected due to a new connection.",
           },
         })
@@ -81,7 +99,7 @@ class LobbyRelay extends Relay {
     this.webSocketMap.set(playerId, ws);
     console.log(`Player ${playerId} added to WebSocket map.`);
 
-    let response =
+    response =
       action === "login"
         ? await this.lobbyController.testGames(payload.lobbyId)
         : this.lobbyController.processMessage(message);
@@ -90,10 +108,7 @@ class LobbyRelay extends Relay {
       console.warn("No lobbyId in payload.");
       response.payload.lobbyId = payload.lobbyId;
     }
-    // //if no response.lobbyId add this.id
-    // if (response && !response.lobbyId) {
-    //   response.lobbyId = this.id;
-    // }
+    response.relayId = this.id;
     if (response) {
       console.log("Sending lobby response to player:", playerId);
       this.sendResponse(playerId, response);

@@ -31,8 +31,6 @@ class Game {
     this.gameLog.push(action);
   }
 
-  // Return the game details in a serializable format
-
   getGameDetails() {
     const instanceDetails = this.instance.getGameDetails(); // Dynamically get details
     return {

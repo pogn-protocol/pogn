@@ -22,21 +22,64 @@ class GameRelay extends Relay {
   }
 
   processMessage(ws, message) {
+    const response = {
+      relayId: null,
+      payload: {
+        type: null,
+        action: null,
+        gameId: null,
+        playerId: null,
+      },
+    };
+
     console.log("GameRelay for games:", this.gameIds);
     console.log("🎮 GameRelay Processing Message:", message);
 
-    const { type, action, payload } = message;
-    //type test console
+    if (message?.relayId !== this.relayId) {
+      console.error(
+        `Game relay ${this.relayId} received message for different relay:`,
+        message.relayId
+      );
+      response.error = `Game relay ${this.relayId} received message for different relay:`;
+    }
+
+    const payload = message.payload;
+    if (!payload) {
+      console.error("No payload in message:", message);
+      response.error = "No payload in message";
+    }
+    const { type, action, gameId, playerId } = payload;
+    if (!gameId) {
+      console.warn("No gameId in payload:", payload);
+      response.error = "No gameId in payload";
+    }
+    if (!type || type !== "game") {
+      console.error("Type not set to game:", type);
+      response.error = "Type not set to game";
+    }
+    if (!action) {
+      console.error("No action in payload:", payload);
+      response.error = "No action in payload";
+    }
+    if (!playerId) {
+      console.error("No playerId in payload.");
+      response.error = "No playerId in payload";
+    }
+    if (response.error) {
+      this.sendResponse(ws, response);
+      return;
+    }
+
     if (action === "test") {
       console.warn("⚠️ Test Message Recieved:", type);
       console.log("message", message);
-      this.webSocketMap.set(payload.id, ws);
-      this.sendToLobbyRelay(payload.id, {
-        type: "test",
+      this.webSocketMap.set(payload.lobbyId, ws);
+      this.sendToLobbyRelay(payload.lobbyId, {
+        relayId: this.relayId,
         payload: {
-          lobbyId: this.lobbyId,
-          relayType: this.type,
-          gameId: this.relayId,
+          type: "test",
+          gameId: payload.gameId,
+          lobbyId: payload.lobbyId,
         },
       });
       return;
@@ -45,8 +88,6 @@ class GameRelay extends Relay {
       console.warn("⚠️ Message sent to game not of type game:", type);
       return;
     }
-    const gameId = payload?.gameId;
-    //check if gameId matches this.gameIds
     if (!this.gameIds.includes(gameId)) {
       console.warn("⚠️ Game not found in this relay.");
       return;
@@ -57,13 +98,23 @@ class GameRelay extends Relay {
       return;
     }
 
-    const playerId = payload?.playerId;
     if (playerId) {
       this.webSocketMap.set(playerId, ws);
       console.log(`✅ WebSocket mapped to real player ID: ${playerId}`);
     }
     try {
-      this.gameController.processMessage(ws, message);
+      response = this.gameController.processMessage(ws, message);
+      console.log("GameRelay response:", response);
+      if (response?.private) {
+        this.sendResponse(ws, response.private);
+      }
+      //remove private from response
+      delete response.private;
+      if (response?.broadcast) {
+        this.broadcastResponse(response);
+      } else {
+        this.sendResponse(ws, response);
+      }
     } catch (error) {
       console.error("❌ GameRelay Error processing message:", error);
     }

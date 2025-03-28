@@ -5,17 +5,16 @@ const Game = require("./game");
 class gameController {
   constructor(gamePorts = [], lobbyWsUrl, relayManager) {
     if (gameController.instance) return gameController.instance;
-    gameController.instance = this; // Singleton instance// Store active games
+    gameController.instance = this;
     this.gameClasses = {
-      "rock-paper-scissors": RockPaperScissors, // Register supported games here
+      "rock-paper-scissors": RockPaperScissors,
       "odds-and-evens": OddsAndEvens,
     };
-    this.activeGames = new Map(); // Store active game instances
-    this.gamePorts = gamePorts; // Store available game ports
+    this.activeGames = new Map();
+    this.gamePorts = gamePorts;
 
     this.messageHandlers = {
       gameAction: this.handleGameAction.bind(this),
-      //gameEnded: this.handleGameEnded.bind(this),
       endGame: this.endGame.bind(this),
     };
 
@@ -25,7 +24,6 @@ class gameController {
   }
 
   processMessage(ws, message) {
-    console.log("Preserved messages", this.messages);
     console.log("Processing game message:", message);
     const { type, action, payload } = message;
 
@@ -68,17 +66,11 @@ class gameController {
         game.logAction(gameResponse.logEntry);
         console.log("gameResponse", gameResponse);
         console.log("logEntry", gameResponse.logEntry);
-        // const response = {
-        //   type: "game",
-        //   action: "gameAction",
-        //   payload: { ...gameResponse, gameState: game.gameState, game },
-        //   broadcast: true,
-        // };
 
         const response = {
-          type: "game",
-          action: "gameAction",
           payload: {
+            type: "game",
+            action: "gameAction",
             ...Object.fromEntries(
               Object.entries(gameResponse).filter(([key]) => key !== "private")
             ),
@@ -94,22 +86,25 @@ class gameController {
         console.log("gameController Broadcasting to relay", game.relayId);
         console.log(this.relayManager.relays);
         console.log(this.relayManager.relays.get(game.relayId));
-        this.relayManager.relays.get(game.relayId).broadcastResponse(response);
-        if (gameResponse.private) {
-          const privateResponse = {
-            type: "game",
-            action: "gameAction",
-            payload: { gameId: game.gameId, private: gameResponse.private },
-          };
-          console.log(
-            "gameController Sending private gameAction response",
-            privateResponse
-          );
+        //this.relayManager.relays.get(game.relayId).broadcastResponse(response);
+        // if (gameResponse.private) {
+        //   const privateResponse = {
+        //     payload: {
+        //       type: "game",
+        //       action: "gameAction",
+        //       gameId: game.gameId,
+        //       private: gameResponse.private,
+        //     },
+        //   };
+        //   console.log(
+        //     "gameController Sending private gameAction response",
+        //     privateResponse
+        //   );
 
-          this.relayManager.relays
-            .get(game.relayId)
-            .sendResponse(payload.playerId, privateResponse);
-        }
+        //   this.relayManager.relays
+        //     .get(game.relayId)
+        //     .sendResponse(payload.playerId, privateResponse);
+        // }
         return response;
       } catch (error) {
         console.error(`❌ Error processing game action:`, error);
@@ -143,28 +138,21 @@ class gameController {
     game.gameLog.push("Game ended.");
     console.log("gameRelay", this.relayManager.relays.get(game.relayId));
     this.relayManager.relays.get(game.relayId).sendToLobbyRelay(game.lobbyId, {
-      type: "lobby",
-      action: "gameEnded",
-      lobbyId: game.lobbyId,
       payload: {
+        type: "lobby",
+        action: "gameEnded",
+        lobbyId: game.lobbyId,
         playerId: gameId,
         gameId: gameId,
         lobbyStatus: "ended",
-        gameLog: game.gameLog, // Include game history
+        gameLog: game.gameLog,
       },
     });
-    // setTimeout(() => {
-    //   console.log("Shutting down game relay...");
-    //   this.relayManager.relays.get(game.relayId).shutdown();
-    // }, 3000);
-
     this.activeGames.get(gameId).lobbyStatus = "ended";
     this.activeGames.get(gameId).gameLog.push("Game ended.");
     console.log("active games", this.activeGames);
     return {
-      type: "game",
-      action: "gameEnded",
-      payload: { gameId },
+      payload: { type: "game", action: "gameEnded", gameId },
       broadcast: true,
     };
   }
@@ -177,18 +165,6 @@ class gameController {
     }
     gameRelay.broadcastResponse(message);
   }
-
-  // handleGameEnded(payload) {
-  //   console.log(`Game ${payload.gameId} ended.`);
-  //   this.activeGames.delete(payload.gameId);
-
-  //   this.broadcastToGamePlayers(payload.gameId, {
-  //     type: "game",
-  //     action: "gameEnded",
-  //     payload: {},
-  //     broadcast: true,
-  //   });
-  // }
 
   createGame(gameType, createRelay, lobbyId, gameId) {
     console.log(
@@ -208,19 +184,6 @@ class gameController {
     game.lobbyId = lobbyId;
     const gameInstance = new this.gameClasses[gameType]();
     game.setGameInstance(gameInstance);
-
-    // const relay = this.relayManager.createRelay("game", game.gameId, {
-    //   ports: this.gamePorts,
-    //   controller: this,
-    //   lobbyId: lobbyId,
-    // });
-
-    // const relay = relays[0];
-    // console.log("relay", relay);
-    //   game.relayId = relay.id;
-    //game.wsAddress = relay.wsAddress;
-
-    console.log("game", game);
     return game;
   }
 

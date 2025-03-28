@@ -29,15 +29,14 @@ window.addEventListener("unhandledrejection", function (event) {
 });
 
 const App = () => {
-  const [playerId, setPlayerId] = useState(null); // Only open WebSocket after this is set
+  const [playerId, setPlayerId] = useState(null);
   const [gamesToInit, setGamesToInit] = useState([]);
   const [messages, setMessages] = useState({});
-  const [sendMessageToUrl, setSendMessageToUrl] = useState(() => () => {}); // ✅ State to hold the sendMessageToUrl funct
+  const [sendMessageToUrl, setSendMessageToUrl] = useState(() => () => {});
   const [addRelayConnections, setAddRelayConnections] = useState([]);
   const [gameMessages, setGameMessages] = useState({});
   const [lobbyMessages, setLobbyMessages] = useState({});
   const [connections, setConnections] = useState(new Map());
-  //setRemoveRelayConnections
   const [removeRelayConnections, setRemoveRelayConnections] = useState([]);
   const [lobbiesInitialized, setLobbiesInitialized] = useState(false);
 
@@ -60,25 +59,7 @@ const App = () => {
 
     setAddRelayConnections(initialLobbyUrls);
     setLobbiesInitialized(true);
-    //}
   }, [lobbiesInitialized, playerId]);
-
-  //send lobby login mg for all lobby connections when they are ready
-
-  //add lobby connection when playerId is set
-  // useEffect(() => {
-  //   if (!playerId) {
-  //     console.warn("⚠️ Player ID not set. Skipping URL setup...");
-  //     return;
-  //   }
-  //   console.log("🔗 Adding lobby connection...");
-  //   const lobbyUrl = {
-  //     id: "defaultLobby1",
-  //     url: "ws://localhost:8080",
-  //     type: "lobby",
-  //   };
-  //   setAddRelayConnections([lobbyUrl]);
-  // }, [playerId]);
 
   useEffect(() => {
     console.log("🔥 App.jsx Re-Rendered!");
@@ -97,40 +78,56 @@ const App = () => {
       return;
     }
     message.uuid = uuidv4();
+    message.relayId = id;
     console.log(
       `🚀 Sending message to ${id} with UUID ${message.uuid}`,
       message
     );
-    //connection.sendJsonMessage(message);
     sendMessageToUrl(id, message);
   };
+
   const handleMessage = (id, message) => {
     console.log(`📩 Received from ${id}:`, message);
+    if (message.uuid) {
+      console.warn("Message UUID:", message.uuid);
+    }
+    console.log("Message UUID:", message.uuid);
+    if (!message) {
+      console.warn("⚠️ No message received");
+      return;
+    }
+    if (message.error) {
+      console.error("⚠️ Error in message:", message.error);
+      return;
+    }
     setMessages((prev) => ({
       ...prev,
       [id]: [...(prev[id] || []), message],
     }));
     console.log(messages);
     if (message.type === "lobby") {
-      if (!message.payload.lobbyId || message.payload.lobbyId === undefined) {
+      const lobbyId = message.payload.lobbyId;
+      if (!lobbyId || lobbyId === undefined) {
         console.warn("⚠️ Lobby ID not found in message payload");
       }
-      const lobbyId = message.payload.lobbyId;
       console.log("🎰 Setting Lobby Message lobbyId:", lobbyId, message);
       setLobbyMessages((prev) => {
         const newMessages = {
           ...prev,
           [lobbyId]: [...(prev[lobbyId] || []), message],
         };
-        console.log("Updated lobbyMessages", newMessages); // <<<< Correct logging
+        console.log("Updated lobbyMessages", newMessages);
         return newMessages;
       });
       console.log(lobbyMessages);
       return;
     }
 
-    if (message.type === "game") {
-      const gameId = message.payload.gameId || id; // Fallback to connection ID if gameId is not present
+    if (message.payload === "game") {
+      const gameId = message.payload.gameId;
+      if (!gameId || gameId === undefined) {
+        console.warn("⚠️ Game ID not found in message payload");
+      }
       console.log("🎰 Setting Game Message gameId:", gameId, message);
       setGameMessages((prev) => ({
         ...prev,
@@ -205,7 +202,6 @@ const App = () => {
           sendLobbyMessage={(id, msg) => handleSendMessage(id, msg)}
           gamesToInit={gamesToInit}
           lobbyUrl={"ws://localhost:8080"}
-          // setConnections={setConnections}
           gameConnections={
             new Map(
               Array.from(connections.entries()).filter(
@@ -217,8 +213,6 @@ const App = () => {
           setGamesToInit={setGamesToInit}
           gameMessages={gameMessages}
         />
-        {/* )} */}
-        {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}
         <div className=" mt-3">
           {/* Render Lobby Messages */}
           {Object.keys(lobbyMessages)

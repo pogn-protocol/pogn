@@ -7,7 +7,6 @@ const Lobby = ({
   playerId,
   sendMessage,
   message,
-  connectionUrl,
   setGamesToInit,
   lobbyId,
   setRemoveRelayConnections,
@@ -39,9 +38,9 @@ const Lobby = ({
           `✅ Lobby ${lobbyId} connection established. Sending login...`
         );
         sendMessage({
-          type: "lobby",
-          action: "login",
           payload: {
+            type: "lobby",
+            action: "login",
             lobbyId: lobbyId,
             playerId,
           },
@@ -62,7 +61,40 @@ const Lobby = ({
     setLobbyMessagesReceived((prev) => [...prev, message]);
 
     console.log("Processing Lobby message:", message);
-    const { action, payload } = message;
+    const { payload } = message;
+    if (!payload) {
+      console.warn("No payload in message:", message);
+      return; // ✅ Return early
+    }
+    const { type, action } = payload;
+    if (type !== "lobby") {
+      console.warn("Message sent to lobby not of type lobby:", type);
+      return; // ✅ Return early
+    }
+    if (!action) {
+      console.warn("No action in payload:", payload);
+      return; // ✅ Return early
+    }
+    const gameId = payload?.gameId;
+    const playerId = payload?.playerId;
+    const lobbyId = payload?.lobbyId;
+
+    console.log(
+      "LobbyId",
+      lobbyId,
+      "PlayerId",
+      playerId,
+      "GameId",
+      gameId,
+      "Action",
+      action,
+      "Payload",
+      payload
+    );
+    if ((!gameId, !playerId, !lobbyId)) {
+      console.warn("Missing gameId, playerId, or lobbyId in payload:", payload);
+      return; // ✅ Return early
+    }
 
     switch (action) {
       case "refreshLobby":
@@ -102,7 +134,6 @@ const Lobby = ({
     console.log("Selected Game:", selectedGame);
 
     if (selectedGame) {
-      // Check the types for debugging
       if (selectedGame.players?.length > 0) {
         console.log(
           "Type of selectedGame.players[0]:",
@@ -112,12 +143,10 @@ const Lobby = ({
       }
       console.log("Type of playerId:", typeof playerId, playerId);
 
-      // Check if the current player is in the game's players list
       const isPlayerInGame =
         selectedGame.players?.some((player) => player === String(playerId)) ||
         false;
       console.log("isPlayerInGame", isPlayerInGame);
-      // Update states
       setIsJoining(false);
       setHasJoined(isPlayerInGame); // Correctly update hasJoined state
       setSelectedGameId(gameId); // Highlight the selected game
@@ -135,11 +164,10 @@ const Lobby = ({
   const handleStartGame = () => {
     console.log("Starting game...", selectedGamestate.gameId);
     sendMessage({
-      type: "lobby",
-      lobbyId: "default",
-      action: "startGame",
       payload: {
-        // selectedGamestate,
+        type: "lobby",
+        lobbyId: lobbyId,
+        action: "startGame",
         playerId,
         gameId: selectedGamestate.gameId,
       },
@@ -149,12 +177,11 @@ const Lobby = ({
   const handleListGames = () => {
     console.log(`${playerId} listing games...`);
     sendMessage({
-      type: "lobby",
-      lobbyId: "default",
-      action: "refreshLobby",
       payload: {
+        type: "lobby",
+        lobbyId: lobbyId,
+        action: "refreshLobby",
         playerId,
-        gameId: "refreshLobby",
       },
     });
   };
@@ -162,10 +189,10 @@ const Lobby = ({
   const handleCreateGame = () => {
     console.log(`${playerId} creating game of type ${selectedGameType}`);
     sendMessage({
-      type: "lobby",
-      lobbyId: "default",
-      action: "createNewGame",
       payload: {
+        type: "lobby",
+        lobbyId: lobbyId,
+        action: "createNewGame",
         gameType: selectedGameType, // Include game type
         playerId,
         gameId: "new",
@@ -177,10 +204,10 @@ const Lobby = ({
     console.log(`${playerId} joining game... ${selectedGamestate.gameId}`);
     setIsJoining(true);
     sendMessage({
-      type: "lobby",
-      lobbyId: "default",
-      action: "joinGame",
       payload: {
+        type: "lobby",
+        lobbyId: lobbyId,
+        action: "joinGame",
         game: "rock-paper-scissors",
         playerId,
         gameId: selectedGamestate.gameId,
