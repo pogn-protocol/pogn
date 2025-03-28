@@ -80,33 +80,6 @@ const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
       console.log(`❌ WebSocket error for ${id}`);
     }
   }, [readyState, updateConnection]);
-  // const updateConnection = useCallback(
-  //   (stateUpdate) => {
-  //     setConnections((prev) => {
-  //       const newMap = new Map(prev);
-  //       const existing = newMap.get(id) || {};
-  //       newMap.set(id, { ...existing, ...stateUpdate });
-  //       return new Map([...newMap]);
-  //     });
-  //   },
-  //   [id, setConnections]
-  // );
-
-  // // ✅ Handle connection state changes
-  // useEffect(() => {
-  //   if (readyState === 1) {
-  //     console.log(`✅ WebSocket connected for ${id}`);
-  //     updateConnection({ sendJsonMessage, readyState: 1, url, type }); // Include 'type' here
-  //   } else if (readyState === 3) {
-  //     console.log(`🛑 WebSocket closed for ${id}`);
-  //     updateConnection({ readyState: 3 });
-  //   } else if (readyState === -1) {
-  //     console.log(`❌ WebSocket error for ${id}`);
-  //     updateConnection({ readyState: -1 });
-  //   }
-  // }, [readyState, sendJsonMessage, updateConnection]);
-
-  // ✅ Handle incoming messages
 
   useEffect(() => {
     if (
@@ -123,7 +96,6 @@ const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
   return { sendJsonMessage, readyState };
 };
 
-// Component for a single relay
 const RelayItem = ({
   id,
   url,
@@ -141,25 +113,25 @@ const RelayItem = ({
   });
 
   return (
-    <div>
-      <h5>Relay ID: {id}</h5>
-      <p>
-        Ready State:{" "}
-        {readyState === 1
-          ? "Connected"
-          : readyState === 0
-          ? "Connecting"
-          : readyState === 3
-          ? "Closed"
-          : "Unknown"}
-      </p>
+    <div className=" border rounded shadow-sm w-52">
       <button
+        className="w-full p-2 bg-blue-500 rounded hover:bg-blue-600 active:bg-blue-700 transition"
         onClick={() => {
           console.log("🔔 Ping button clicked!");
           sendMessageToRelay(id, { action: "ping" });
         }}
       >
-        Send Ping
+        <div className="text-xs font-semibold">ID: {id}</div>
+        <div className="text-xs opacity-80">
+          {readyState === 1
+            ? "✅ Connected"
+            : readyState === 0
+            ? "🟡 Connecting..."
+            : readyState === 3
+            ? "🔴 Closed"
+            : "⚪️ Unknown"}
+        </div>
+        <div className="text-xs mt-1">Click to Ping 🛎️</div>
       </button>
     </div>
   );
@@ -240,8 +212,7 @@ const RelayManager = ({
   }, [removeRelayConnections, setConnections]);
 
   return (
-    <div>
-      <h2>Relays</h2>
+    <div className="d-flex flex-row">
       {Array.from(connections.values()).map((relay) => (
         <RelayItem
           key={relay.id}

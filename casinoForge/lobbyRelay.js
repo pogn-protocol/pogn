@@ -86,10 +86,14 @@ class LobbyRelay extends Relay {
         ? await this.lobbyController.testGames(payload.lobbyId)
         : this.lobbyController.processMessage(message);
     console.log("Lobby response", response);
-    //if no response.lobbyId add this.id
-    if (response && !response.lobbyId) {
-      response.lobbyId = this.id;
+    if (!response.payload.lobbyId) {
+      console.warn("No lobbyId in payload.");
+      response.payload.lobbyId = payload.lobbyId;
     }
+    // //if no response.lobbyId add this.id
+    // if (response && !response.lobbyId) {
+    //   response.lobbyId = this.id;
+    // }
     if (response) {
       console.log("Sending lobby response to player:", playerId);
       this.sendResponse(playerId, response);

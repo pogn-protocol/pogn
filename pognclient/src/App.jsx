@@ -112,7 +112,10 @@ const App = () => {
     }));
     console.log(messages);
     if (message.type === "lobby") {
-      const lobbyId = message.payload.lobbyId || id; // Fallback to connection ID if lobbyId is not present
+      if (!message.payload.lobbyId || message.payload.lobbyId === undefined) {
+        console.warn("⚠️ Lobby ID not found in message payload");
+      }
+      const lobbyId = message.payload.lobbyId;
       console.log("🎰 Setting Lobby Message lobbyId:", lobbyId, message);
       setLobbyMessages((prev) => {
         const newMessages = {
@@ -151,23 +154,12 @@ const App = () => {
   return (
     <ErrorBoundary>
       <div className="container mt-5">
+        <Player setPlayerId={setPlayerId} />
+        {playerId && <Dashboard playerName="Player" playerId={playerId} />}
         <div>
           {addRelayConnections && addRelayConnections.length > 0 ? (
             <>
-              <h1>WebSocketManager</h1>
-              <button
-                onClick={() =>
-                  handleSendMessage("defaultLobby1", {
-                    type: "lobby",
-                    action: "login",
-                    payload: {
-                      playerId: playerId,
-                    },
-                  })
-                }
-              >
-                Send Login Message
-              </button>
+              <h3 className="mt-3">Connections:</h3>
               <WebSocketManager
                 addRelayConnections={addRelayConnections}
                 onMessage={handleMessage}
@@ -178,85 +170,10 @@ const App = () => {
               />
             </>
           ) : (
-            <p>No initial URLs provided.</p>
+            <p>No connections open...</p>
           )}
-
-          <div>
-            {/* Render Lobby Messages */}
-            {Object.keys(lobbyMessages)
-              .sort()
-              .map((id, index) => (
-                <div key={index}>
-                  <h3>Lobby Messages from {id}:</h3>
-
-                  {lobbyMessages[id].length > 1 && (
-                    <details style={{ marginBottom: "8px" }}>
-                      <summary>
-                        Previous Messages ({lobbyMessages[id].length - 1})
-                      </summary>
-                      {lobbyMessages[id].slice(0, -1).map((msg, msgIndex) => (
-                        <JsonView
-                          data={msg}
-                          key={`prev-lobby-${id}-${msgIndex}`}
-                          shouldExpandNode={() => false} // Always collapsed
-                          style={{ fontSize: "14px", lineHeight: "1.2" }}
-                        />
-                      ))}
-                    </details>
-                  )}
-
-                  {/* Last message displayed open */}
-                  {lobbyMessages[id].slice(-1).map((msg, msgIndex) => (
-                    <JsonView
-                      data={msg}
-                      key={`last-lobby-${id}-${msgIndex}`}
-                      shouldExpandNode={(level) => level === 0} // Only expand the first level of the latest message
-                      style={{ fontSize: "14px", lineHeight: "1.2" }}
-                    />
-                  ))}
-                </div>
-              ))}
-
-            {/* Render Game Messages */}
-            {Object.keys(gameMessages)
-              .sort()
-              .map((id, index) => (
-                <div key={index}>
-                  <h3>Game Messages from {id}:</h3>
-
-                  {gameMessages[id].length > 1 && (
-                    <details style={{ marginBottom: "8px" }}>
-                      <summary>
-                        Previous Messages ({gameMessages[id].length - 1})
-                      </summary>
-                      {gameMessages[id].slice(0, -1).map((msg, msgIndex) => (
-                        <JsonView
-                          data={msg}
-                          key={`prev-game-${id}-${msgIndex}`}
-                          shouldExpandNode={() => false} // Always collapsed
-                          style={{ fontSize: "14px", lineHeight: "1.2" }}
-                        />
-                      ))}
-                    </details>
-                  )}
-
-                  {/* Last message displayed open */}
-                  {gameMessages[id].slice(-1).map((msg, msgIndex) => (
-                    <JsonView
-                      data={msg}
-                      key={`last-game-${id}-${msgIndex}`}
-                      shouldExpandNode={(level) => level === 0} // Only expand the first level of the latest message
-                      style={{ fontSize: "14px", lineHeight: "1.2" }}
-                    />
-                  ))}
-                </div>
-              ))}
-          </div>
         </div>
-        <h1>Game App</h1>
-        {/* Generate playerId in Player component */}
-        <Player setPlayerId={setPlayerId} />
-        {playerId && <Dashboard playerName="Player" playerId={playerId} />}
+
         {Array.from(connections.entries())
           .filter(
             ([id, connection]) =>
@@ -298,9 +215,80 @@ const App = () => {
           }
           setAddRelayConnections={setAddRelayConnections}
           setGamesToInit={setGamesToInit}
+          gameMessages={gameMessages}
         />
         {/* )} */}
         {/* <Chat messages={messages} sendMessage={sendMessage} playerId={playerId} /> */}
+        <div className=" mt-3">
+          {/* Render Lobby Messages */}
+          {Object.keys(lobbyMessages)
+            .sort()
+            .map((id, index) => (
+              <div key={index}>
+                <h3>Lobby Messages from {id}:</h3>
+
+                {lobbyMessages[id].length > 1 && (
+                  <details style={{ marginBottom: "8px" }}>
+                    <summary>
+                      Previous Messages ({lobbyMessages[id].length - 1})
+                    </summary>
+                    {lobbyMessages[id].slice(0, -1).map((msg, msgIndex) => (
+                      <JsonView
+                        data={msg}
+                        key={`prev-lobby-${id}-${msgIndex}`}
+                        shouldExpandNode={() => false} // Always collapsed
+                        style={{ fontSize: "14px", lineHeight: "1.2" }}
+                      />
+                    ))}
+                  </details>
+                )}
+
+                {/* Last message displayed open */}
+                {lobbyMessages[id].slice(-1).map((msg, msgIndex) => (
+                  <JsonView
+                    data={msg}
+                    key={`last-lobby-${id}-${msgIndex}`}
+                    shouldExpandNode={(level) => level === 0} // Only expand the first level of the latest message
+                    style={{ fontSize: "14px", lineHeight: "1.2" }}
+                  />
+                ))}
+              </div>
+            ))}
+          {/* Render Game Messages */}
+          {Object.keys(gameMessages)
+            .sort()
+            .map((id, index) => (
+              <div key={index}>
+                <h3>Game Messages from {id}:</h3>
+
+                {gameMessages[id].length > 1 && (
+                  <details style={{ marginBottom: "8px" }}>
+                    <summary>
+                      Previous Messages ({gameMessages[id].length - 1})
+                    </summary>
+                    {gameMessages[id].slice(0, -1).map((msg, msgIndex) => (
+                      <JsonView
+                        data={msg}
+                        key={`prev-game-${id}-${msgIndex}`}
+                        shouldExpandNode={() => false} // Always collapsed
+                        style={{ fontSize: "14px", lineHeight: "1.2" }}
+                      />
+                    ))}
+                  </details>
+                )}
+
+                {/* Last message displayed open */}
+                {gameMessages[id].slice(-1).map((msg, msgIndex) => (
+                  <JsonView
+                    data={msg}
+                    key={`last-game-${id}-${msgIndex}`}
+                    shouldExpandNode={(level) => level === 0} // Only expand the first level of the latest message
+                    style={{ fontSize: "14px", lineHeight: "1.2" }}
+                  />
+                ))}
+              </div>
+            ))}
+        </div>
       </div>
     </ErrorBoundary>
   );

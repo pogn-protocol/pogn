@@ -28,7 +28,7 @@ const Lobby = ({
     gameId: "",
   });
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
-  const [activePlayerGames, setActivePlayerGames] = useState([]);
+  const [lobbyMessagesReceived, setLobbyMessagesReceived] = useState([]);
 
   useEffect(() => {
     if (!signedIntoLobby) {
@@ -47,43 +47,11 @@ const Lobby = ({
           },
         });
         setSignedIntoLobby(true);
-
-        // sendMessage({
-        //   type: "lobby",
-        //   action: "login",
-        //   payload: {
-        //     lobbyId: lobbyId,
-        //     playerId,
-        //   },
-        // });
       } else {
         console.warn(`❌ Lobby ${lobbyId} connection not ready yet.`);
       }
     }
   }, [signedIntoLobby]);
-
-  // useEffect(() => {
-  //   console.log("Checking lobby connection for lobbyId:", lobbyId);
-  //   console.log(lobbyConnections);
-  //   const connection = lobbyConnections.get(lobbyId);
-  //   console.log("connection", connection);
-  //   if (!signedIntoLobby && connection?.readyState === 1) {
-  //     console.log(
-  //       `✅ Lobby ${lobbyId} connection established. Sending login...`
-  //     );
-  //     sendMessage({
-  //       type: "lobby",
-  //       action: "login",
-  //       payload: {
-  //         lobbyId: lobbyId,
-  //         playerId,
-  //       },
-  //     });
-  //     setSignedIntoLobby(true);
-  //   } else if (!signedIntoLobby && connection?.readyState !== 1) {
-  //     console.warn(`❌ Lobby ${lobbyId} connection not ready yet.`);
-  //   }
-  // }, [lobbyConnections, signedIntoLobby, playerId, sendMessage, lobbyId]);
 
   useEffect(() => {
     console.log("Lobby Message Received by Lobby");
@@ -91,6 +59,7 @@ const Lobby = ({
       console.warn("Invalid message object:", message);
       return;
     }
+    setLobbyMessagesReceived((prev) => [...prev, message]);
 
     console.log("Processing Lobby message:", message);
     const { action, payload } = message;
@@ -115,33 +84,8 @@ const Lobby = ({
             type: "game",
           }));
           console.log("gameRelays", gameRelays);
-          //check if activePlayerGames has games not in player games
-          // let staleGames = activePlayerGames
-          //   .filter(
-          //     (game) =>
-          //       !playerGames.some(
-          //         (playerGame) => playerGame.gameId === game.gameId
-          //       )
-          //   )
-          //   .map((game) => game.gameId);
-
-          // console.log("staleGames", staleGames);
-          setActivePlayerGames(playerGames);
-          //setRemoveRelayConnections(staleGames);
-          setGamesToInit(playerGames);
+          setGamesToInit((prev) => [...prev, ...playerGames]);
         } else {
-          // let staleGames = activePlayerGames
-          //   .filter(
-          //     (game) =>
-          //       !playerGames.some(
-          //         (playerGame) => playerGame.gameId === game.gameId
-          //       )
-          //   )
-          //   .map((game) => game.gameId);
-
-          //console.log("staleGames", staleGames);
-          setActivePlayerGames([]);
-          //setRemoveRelayConnections(staleGames);
           console.log("Player is not in any valid game. Staying in the lobby.");
           setSelectedGameId(null);
           setHasJoined(false);
@@ -244,8 +188,69 @@ const Lobby = ({
     });
   };
 
+  const connectionState = lobbyConnections.get(lobbyId)?.readyState;
+  console.log(lobbyConnections);
+  console.log("Connection state:", connectionState);
+  const connectionColor =
+    connectionState === 1 ? "green" : connectionState === 3 ? "red" : "yellow";
+  console.log("Connection color:", connectionColor);
+
+  const connectionTitle =
+    connectionState === 1
+      ? "Connected"
+      : connectionState === 0
+      ? "Connecting..."
+      : connectionState === 2
+      ? "Closing..."
+      : "Disconnected";
+  console.log("Connection title:", connectionTitle);
+
   return (
     <div className="lobby">
+      <div
+        key={lobbyId}
+        style={{
+          marginBottom: "20px",
+          padding: "10px",
+          border: "1px solid #ccc",
+        }}
+      >
+        <h2>Lobby ID: {lobbyId}</h2>
+        <div className="d-flex  mb-2">
+          <div
+            style={{
+              width: "20px",
+              height: "20px",
+              borderRadius: "50%",
+              backgroundColor: connectionColor,
+              border: "1px solid #333",
+            }}
+            title={connectionTitle}
+          ></div>
+          <div style={{ marginLeft: "10px" }}>
+            <p> {connectionTitle}</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h2>Lobby Messages Received</h2>
+        <JsonView
+          data={lobbyMessagesReceived}
+          shouldExpandNode={(level, value, field) => {
+            if (level === 0) return true; // Expand root
+            if (
+              level === 1 &&
+              Array.isArray(lobbyMessagesReceived) &&
+              lobbyMessagesReceived.length > 0 &&
+              value === lobbyMessagesReceived[lobbyMessagesReceived.length - 1]
+            ) {
+              return true; // Expand first level of last message
+            }
+            return false;
+          }}
+          style={{ fontSize: "14px", lineHeight: "1.2" }}
+        />
+      </div>
       <div className="selectedGameState">
         <h2>Selected Game State</h2>
         <JsonView

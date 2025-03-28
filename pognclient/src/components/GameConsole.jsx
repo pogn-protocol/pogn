@@ -18,6 +18,7 @@ const GameConsole = ({
   gameConnections,
   setAddRelayConnections,
   setGamesToInit,
+  gameMessages,
 }) => {
   const [gameStates, setGameStates] = useState(new Map());
   useEffect(() => {
@@ -76,7 +77,6 @@ const GameConsole = ({
       return;
     }
     if (gameConnections.size > 0) {
-      // Check that all games have an active connection
       const allReady = gamesToInit.every((game) => {
         const connection = gameConnections.get(game.gameId);
         return connection && connection.readyState === 1;
@@ -85,7 +85,9 @@ const GameConsole = ({
       if (allReady) {
         console.log("✅ All game connections are ready, initializing games.");
         initNewGames(gamesToInit);
-        //setGamesToInit([]);
+        setGamesToInit((prevGames) =>
+          prevGames.filter((game) => !gamesToInit.includes(game))
+        );
       } else {
         console.log("⏳ Waiting for all game connections to be ready.");
       }
@@ -173,11 +175,31 @@ const GameConsole = ({
         }}
       >
         <h1 className="mb-4">Game Console</h1>
-
+        {console.log("Game States:", gameStates)}
         {Array.from(gameStates.entries())
           .filter(([, gameState]) => gameState.lobbyStatus === "started")
           .map(([gameId, gameState]) => {
             const wsAddress = gameState.wsAddress; // Access wsAddress from gameState
+            const connectionState = gameConnections.get(gameId)?.readyState;
+            console.log(gameConnections);
+            console.log("Connection state:", connectionState);
+            const connectionColor =
+              connectionState === 1
+                ? "green"
+                : connectionState === 3
+                ? "red"
+                : "yellow";
+            console.log("Connection color:", connectionColor);
+
+            const connectionTitle =
+              connectionState === 1
+                ? "Connected"
+                : connectionState === 0
+                ? "Connecting..."
+                : connectionState === 2
+                ? "Closing..."
+                : "Disconnected";
+            console.log("Connection title:", connectionTitle);
             return (
               <div
                 key={gameId}
@@ -188,10 +210,51 @@ const GameConsole = ({
                 }}
               >
                 <h2>Game ID: {gameId}</h2>
+                <div className="d-flex  mb-2">
+                  <div
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "50%",
+                      backgroundColor: connectionColor,
+                      border: "1px solid #333",
+                    }}
+                    title={connectionTitle}
+                  ></div>
+                  <div style={{ marginLeft: "10px" }}>
+                    <p> {connectionTitle}</p>
+                  </div>
+                </div>
                 {console.log(
                   `Rendering game component gameType: ${gameState.gameType} for game ID: ${gameId} at URL: ${wsAddress}`
                 )}
                 {renderGameComponent(gameId, gameState, wsAddress)}
+                <p>Game Messages:</p>
+                {gameMessages[gameId]?.length > 1 && (
+                  <details style={{ marginBottom: "8px" }}>
+                    <summary>
+                      Previous Messages ({gameMessages[gameId].length - 1})
+                    </summary>
+                    {gameMessages[gameId].slice(0, -1).map((msg, index) => (
+                      <JsonView
+                        data={msg}
+                        key={`prev-game-msg-${gameId}-${index}`}
+                        shouldExpandNode={() => false} // Always collapsed for previous messages
+                        style={{ fontSize: "14px", lineHeight: "1.2" }}
+                      />
+                    ))}
+                  </details>
+                )}
+
+                {/* Render the last message fully expanded */}
+                {gameMessages[gameId]?.slice(-1).map((msg, index) => (
+                  <JsonView
+                    data={msg}
+                    key={`last-game-msg-${gameId}-${index}`}
+                    shouldExpandNode={() => true} // Always fully expanded for the last message
+                    style={{ fontSize: "14px", lineHeight: "1.2" }}
+                  />
+                ))}
               </div>
             );
           })}
