@@ -39,12 +39,13 @@ class LobbyRelay extends Relay {
       return;
     }
 
+    if (this.gameConnections.some((id) => id === message?.relayId)) {
+      console.warn("Lobby relay processing message from game relay:", message);
+      return;
+    }
+
     console.log(`Processing message in lobby relay ${this.relayId}:`, message);
-    if (
-      message?.relayId !== this.relayId &&
-      message?.relayId &&
-      this.gameConnections.some((id) => id === message?.relayId)
-    ) {
+    if (message?.relayId !== this.relayId && message?.relayId) {
       console.log("Game connections", this.gameConnections);
       console.error(
         `Lobby relay ${this.relayId} received message for ${message.relayId} relay:`,

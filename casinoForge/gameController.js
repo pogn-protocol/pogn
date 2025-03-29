@@ -72,14 +72,14 @@ class gameController {
           payload: {
             type: "game",
             action: "gameAction",
-            ...Object.fromEntries(
-              Object.entries(gameResponse).filter(([key]) => key !== "private")
-            ),
-
+            // ...Object.fromEntries(
+            //   Object.entries(gameResponse).filter(([key]) => key !== "private")
+            // ),
+            ...gameResponse,
             gameId: game.gameId,
           },
           broadcast: true,
-          private: gameResponse.private,
+          // private: gameResponse.private,
         };
 
         console.log(

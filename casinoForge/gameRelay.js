@@ -104,15 +104,20 @@ class GameRelay extends Relay {
       response.relayId = this.relayId;
       response.uuid = uuidv4();
       console.log("GameRelay response:", response);
-      if (response?.private) {
-        this.sendResponse(ws, response.private);
-      }
+      const privateResponse = structuredClone(response);
+      console.log("response shallow copy:", privateResponse);
+      delete response.payload.private;
+
       //remove private from response
-      delete response.private;
       if (response?.broadcast) {
         this.broadcastResponse(response);
       } else {
-        this.sendResponse(ws, response);
+        this.sendResponse(playerId, response);
+      }
+      if (privateResponse.payload?.private) {
+        //deepcopy
+        console.log("GameRelay private response:", privateResponse);
+        this.sendResponse(playerId, privateResponse);
       }
     } catch (error) {
       console.error("❌ GameRelay Error processing message:", error);

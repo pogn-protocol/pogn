@@ -124,14 +124,14 @@ const RelayItem = ({
         <div className="text-xs font-semibold">ID: {id}</div>
         <div className="text-xs opacity-80">
           {readyState === 1
-            ? "✅ Connected"
+            ? "✅"
             : readyState === 0
             ? "🟡 Connecting..."
             : readyState === 3
             ? "🔴 Closed"
             : "⚪️ Unknown"}
         </div>
-        <div className="text-xs mt-1">Click to Ping 🛎️</div>
+        <div className="text-xs mt-1">Ping 🛎️</div>
       </button>
     </div>
   );
