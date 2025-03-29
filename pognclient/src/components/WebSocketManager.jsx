@@ -1,9 +1,18 @@
-import React, { useEffect, useCallback, useState } from "react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
 import useWebSocket from "react-use-websocket";
 
 // Custom hook to manage a single WebSocket connection
-const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
+const useRelayConnection = ({
+  id,
+  url,
+  type,
+  onMessage,
+  setConnections,
+  closingConnections,
+}) => {
   const [prevMessage, setPrevMessage] = useState(null);
+  const reconnectTimeoutRef = useRef(null);
+  const [shouldAttemptReconnect, setShouldAttemptReconnect] = useState(false);
 
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(url, {
     // onOpen: () => {
@@ -47,6 +56,10 @@ const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
     //   }
     // },
     share: true,
+    shouldReconnect: () => !closingConnections.has(id), // ✅ only reconnect if not manually closing
+    reconnectAttempts: 5,
+    reconnectInterval: 3000,
+    share: true,
   });
 
   const updateConnection = useCallback(
@@ -68,29 +81,144 @@ const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
     [id, sendJsonMessage, readyState, url, type, setConnections]
   );
 
-  // ✅ Handle connection state changes
   useEffect(() => {
-    updateConnection({ sendJsonMessage, readyState, url, type });
+    let customState = readyState;
+
+    // If readyState is CLOSED and it's not a manual close, mark as reconnecting
+    if (readyState === 3 && !closingConnections.has(id)) {
+      console.log(`🛠️ Reconnecting state override for ${id}`);
+      customState = 4; // Our custom "Re-connecting" state
+    }
+
+    // updateConnection({ sendJsonMessage, readyState: customState, url, type });
+    updateConnection({
+      sendJsonMessage,
+      readyState,
+      customReadyState: customState, // ⬅️ Track this separately
+      url,
+      type,
+    });
 
     if (readyState === 1) {
       console.log(`✅ WebSocket connected for ${id}`);
-    } else if (readyState === 3) {
-      console.log(`🛑 WebSocket closed for ${id}`);
-      setConnections((prev) => {
-        const newMap = new Map(prev);
-        newMap.delete(id);
-        return newMap;
-      });
-    } else if (readyState === -1) {
-      console.log(`❌ WebSocket error for ${id}`);
-      //remove
-      // setConnections((prev) => {
-      //   const newMap = new Map(prev);
-      //   newMap.delete(id);
-      //   return newMap;
-      // });
+      setShouldAttemptReconnect(true);
+      clearTimeout(reconnectTimeoutRef.current);
+    } else if (readyState === 3 && !closingConnections.has(id)) {
+      // start reconnect logic
+      reconnectTimeoutRef.current = setTimeout(() => {
+        console.warn(`⏱️ Auto-reconnect window expired for ${id}`);
+        setShouldAttemptReconnect(false);
+
+        setConnections((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(id);
+          return newMap;
+        });
+      }, 10000);
     }
-  }, [readyState, updateConnection]);
+  }, [readyState, updateConnection, id, setConnections, closingConnections]);
+
+  // useEffect(() => {
+  //   updateConnection({ sendJsonMessage, readyState, url, type });
+
+  //   if (readyState === 1) {
+  //     console.log(`✅ WebSocket connected for ${id}`);
+  //     setShouldAttemptReconnect(true);
+  //     clearTimeout(reconnectTimeoutRef.current);
+  //   }
+
+  //   // else if (readyState === 3) {
+  //   //   // Check if this is a manual shutdown
+  //   //   if (closingConnections.has(id)) {
+  //   //     console.log(`🛑 WebSocket manually shut down for ${id}.`);
+  //   //     return;
+  //   //   }
+
+  //   //   console.log(
+  //   //     `🛑 WebSocket closed for ${id} – attempting auto-reconnect...`
+  //   //   );
+
+  //   //   // Mark it as re-connecting
+  //   //   updateConnection({ sendJsonMessage, readyState: 4, url, type });
+
+  //   //   // Auto-reconnect logic
+  //   //   reconnectTimeoutRef.current = setTimeout(() => {
+  //   //     console.warn(`⏱️ Auto-reconnect window expired for ${id}`);
+  //   //     setShouldAttemptReconnect(false);
+
+  //   //     // Final cleanup after auto-reconnect attempts fail
+  //   //     setConnections((prev) => {
+  //   //       const newMap = new Map(prev);
+  //   //       newMap.delete(id);
+  //   //       return newMap;
+  //   //     });
+  //   //   }, 10000); // Auto-reconnect window (10 seconds)
+
+  //   //   // Attempt to re-establish the connection after a short delay
+  //   //   setTimeout(() => {
+  //   //     console.log(`🔄 Attempting to auto-reconnect to ${id}...`);
+  //   //     setShouldAttemptReconnect(true);
+  //   //   }, 3000); // Retry every 3 seconds
+  //   // }
+  // }, [readyState, updateConnection, id, setConnections, closingConnections]);
+
+  // useEffect(() => {
+  //   updateConnection({ sendJsonMessage, readyState, url, type });
+
+  //   if (readyState === 1) {
+  //     console.log(`✅ WebSocket connected for ${id}`);
+  //     setShouldAttemptReconnect(true);
+  //     clearTimeout(reconnectTimeoutRef.current);
+  //   } else if (readyState === 3) {
+  //     // Check if it was manually closed
+  //     if (closingConnections.has(id)) {
+  //       console.log(`🛑 WebSocket manually shut down for ${id}.`);
+  //       return;
+  //     }
+
+  //     console.log(`🛑 WebSocket closed for ${id} – will retry for 10s...`);
+
+  //     // Set the readyState to 4 (Re-connecting) when starting the retry
+  //     updateConnection({ sendJsonMessage, readyState: 4, url, type });
+
+  //     // Retry reconnects for 10 seconds
+  //     reconnectTimeoutRef.current = setTimeout(() => {
+  //       console.warn(`⏱️ Reconnect window expired for ${id}`);
+  //       setShouldAttemptReconnect(false);
+  //       setConnections((prev) => {
+  //         const newMap = new Map(prev);
+  //         newMap.delete(id);
+  //         return newMap;
+  //       });
+  //     }, 10000);
+  //   }
+  // }, [readyState, updateConnection, id, setConnections, closingConnections]);
+
+  // useEffect(() => {
+  //   updateConnection({ sendJsonMessage, readyState, url, type });
+
+  //   if (readyState === 1) {
+  //     console.log(`✅ WebSocket connected for ${id}`);
+  //     setShouldAttemptReconnect(true);
+  //     clearTimeout(reconnectTimeoutRef.current);
+  //   } else if (readyState === 3) {
+  //     console.log(`🛑 WebSocket closed for ${id} – will retry for 10s...`);
+
+  //     // Set the readyState to 4 (Re-connecting) when starting the retry
+  //     updateConnection({ sendJsonMessage, readyState: 4, url, type });
+
+  //     // Retry reconnects for 10 seconds
+  //     reconnectTimeoutRef.current = setTimeout(() => {
+  //       console.warn(`⏱️ Reconnect window expired for ${id}`);
+  //       setShouldAttemptReconnect(false);
+  //       setConnections((prev) => {
+  //         const newMap = new Map(prev);
+  //         newMap.delete(id);
+  //         return newMap;
+  //       });
+  //     }, 10000);
+  //   }
+  // }, [readyState, updateConnection, id, setConnections]);
 
   useEffect(() => {
     if (
@@ -112,8 +240,10 @@ const RelayItem = ({
   url,
   type,
   onMessage,
-  setConnections,
   sendMessageToRelay,
+  setConnections,
+  closingConnections,
+  customReadyState,
 }) => {
   const { readyState, sendJsonMessage } = useRelayConnection({
     id,
@@ -121,6 +251,7 @@ const RelayItem = ({
     type,
     onMessage,
     setConnections,
+    closingConnections,
   });
 
   return (
@@ -133,15 +264,41 @@ const RelayItem = ({
         }}
       >
         <div className="text-xs font-semibold">{id}</div>
+        {/* <div className="text-xs opacity-80">
+          {closingConnections.has(id) ? (
+            <span className="text-orange-500">
+              🛑 Shutting down... {closingConnections.get(id)?.countdown}s
+            </span>
+          ) : readyState === 1 ? (
+            "✅"
+          ) : readyState === 0 ? (
+            "🟡 Connecting..."
+          ) : readyState === 3 ? (
+            "🔴 Closed"
+          ) : readyState === 4 ? (
+            "🟠 Re-connecting..."
+          ) : (
+            "⚪️ Unknown"
+          )}
+        </div> */}
         <div className="text-xs opacity-80">
-          {readyState === 1
-            ? "✅"
-            : readyState === 0
-            ? "🟡 Connecting..."
-            : readyState === 3
-            ? "🔴 Closed"
-            : "⚪️ Unknown"}
+          {closingConnections.has(id) ? (
+            <span className="text-orange-500">
+              🛑 Shutting down... {closingConnections.get(id)?.countdown}s
+            </span>
+          ) : customReadyState === 1 ? (
+            "✅"
+          ) : customReadyState === 0 ? (
+            "🟡 Connecting..."
+          ) : customReadyState === 3 ? (
+            "🔴 Closed"
+          ) : customReadyState === 4 ? (
+            "🟠 Attempting re-connect..."
+          ) : (
+            "⚪️ Unknown"
+          )}
         </div>
+
         <div className="text-xs mt-1">Ping 🛎️</div>
       </button>
     </div>
@@ -158,6 +315,7 @@ const RelayManager = ({
   removeRelayConnections,
   setRemoveRelayConnections,
 }) => {
+  const [closingConnections, setClosingConnections] = useState(new Map());
   const sendMessageToRelay = useCallback(
     (id, message) => {
       console.log(`📤 sendMessageToRelay ${id}:`, message);
@@ -199,7 +357,6 @@ const RelayManager = ({
       return newMap;
     });
   }, [addRelayConnections]);
-
   useEffect(() => {
     console.log("Removing relays from connections:", removeRelayConnections);
     if (removeRelayConnections && removeRelayConnections.length > 0) {
@@ -208,24 +365,75 @@ const RelayManager = ({
         removeRelayConnections
       );
 
-      setConnections((prev) => {
-        const newMap = new Map(prev);
-        removeRelayConnections.forEach((id) => {
-          if (newMap.has(id)) {
-            newMap.delete(id);
-            console.log(`✅ Relay ${id} removed from connections`);
-          } else {
-            console.warn(`⚠️ Relay ${id} not found in connections`);
-          }
+      // Set closing state for each connection being removed
+      removeRelayConnections.forEach((id) => {
+        setClosingConnections((prev) => {
+          const updated = new Map(prev);
+          updated.set(id, {
+            reason: "Manual shutdown",
+            timestamp: Date.now(),
+            countdown: 5, // Start countdown at 5 seconds
+          });
+          return updated;
         });
-        return newMap;
-      });
-      console.log("✅ Connections after removal:", connections);
 
-      // ✅ Clear removeRelayConnections after cleanup
+        // Countdown logic
+        const interval = setInterval(() => {
+          setClosingConnections((prev) => {
+            const updated = new Map(prev);
+            const connection = updated.get(id);
+            if (connection) {
+              if (connection.countdown > 1) {
+                connection.countdown -= 1;
+                updated.set(id, connection);
+              } else {
+                // Remove the connection after countdown
+                clearInterval(interval);
+                updated.delete(id);
+                setConnections((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.delete(id);
+                  console.log(`✅ Relay ${id} fully removed after countdown`);
+                  return newMap;
+                });
+              }
+            }
+            return updated;
+          });
+        }, 1000);
+      });
+
+      // ✅ Clear removeRelayConnections after marking as closing
       setRemoveRelayConnections([]);
     }
-  }, [removeRelayConnections, setConnections]);
+  }, [removeRelayConnections, setConnections, setRemoveRelayConnections]);
+
+  // useEffect(() => {
+  //   console.log("Removing relays from connections:", removeRelayConnections);
+  //   if (removeRelayConnections && removeRelayConnections.length > 0) {
+  //     console.log(
+  //       "🗑 Removing relays from connections:",
+  //       removeRelayConnections
+  //     );
+
+  //     setConnections((prev) => {
+  //       const newMap = new Map(prev);
+  //       removeRelayConnections.forEach((id) => {
+  //         if (newMap.has(id)) {
+  //           newMap.delete(id);
+  //           console.log(`✅ Relay ${id} removed from connections`);
+  //         } else {
+  //           console.warn(`⚠️ Relay ${id} not found in connections`);
+  //         }
+  //       });
+  //       console.log("✅ Connections after removal (inside callback):", newMap);
+  //       return newMap;
+  //     });
+
+  //     // ✅ Clear removeRelayConnections after cleanup
+  //     setRemoveRelayConnections([]);
+  //   }
+  // }, [removeRelayConnections, setConnections, setRemoveRelayConnections]);
 
   // useEffect(() => {
   //   console.log("Removing relays from connections:", removeRelayConnections);
@@ -247,8 +455,26 @@ const RelayManager = ({
   //       });
   //       return newMap;
   //     });
+  //     console.log("✅ Connections after removal:", connections);
+
+  //     // ✅ Clear removeRelayConnections after cleanup
+  //     setRemoveRelayConnections([]);
   //   }
   // }, [removeRelayConnections, setConnections]);
+
+  // Wait 5 seconds, then remove from both closingConnections and connections
+  // setTimeout(() => {
+  //   setClosingConnections((prev) => {
+  //     const updated = new Map(prev);
+  //     updated.delete(id);
+  //     return updated;
+  //   });
+  //   setConnections((prev) => {
+  //     const updated = new Map(prev);
+  //     updated.delete(id);
+  //     return updated;
+  //   });
+  // }, 5000);
 
   return (
     <div className="d-flex flex-row">
@@ -259,6 +485,7 @@ const RelayManager = ({
           onMessage={onMessage}
           setConnections={setConnections}
           sendMessageToRelay={sendMessageToRelay}
+          closingConnections={closingConnections} // ✅ Pass it down
         />
       ))}
     </div>
