@@ -146,7 +146,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
 
   return (
     <div>
-      <h2>Odds and Evens Game</h2>
+      <h5>Odds and Evens Game</h5>
       <p>Game ID: {gameId}</p>
       <p>Role: {role || "Unknown"}</p>
       <p>Number: {number || "None"}</p>

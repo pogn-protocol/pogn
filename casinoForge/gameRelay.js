@@ -13,6 +13,7 @@ class GameRelay extends Relay {
     this.lobbyWs = null;
     this.lobbyId = null;
     this.gameIds = [];
+    this.relayConnections = [];
     //console ever 5 seconds if running
     // this.interval = setInterval(() => {
     //   console.log("GameRelay is running...");
@@ -26,6 +27,7 @@ class GameRelay extends Relay {
     if (message?.payload?.type === "relayConnector") {
       console.log("GameRelay processing relayConnector message:", message);
       this.webSocketMap.set(message?.payload?.relayId, ws);
+      this.relayConnections.push(message?.payload?.relayId);
       this.sendToLobbyRelay(message?.payload?.relayId, {
         relayId: message?.payload?.lobbyId,
         payload: {
@@ -47,11 +49,19 @@ class GameRelay extends Relay {
     console.log("🎮 GameRelay Processing Message:", message);
 
     if (message?.relayId !== this.relayId) {
-      console.error(
+      console.warn(
         `Game relay ${this.relayId} received message for different relay:`,
         message.relayId
       );
-      response.error = `Game relay ${this.relayId} received message for different relay:`;
+
+      if (this.relayConnections.some((id) => id === message?.relayId)) {
+        console.warn(
+          `${this.relayId} processing message from relayConnection: ${message.relayId}`,
+          message
+        );
+        return;
+      }
+      // response.error = `Game relay ${this.relayId} received message for different relay:`;
     }
 
     const payload = message.payload;

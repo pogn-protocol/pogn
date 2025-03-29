@@ -19,6 +19,7 @@ const GameConsole = ({
   setAddRelayConnections,
   setGamesToInit,
   gameMessages,
+  setRemoveRelayConnections,
 }) => {
   const [gameStates, setGameStates] = useState(new Map());
   useEffect(() => {
@@ -69,10 +70,14 @@ const GameConsole = ({
   }, [message]);
 
   useEffect(() => {
-    if (gamesToInit.length > 0) {
+    if (gamesToInit.size > 0) {
       console.log("🚀 Initializing new games:", gamesToInit);
+
+      const gamesArray = Array.from(gamesToInit.values()).flat();
+      console.log("🚀 Initializing new games:", gamesArray);
+
       setAddRelayConnections(
-        gamesToInit.map((game) => ({
+        gamesArray.map((game) => ({
           id: game.gameId,
           url: game.wsAddress,
           type: "game",
@@ -82,31 +87,297 @@ const GameConsole = ({
   }, [gamesToInit, setAddRelayConnections]);
 
   useEffect(() => {
-    if (gamesToInit.length === 0) {
+    if (gamesToInit.size === 0) {
       console.log("No games to initialize.");
       return;
     }
     if (gameConnections.size > 0) {
-      const allReady = gamesToInit.every((game) => {
+      // Flatten the gamesToInit map into an array of games
+      const allGames = Array.from(gamesToInit.values()).flat();
+      console.log("All games to initialize:", allGames);
+
+      const allReady = allGames.every((game) => {
         const connection = gameConnections.get(game.gameId);
         return connection && connection.readyState === 1;
       });
 
       if (allReady) {
         console.log("✅ All game connections are ready, initializing games.");
-        initNewGames(gamesToInit);
-        setGamesToInit((prevGames) =>
-          prevGames.filter((game) => !gamesToInit.includes(game))
+        const lobbyIdsToInit = Array.from(gamesToInit.keys());
+        console.log("Lobby IDs to initialize:", lobbyIdsToInit);
+
+        // Track which game connections were refreshed
+        const gamesRefreshed = [];
+
+        // Remove all games from gameStates where game.lobbyId matches one of those
+        setGameStates((prevGameStates) => {
+          const updated = new Map();
+          for (const [gameId, gameState] of prevGameStates.entries()) {
+            if (!lobbyIdsToInit.includes(gameState.lobbyId)) {
+              console.log("Not refreshing gameState", gameId, gameState);
+              updated.set(gameId, gameState);
+            } else {
+              console.log(
+                `🧹 Refreshing gameState and connections for game ${gameId} from gameState ${gameState}`
+              );
+              gamesRefreshed.push(gameId); // Track this game as refreshed
+            }
+          }
+          return updated;
+        });
+
+        // Remove processed games from gamesToInit
+        setGamesToInit((prev) => {
+          const updated = new Map(prev);
+          for (const lobbyId of lobbyIdsToInit) {
+            updated.delete(lobbyId);
+          }
+          return updated;
+        });
+
+        console.log("gamesRefreshed:", gamesRefreshed);
+        initNewGames(allGames);
+
+        // Get the set of current game IDs to keep
+        const allGameIds = new Set(allGames.map((game) => game.gameId));
+
+        // Find connections to remove (ones not in allGameIds)
+        const connectionsToRemove = gamesRefreshed.filter(
+          (id) => !allGameIds.has(id)
         );
+
+        if (connectionsToRemove.length > 0) {
+          console.log(
+            "🗑️ Removing stale relay connections:",
+            connectionsToRemove
+          );
+          setRemoveRelayConnections((prev) => [
+            ...prev,
+            ...connectionsToRemove,
+          ]);
+        }
+
+        console.log("🚀 Game initialization complete.");
       } else {
         console.log("⏳ Waiting for all game connections to be ready.");
       }
     }
   }, [gameConnections, gamesToInit]);
 
+  // useEffect(() => {
+  //   if (gamesToInit.size === 0) {
+  //     console.log("No games to initialize.");
+  //     return;
+  //   }
+  //   if (gameConnections.size > 0) {
+  //     // Flatten the gamesToInit map into an array of games
+  //     const allGames = Array.from(gamesToInit.values()).flat();
+  //     console.log("All games to initialize:", allGames);
+
+  //     const allReady = allGames.every((game) => {
+  //       const connection = gameConnections.get(game.gameId);
+  //       return connection && connection.readyState === 1;
+  //     });
+
+  //     if (allReady) {
+  //       console.log("✅ All game connections are ready, initializing games.");
+  //       const lobbyIdsToInit = Array.from(gamesToInit.keys());
+  //       console.log("Lobby IDs to initialize:", lobbyIdsToInit);
+
+  //       // Track which game connections to remove
+  //       const gamesRefreshed = [];
+
+  //       // Remove all games from gameStates where game.lobbyId matches one of those
+  //       setGameStates((prevGameStates) => {
+  //         const updated = new Map();
+  //         for (const [gameId, gameState] of prevGameStates.entries()) {
+  //           if (!lobbyIdsToInit.includes(gameState.lobbyId)) {
+  //             console.log("Not refreshing gameState", gameId, gameState);
+  //             updated.set(gameId, gameState);
+  //           } else {
+  //             console.log(
+  //               `🧹 Refreshing gameState and connections for game ${gameId} from gameState ${gameState}`
+  //             );
+  //             gamesRefreshed.push(gameId); // Track this game for removal
+  //           }
+  //         }
+  //         return updated;
+  //       });
+
+  //       // Remove processed games from gamesToInit
+  //       setGamesToInit((prev) => {
+  //         const updated = new Map(prev);
+  //         for (const lobbyId of lobbyIdsToInit) {
+  //           updated.delete(lobbyId);
+  //         }
+  //         return updated;
+  //       });
+
+  //       console.log("gamesRefreshed:", gamesRefreshed);
+  //       initNewGames(allGames);
+
+  //       // Get the set of current game IDs to keep
+  //       const allGameIds = new Set(allGames.map((game) => game.gameId));
+
+  //       // Find connections to remove (ones not in allGameIds)
+  //       const connectionsToRemove = Array.from(gamesRefreshed.keys()).filter(
+  //         (id) => !allGameIds.has(id)
+  //       );
+
+  //       if (connectionsToRemove.length > 0) {
+  //         console.log(
+  //           "🗑️ Removing stale relay connections:",
+  //           connectionsToRemove
+  //         );
+  //         setRemoveRelayConnections((prev) => [
+  //           ...prev,
+  //           ...connectionsToRemove,
+  //         ]);
+  //       }
+
+  //       console.log("🚀 Game initialization complete.");
+  //     } else {
+  //       console.log("⏳ Waiting for all game connections to be ready.");
+  //     }
+  //   }
+  // }, [gameConnections, gamesToInit]);
+
+  // useEffect(() => {
+  //   if (gamesToInit.size === 0) {
+  //     // ✅ Use size instead of length
+  //     console.log("No games to initialize.");
+  //     return;
+  //   }
+  //   if (gameConnections.size > 0) {
+  //     // Flatten the gamesToInit map into an array of games
+  //     const allGames = Array.from(gamesToInit.values()).flat();
+  //     console.log("All games to initialize:", allGames);
+  //     const allReady = allGames.every((game) => {
+  //       const connection = gameConnections.get(game.gameId);
+  //       return connection && connection.readyState === 1;
+  //     });
+
+  //     if (allReady) {
+  //       console.log("✅ All game connections are ready, initializing games.");
+  //       const lobbyIdsToInit = Array.from(gamesToInit.keys());
+  //       console.log("Lobby IDs to initialize:", lobbyIdsToInit);
+  //       const gameConnections = [];
+
+  //       // Remove all games from gameStates where game.lobbyId matches one of those
+  //       setGameStates((prevGameStates) => {
+  //         const updated = new Map();
+  //         for (const [gameId, gameState] of prevGameStates.entries()) {
+  //           if (!lobbyIdsToInit.includes(gameState.lobbyId)) {
+  //             console.log("Not refreshing gameState", gameId, gameState);
+  //             updated.set(gameId, gameState);
+  //           } else {
+  //             console.log(
+  //               `🧹 Removing gameState and connections for game ${gameId} from gameState ${gameState}`
+  //             );
+  //             gameConnections.push(gameId);
+  //           }
+  //         }
+  //         return updated;
+  //       });
+
+  //       // Remove processed games from gamesToInit
+  //       setGamesToInit((prev) => {
+  //         const updated = new Map(prev);
+  //         for (const lobbyId of lobbyIdsToInit) {
+  //           updated.delete(lobbyId);
+  //         }
+  //         return updated;
+  //       });
+  //       console.log("gameConnections", gameConnections);
+  //       initNewGames(allGames);
+  //       //Remove connections for any not in allGames gameId
+
+  //       // Get the set of current game IDs to keep
+  //       const allGameIds = new Set(allGames.map((game) => game.gameId));
+
+  //       // Find connections to remove (ones not in allGameIds)
+  //       const connectionsToRemove = Array.from(gameConnections.keys()).filter(
+  //         (id) => !allGameIds.has(id)
+  //       );
+
+  //       if (connectionsToRemove.length > 0) {
+  //         console.log(
+  //           "🗑️ Removing stale relay connections:",
+  //           connectionsToRemove
+  //         );
+  //         setRemoveRelayConnections((prev) => [
+  //           ...prev,
+  //           ...connectionsToRemove,
+  //         ]);
+  //       }
+
+  //       console.log("🚀 Game initialization complete.");
+  //     } else {
+  //       console.log("⏳ Waiting for all game connections to be ready.");
+  //     }
+  //   }
+  // }, [gameConnections, gamesToInit]);
+
+  // useEffect(() => {
+  //   if (gamesToInit.length === 0) {
+  //     console.log("No games to initialize.");
+  //     return;
+  //   }
+  //   if (gameConnections.size > 0) {
+  //     const allReady = gamesToInit.every((game) => {
+  //       const connection = gameConnections.get(game.gameId);
+  //       return connection && connection.readyState === 1;
+  //     });
+
+  //     if (allReady) {
+  //       console.log("✅ All game connections are ready, initializing games.");
+  //       //remove all games from gameStates that have .lobbyId the same as the initNewGames
+  //       //id key
+  //       const lobbyIdsToInit = Array.from(gamesToInit.keys());
+
+  //       // Remove all games from gameStates where game.lobbyId matches one of those
+  //       setGameStates((prevGameStates) => {
+  //         const updated = new Map();
+  //         for (const [gameId, gameState] of prevGameStates.entries()) {
+  //           if (!lobbyIdsToInit.includes(gameState.lobbyId)) {
+  //             updated.set(gameId, gameState);
+  //           } else {
+  //             console.log(
+  //               `🧹 Removing game ${gameId} from lobby ${gameState.lobbyId}`
+  //             );
+  //           }
+  //         }
+  //         return updated;
+  //       });
+
+  //       setGamesToInit((prev) => {
+  //         const updated = new Map(prev);
+  //         for (const lobbyId of lobbyIdsToInit) {
+  //           updated.delete(lobbyId);
+  //         }
+  //         return updated;
+  //       });
+
+  //       initNewGames(gamesToInit);
+
+  //       for (const lobbyId of lobbyIdsToInit) {
+  //         gamesToInit.delete(lobbyId);
+  //       }
+
+  //       // setGamesToInit((prevGames) =>
+  //       //   prevGames.filter((game) => !gamesToInit.includes(game))
+  //       // );
+  //     } else {
+  //       console.log("⏳ Waiting for all game connections to be ready.");
+  //     }
+  //   }
+  // }, [gameConnections, gamesToInit]);
+
   const initNewGames = (games) => {
     console.log("Initializing games", games);
     console.log("gameConnections", gameConnections);
+    //delet each game.lobbyId from gameStates.lobbyId
+
     games.forEach((game) => {
       const gameId = game.gameId;
       const connection = gameConnections.get(gameId);
@@ -211,7 +482,7 @@ const GameConsole = ({
                   border: "1px solid #ccc",
                 }}
               >
-                <h2>Game ID: {gameId}</h2>
+                <h5>Game ID: {gameId}</h5>
                 <div className="d-flex  mb-2">
                   <div
                     style={{

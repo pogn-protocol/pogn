@@ -76,8 +76,19 @@ const useRelayConnection = ({ id, url, type, onMessage, setConnections }) => {
       console.log(`✅ WebSocket connected for ${id}`);
     } else if (readyState === 3) {
       console.log(`🛑 WebSocket closed for ${id}`);
+      setConnections((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(id);
+        return newMap;
+      });
     } else if (readyState === -1) {
       console.log(`❌ WebSocket error for ${id}`);
+      //remove
+      // setConnections((prev) => {
+      //   const newMap = new Map(prev);
+      //   newMap.delete(id);
+      //   return newMap;
+      // });
     }
   }, [readyState, updateConnection]);
 
@@ -121,7 +132,7 @@ const RelayItem = ({
           sendMessageToRelay(id, { payload: { type: "ping" } });
         }}
       >
-        <div className="text-xs font-semibold">ID: {id}</div>
+        <div className="text-xs font-semibold">{id}</div>
         <div className="text-xs opacity-80">
           {readyState === 1
             ? "✅"
@@ -145,6 +156,7 @@ const RelayManager = ({
   connections,
   setConnections,
   removeRelayConnections,
+  setRemoveRelayConnections,
 }) => {
   const sendMessageToRelay = useCallback(
     (id, message) => {
@@ -208,8 +220,35 @@ const RelayManager = ({
         });
         return newMap;
       });
+      console.log("✅ Connections after removal:", connections);
+
+      // ✅ Clear removeRelayConnections after cleanup
+      setRemoveRelayConnections([]);
     }
   }, [removeRelayConnections, setConnections]);
+
+  // useEffect(() => {
+  //   console.log("Removing relays from connections:", removeRelayConnections);
+  //   if (removeRelayConnections && removeRelayConnections.length > 0) {
+  //     console.log(
+  //       "🗑 Removing relays from connections:",
+  //       removeRelayConnections
+  //     );
+
+  //     setConnections((prev) => {
+  //       const newMap = new Map(prev);
+  //       removeRelayConnections.forEach((id) => {
+  //         if (newMap.has(id)) {
+  //           newMap.delete(id);
+  //           console.log(`✅ Relay ${id} removed from connections`);
+  //         } else {
+  //           console.warn(`⚠️ Relay ${id} not found in connections`);
+  //         }
+  //       });
+  //       return newMap;
+  //     });
+  //   }
+  // }, [removeRelayConnections, setConnections]);
 
   return (
     <div className="d-flex flex-row">

@@ -30,7 +30,7 @@ window.addEventListener("unhandledrejection", function (event) {
 
 const App = () => {
   const [playerId, setPlayerId] = useState(null);
-  const [gamesToInit, setGamesToInit] = useState([]);
+  const [gamesToInit, setGamesToInit] = useState(new Map());
   const [messages, setMessages] = useState({});
   const [sendMessageToUrl, setSendMessageToUrl] = useState(() => () => {});
   const [addRelayConnections, setAddRelayConnections] = useState([]);
@@ -172,6 +172,7 @@ const App = () => {
                 setConnections={setConnections}
                 connections={connections}
                 removeRelayConnections={removeRelayConnections}
+                setRemoveRelayConnections={setRemoveRelayConnections}
               />
             </>
           ) : (
@@ -204,6 +205,8 @@ const App = () => {
             })}
 
         {connections.size === 0 && <p>Lobby not started...</p>}
+        {console.log("Player ID", playerId)}
+        {console.log("Games to init", gamesToInit)}
         {playerId ? (
           <GameConsole
             playerId={playerId}
@@ -222,6 +225,7 @@ const App = () => {
             setAddRelayConnections={setAddRelayConnections}
             setGamesToInit={setGamesToInit}
             gameMessages={gameMessages}
+            setRemoveRelayConnections={setRemoveRelayConnections}
           />
         ) : (
           <p>Game not started...</p>

@@ -76,7 +76,7 @@ class RelayConnector {
 
     this.relaySocket.on("error", (error) => {
       console.error(
-        `❌ Error connecting to relay at ${this.targetUrl}:`,
+        `❌ Error connecting  ${this.clientId} to relay at ${this.targetUrl}:`,
         error
       );
     });

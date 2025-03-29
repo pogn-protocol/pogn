@@ -121,7 +121,25 @@ const Lobby = ({
         if (playerGames.length > 0) {
           console.log("Player is in a valid game:", playerGames);
           console.log(playerGames);
-          setGamesToInit((prev) => [...prev, ...playerGames]);
+          // setGamesToInit((prev) => [...prev, ...playerGames]);
+          //gamestoinit is a map now set the games with the lobby id
+          console.log(
+            "Setting games to init:",
+            playerGames,
+            "For lobbyId:",
+            lobbyId
+          );
+          setGamesToInit((prev) => {
+            const updatedMap = new Map(prev);
+            updatedMap.set(lobbyId, playerGames);
+            return updatedMap;
+          });
+          // const gameId = playerGames[0].gameId; // Get the first gameId from the filtered games
+          // setSelectedGameId(gameId); // Highlight the selected game
+          // setSelectedGamestate((prevState) => ({
+          //   ...prevState,
+          //   ...playerGames[0],
+          // }));
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
           setSelectedGameId(null);
@@ -248,7 +266,7 @@ const Lobby = ({
           border: "1px solid #ccc",
         }}
       >
-        <h2>Lobby ID: {lobbyId}</h2>
+        <h5>Lobby ID: {lobbyId}</h5>
         <div className="d-flex  mb-2">
           <div
             style={{
@@ -266,7 +284,7 @@ const Lobby = ({
         </div>
       </div>
       <div>
-        <h2>Lobby Messages Received</h2>
+        <h5>Lobby Messages Received</h5>
         <JsonView
           data={lobbyMessagesReceived}
           shouldExpandNode={(level, value, field) => {
@@ -285,14 +303,14 @@ const Lobby = ({
         />
       </div>
       <div className="selectedGameState">
-        <h2>Selected Game State</h2>
+        <h5>Selected Game State</h5>
         <JsonView
           data={selectedGamestate}
           shouldExpandNode={(level) => level === 0} // Expand only the first level
           style={{ fontSize: "14px", lineHeight: "1.2" }}
         />
       </div>
-      <h2>LobbyId: {lobbyId}</h2>
+      <h5>LobbyId: {lobbyId}</h5>
       <p>Players in Lobby: {lobbyPlayers.length}</p>
       <ul>
         {lobbyPlayers.length > 0 ? (
