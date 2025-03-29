@@ -118,7 +118,7 @@ const RelayItem = ({
         className="w-full p-2 bg-blue-500 rounded hover:bg-blue-600 active:bg-blue-700 transition"
         onClick={() => {
           console.log("🔔 Ping button clicked!");
-          sendMessageToRelay(id, { action: "ping" });
+          sendMessageToRelay(id, { payload: { type: "ping" } });
         }}
       >
         <div className="text-xs font-semibold">ID: {id}</div>

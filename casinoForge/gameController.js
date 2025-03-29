@@ -25,7 +25,8 @@ class gameController {
 
   processMessage(ws, message) {
     console.log("Processing game message:", message);
-    const { type, action, payload } = message;
+    const { payload } = message;
+    const { type, action } = payload;
 
     if (type !== "game" || !this.messageHandlers[action]) {
       console.warn(`Unhandled message type or action: ${type}/${action}`);
@@ -74,18 +75,20 @@ class gameController {
             ...Object.fromEntries(
               Object.entries(gameResponse).filter(([key]) => key !== "private")
             ),
+
             gameId: game.gameId,
           },
           broadcast: true,
+          private: gameResponse.private,
         };
 
         console.log(
           "gameController Broadcasting gameAction response",
           response
         );
-        console.log("gameController Broadcasting to relay", game.relayId);
-        console.log(this.relayManager.relays);
-        console.log(this.relayManager.relays.get(game.relayId));
+        // console.log("gameController Broadcasting to relay", game.relayId);
+        // console.log(this.relayManager.relays);
+        // console.log(this.relayManager.relays.get(game.relayId));
         //this.relayManager.relays.get(game.relayId).broadcastResponse(response);
         // if (gameResponse.private) {
         //   const privateResponse = {

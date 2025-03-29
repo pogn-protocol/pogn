@@ -251,13 +251,13 @@ class LobbyController {
           console.log("Sending test message to lobby relay.");
           try {
             lobbyRelay.relayConnections.get(game.gameId)?.sendMessage({
-              relayId: game.relayId,
+              relayId: game.gameId,
               payload: {
-                type: "game",
-                action: "test",
-                lobbyId: lobby.lobbyId,
+                type: "relayConnector",
+                action: "lobbyRelayToGameRelay",
+                relayId: lobby.lobbyId,
                 gameId: game.gameId,
-                message: "test message",
+                message: "lobbyConntroller lobby relay to game relay",
               },
             });
           } catch (e) {

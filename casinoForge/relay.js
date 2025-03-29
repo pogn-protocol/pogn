@@ -111,19 +111,26 @@ class Relay {
           message = message.toString("utf-8");
         }
         const parsedMessage = JSON.parse(message);
+        console.log("Parsed message", parsedMessage);
         this.messages.push(parsedMessage); // Store the message for later use
+        if (parsedMessage?.payload?.type === "ping") {
+          console.log(`${this.relayId} received ping from client:`, message);
+          ws.send(
+            JSON.stringify({
+              relayId: this.relayId,
+              uuid: message.uuid,
+              payload: {
+                type: "pong",
+                action: "pong",
+                message: "Ping received",
+              },
+            })
+          );
+          return;
+        }
         console.log(`${this.id} relay messages`, this.messages);
         if (parsedMessage?.uuid) {
           console.log(`🔗 Message UUID: ${parsedMessage.uuid}`);
-        }
-        console.log("Parsed message", parsedMessage);
-
-        if (parsedMessage.type !== this.type) {
-          console.warn(
-            `⚠️ Message sent to ${this.type} not of type ${this.type}:`,
-            parsedMessage.type
-          );
-          return;
         }
         this.processMessage(ws, parsedMessage);
       } catch (error) {
@@ -131,12 +138,6 @@ class Relay {
           `❌ Error processing message in ${this.type} Relay:`,
           error
         );
-        // ws.send(
-        //   JSON.stringify({
-        //     type: "error",
-        //     payload: { message: "Invalid message format." },
-        //   })
-        // );
       }
     });
 
@@ -148,10 +149,8 @@ class Relay {
 
   /** 📩 Process Incoming Messages */
   processMessage(ws, message) {
-    console.log(`📨 Processing ${this.type} message:`, message);
-    if (message.type === "hello") {
-      this.broadcastResponse(message);
-    }
+    console.warn(`⚠️ ${this.type} Relay class not extended.`);
+    console.log("Message:", message);
   }
 
   removeSocket(ws) {

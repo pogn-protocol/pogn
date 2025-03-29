@@ -79,6 +79,7 @@ const App = () => {
     }
     message.uuid = uuidv4();
     message.relayId = id;
+    message.payload.player = playerId;
     console.log(
       `🚀 Sending message to ${id} with UUID ${message.uuid}`,
       message
@@ -88,7 +89,14 @@ const App = () => {
 
   const handleMessage = (id, message) => {
     console.log(`📩 Received from ${id}:`, message);
-    if (message.uuid) {
+    if (message.error) {
+      console.error(
+        `⚠️ Error Recieved from relay ${message.relayId}: `,
+        message.error
+      );
+      return;
+    }
+    if (!message.uuid) {
       console.warn("Message UUID:", message.uuid);
     }
     console.log("Message UUID:", message.uuid);
@@ -105,7 +113,7 @@ const App = () => {
       [id]: [...(prev[id] || []), message],
     }));
     console.log(messages);
-    if (message.type === "lobby") {
+    if (message.payload.type === "lobby") {
       const lobbyId = message.payload.lobbyId;
       if (!lobbyId || lobbyId === undefined) {
         console.warn("⚠️ Lobby ID not found in message payload");
@@ -123,7 +131,7 @@ const App = () => {
       return;
     }
 
-    if (message.payload === "game") {
+    if (message.payload.type === "game") {
       const gameId = message.payload.gameId;
       if (!gameId || gameId === undefined) {
         console.warn("⚠️ Game ID not found in message payload");
@@ -171,55 +179,62 @@ const App = () => {
           )}
         </div>
 
-        {Array.from(connections.entries())
-          .filter(
-            ([id, connection]) =>
-              connection.type === "lobby" && connection.readyState === 1
-          )
-          .map(([id, connection], index) => {
-            console.log("🔍 Checking lobby connection:", id, connection);
-            console.log("🔍 Checking lobby message:", lobbyMessages[id]);
-            return (
-              <Lobby
-                key={index}
-                lobbyId={id}
-                playerId={playerId}
-                sendMessage={(msg) => handleSendMessage(id, msg)}
-                message={lobbyMessages[id]?.slice(-1)[0] || {}} // Use string key here just to be sure
-                connectionUrl={connection.url}
-                setGamesToInit={setGamesToInit}
-                lobbyConnections={connections}
-                setRemoveRelayConnections={setRemoveRelayConnections}
-              />
-            );
-          })}
+        {playerId &&
+          Array.from(connections.entries())
+            .filter(
+              ([id, connection]) =>
+                connection.type === "lobby" && connection.readyState === 1
+            )
+            .map(([id, connection], index) => {
+              console.log("🔍 Checking lobby connection:", id, connection);
+              console.log("🔍 Checking lobby message:", lobbyMessages[id]);
+              return (
+                <Lobby
+                  key={index}
+                  lobbyId={id}
+                  playerId={playerId}
+                  sendMessage={(msg) => handleSendMessage(id, msg)}
+                  message={lobbyMessages[id]?.slice(-1)[0] || {}} // Use string key here just to be sure
+                  connectionUrl={connection.url}
+                  setGamesToInit={setGamesToInit}
+                  lobbyConnections={connections}
+                  setRemoveRelayConnections={setRemoveRelayConnections}
+                />
+              );
+            })}
 
         {connections.size === 0 && <p>Lobby not started...</p>}
-        <GameConsole
-          playerId={playerId}
-          message={Object.values(gameMessages).flat().slice(-1)[0] || {}}
-          sendGameMessage={(id, msg) => handleSendMessage(id, msg)}
-          sendLobbyMessage={(id, msg) => handleSendMessage(id, msg)}
-          gamesToInit={gamesToInit}
-          lobbyUrl={"ws://localhost:8080"}
-          gameConnections={
-            new Map(
-              Array.from(connections.entries()).filter(
-                ([id, connection]) => connection.type === "game"
+        {playerId ? (
+          <GameConsole
+            playerId={playerId}
+            message={Object.values(gameMessages).flat().slice(-1)[0] || {}}
+            sendGameMessage={(id, msg) => handleSendMessage(id, msg)}
+            sendLobbyMessage={(id, msg) => handleSendMessage(id, msg)}
+            gamesToInit={gamesToInit}
+            lobbyUrl={"ws://localhost:8080"}
+            gameConnections={
+              new Map(
+                Array.from(connections.entries()).filter(
+                  ([id, connection]) => connection.type === "game"
+                )
               )
-            )
-          }
-          setAddRelayConnections={setAddRelayConnections}
-          setGamesToInit={setGamesToInit}
-          gameMessages={gameMessages}
-        />
+            }
+            setAddRelayConnections={setAddRelayConnections}
+            setGamesToInit={setGamesToInit}
+            gameMessages={gameMessages}
+          />
+        ) : (
+          <p>Game not started...</p>
+        )}
+        <h3 className="mt-3">Messages Recieved:</h3>
+
         <div className=" mt-3">
           {/* Render Lobby Messages */}
           {Object.keys(lobbyMessages)
             .sort()
             .map((id, index) => (
               <div key={index}>
-                <h3>Lobby Messages from {id}:</h3>
+                <h5>Lobby Messages from {id}:</h5>
 
                 {lobbyMessages[id].length > 1 && (
                   <details style={{ marginBottom: "8px" }}>
@@ -253,7 +268,7 @@ const App = () => {
             .sort()
             .map((id, index) => (
               <div key={index}>
-                <h3>Game Messages from {id}:</h3>
+                <h5>Game Messages from {id}:</h5>
 
                 {gameMessages[id].length > 1 && (
                   <details style={{ marginBottom: "8px" }}>
@@ -280,6 +295,24 @@ const App = () => {
                     style={{ fontSize: "14px", lineHeight: "1.2" }}
                   />
                 ))}
+              </div>
+            ))}
+          <h3 className="mt-3">All Messages:</h3>
+          {Object.values(messages)
+            .flat()
+            .map((msg, index, arr) => (
+              <div key={index}>
+                <JsonView
+                  data={msg}
+                  shouldExpandNode={(level) =>
+                    index === arr.length - 1 ? level === 0 : false
+                  } // Expand the last message only
+                  style={{
+                    fontSize: "14px",
+                    lineHeight: "1.2",
+                    marginBottom: "8px",
+                  }}
+                />
               </div>
             ))}
         </div>

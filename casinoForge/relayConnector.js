@@ -89,9 +89,9 @@ class RelayConnector {
       JSON.stringify({
         relayId: this.targetId,
         payload: {
-          type: "hello",
-          type: "game",
-          id: this.clientId,
+          type: "relayConnector",
+          action: "connected",
+          relayId: this.clientId,
           message: "Hello from relay connector",
         },
       })

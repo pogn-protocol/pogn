@@ -76,8 +76,14 @@ const Lobby = ({
       return; // ✅ Return early
     }
     const gameId = payload?.gameId;
-    const playerId = payload?.playerId;
-    const lobbyId = payload?.lobbyId;
+    //const playerId = payload?.playerId;
+    // const lobbyId = payload?.lobbyId;
+    if (playerId !== payload?.playerId) {
+      console.warn("PlayerId mismatch:", playerId, payload?.playerId);
+    }
+    if (lobbyId !== payload?.lobbyId) {
+      console.warn("LobbyId mismatch:", lobbyId, payload?.lobbyId);
+    }
 
     console.log(
       "LobbyId",
@@ -102,20 +108,19 @@ const Lobby = ({
         setLobbyGames(payload.lobbyGames || []);
         setLobbyPlayers(payload.lobbyPlayers || []);
         console.log("selectedGameId", selectedGameId);
+        // const playerGames = payload.lobbyGames.filter((game) =>
+        //   game.players?.some((player) => player === playerId)
+        // );
+        //lobbyGames has an array of games, each game has an array of players
         const playerGames = payload.lobbyGames.filter((game) =>
-          game.players?.some((player) => player === playerId)
+          game.players?.includes(playerId)
         );
+
         console.log("playerGames", playerGames);
 
         if (playerGames.length > 0) {
           console.log("Player is in a valid game:", playerGames);
           console.log(playerGames);
-          let gameRelays = playerGames.map((game) => ({
-            url: game.wsAddress,
-            id: game.gameId,
-            type: "game",
-          }));
-          console.log("gameRelays", gameRelays);
           setGamesToInit((prev) => [...prev, ...playerGames]);
         } else {
           console.log("Player is not in any valid game. Staying in the lobby.");
@@ -144,8 +149,9 @@ const Lobby = ({
       console.log("Type of playerId:", typeof playerId, playerId);
 
       const isPlayerInGame =
-        selectedGame.players?.some((player) => player === String(playerId)) ||
-        false;
+        Array.isArray(selectedGame.players) &&
+        selectedGame.players.includes(String(playerId));
+
       console.log("isPlayerInGame", isPlayerInGame);
       setIsJoining(false);
       setHasJoined(isPlayerInGame); // Correctly update hasJoined state
@@ -391,7 +397,7 @@ const Lobby = ({
                   <div>
                     <strong>Game {index + 1}:</strong> {game.gameId}
                   </div>
-                  {game.players?.some((player) => player === playerId) && (
+                  {game.players?.includes(playerId) && (
                     <span
                       style={{
                         backgroundColor: "#28a745",
