@@ -26,7 +26,7 @@ class gameController {
   processMessage(ws, message) {
     console.log("Processing game message:", message);
     const { payload } = message;
-    const { type, action } = payload;
+    const { type, action, playerId } = payload;
 
     if (type !== "game" || !this.messageHandlers[action]) {
       console.warn(`Unhandled message type or action: ${type}/${action}`);
@@ -35,8 +35,12 @@ class gameController {
         payload: { message: `Unknown action: ${action}` },
       };
     }
-
-    return this.messageHandlers[action](ws, payload);
+    let response = this.messageHandlers[action](ws, payload);
+    console.log("gameController response", response);
+    if (!response.payload?.playerId) {
+      response.payload.playerId = playerId;
+    }
+    return response;
   }
 
   handleGameAction(ws, payload) {
@@ -72,42 +76,16 @@ class gameController {
           payload: {
             type: "game",
             action: "gameAction",
-            // ...Object.fromEntries(
-            //   Object.entries(gameResponse).filter(([key]) => key !== "private")
-            // ),
             ...gameResponse,
             gameId: game.gameId,
           },
           broadcast: true,
-          // private: gameResponse.private,
         };
 
         console.log(
           "gameController Broadcasting gameAction response",
           response
         );
-        // console.log("gameController Broadcasting to relay", game.relayId);
-        // console.log(this.relayManager.relays);
-        // console.log(this.relayManager.relays.get(game.relayId));
-        //this.relayManager.relays.get(game.relayId).broadcastResponse(response);
-        // if (gameResponse.private) {
-        //   const privateResponse = {
-        //     payload: {
-        //       type: "game",
-        //       action: "gameAction",
-        //       gameId: game.gameId,
-        //       private: gameResponse.private,
-        //     },
-        //   };
-        //   console.log(
-        //     "gameController Sending private gameAction response",
-        //     privateResponse
-        //   );
-
-        //   this.relayManager.relays
-        //     .get(game.relayId)
-        //     .sendResponse(payload.playerId, privateResponse);
-        // }
         return response;
       } catch (error) {
         console.error(`❌ Error processing game action:`, error);
@@ -180,7 +158,6 @@ class gameController {
     );
     if (!createRelay) {
       console.log("createRelay is false");
-      return;
     }
     const game = new Game(gameType, gameId);
     console.log("game", game);

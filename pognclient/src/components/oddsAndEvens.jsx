@@ -8,7 +8,13 @@ import {
 } from "react-json-view-lite";
 import "react-json-view-lite/dist/index.css";
 
-const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
+const OddsAndEvens = ({
+  sendGameMessage,
+  playerId,
+  gameState,
+  gameId,
+  disconnectSelf,
+}) => {
   const [role, setRole] = useState(null); // Player's assigned role
   const [number, setNumber] = useState(""); // Player's chosen number
   const [localGameState, setLocalGameState] = useState({
@@ -62,7 +68,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
           action: "gameAction",
           gameAction: "getRoles",
           playerId,
-          gameId: localGameState.gameId,
+          gameId: gameId,
         },
       });
 
@@ -136,7 +142,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
         action: "gameAction",
         gameAction: "submitNumber",
         playerId,
-        gameId: localGameState.gameId,
+        gameId: gameId,
         number: parseInt(number, 10), // Ensure it's an integer
       },
     });
@@ -169,7 +175,7 @@ const OddsAndEvens = ({ sendGameMessage, playerId, gameState, gameId }) => {
               type: "game",
               action: "endGame",
               playerId,
-              gameId: localGameState.gameId,
+              gameId: gameId,
             },
           })
         }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "./css/lobby.css";
 import { JsonView } from "react-json-view-lite";
 import "react-json-view-lite/dist/index.css";
+import generateAnimalName from "../utils/animalNames.js";
 
 const Lobby = ({
   playerId,
@@ -28,8 +29,21 @@ const Lobby = ({
   });
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
   const [lobbyMessagesReceived, setLobbyMessagesReceived] = useState([]);
+  const [suggestedName, setSuggestedName] = useState("");
 
   useEffect(() => {
+    if (playerId) {
+      const gameName = generateAnimalName(playerId + Math.random().toString());
+      setSuggestedName(gameName);
+    }
+  }, [playerId]);
+
+  useEffect(() => {
+    console.log("Lobby ID changed:", lobbyId);
+    if (!lobbyId) {
+      console.warn("Lobby ID is not defined. Cannot proceed.");
+      return;
+    }
     if (!signedIntoLobby) {
       const connection = lobbyConnections.get(lobbyId);
       console.log("Connection", connection);
@@ -50,7 +64,7 @@ const Lobby = ({
         console.warn(`❌ Lobby ${lobbyId} connection not ready yet.`);
       }
     }
-  }, [signedIntoLobby]);
+  }, [signedIntoLobby, lobbyId]);
 
   useEffect(() => {
     console.log("Lobby Message Received by Lobby");
@@ -64,20 +78,18 @@ const Lobby = ({
     const { payload } = message;
     if (!payload) {
       console.warn("No payload in message:", message);
-      return; // ✅ Return early
+      return;
     }
     const { type, action } = payload;
     if (type !== "lobby") {
       console.warn("Message sent to lobby not of type lobby:", type);
-      return; // ✅ Return early
+      return;
     }
     if (!action) {
       console.warn("No action in payload:", payload);
-      return; // ✅ Return early
+      return;
     }
     const gameId = payload?.gameId;
-    //const playerId = payload?.playerId;
-    // const lobbyId = payload?.lobbyId;
     if (playerId !== payload?.playerId) {
       console.warn("PlayerId mismatch:", playerId, payload?.playerId);
     }
@@ -99,7 +111,7 @@ const Lobby = ({
     );
     if ((!gameId, !playerId, !lobbyId)) {
       console.warn("Missing gameId, playerId, or lobbyId in payload:", payload);
-      return; // ✅ Return early
+      return;
     }
 
     switch (action) {
@@ -108,10 +120,6 @@ const Lobby = ({
         setLobbyGames(payload.lobbyGames || []);
         setLobbyPlayers(payload.lobbyPlayers || []);
         console.log("selectedGameId", selectedGameId);
-        // const playerGames = payload.lobbyGames.filter((game) =>
-        //   game.players?.some((player) => player === playerId)
-        // );
-        //lobbyGames has an array of games, each game has an array of players
         const playerGames = payload.lobbyGames.filter((game) =>
           game.players?.includes(playerId)
         );
@@ -121,14 +129,21 @@ const Lobby = ({
         if (playerGames.length > 0) {
           console.log("Player is in a valid game:", playerGames);
           console.log(playerGames);
-          // setGamesToInit((prev) => [...prev, ...playerGames]);
-          //gamestoinit is a map now set the games with the lobby id
           console.log(
             "Setting games to init:",
             playerGames,
             "For lobbyId:",
             lobbyId
           );
+
+          const gamesMissingRelay = playerGames.filter((game) => !game.relayId);
+          if (gamesMissingRelay.length > 0) {
+            console.error(
+              "⚠️ Some games are missing relayId:",
+              gamesMissingRelay
+            );
+          }
+
           setGamesToInit((prev) => {
             const updatedMap = new Map(prev);
             updatedMap.set(lobbyId, playerGames);
@@ -211,15 +226,17 @@ const Lobby = ({
   };
 
   const handleCreateGame = () => {
-    console.log(`${playerId} creating game of type ${selectedGameType}`);
+    console.log(
+      `${playerId} creating game of type ${selectedGameType} with name ${suggestedName}`
+    );
     sendMessage({
       payload: {
         type: "lobby",
         lobbyId: lobbyId,
         action: "createNewGame",
-        gameType: selectedGameType, // Include game type
+        gameType: selectedGameType,
         playerId,
-        gameId: "new",
+        gameId: suggestedName, // 🦊 Include the suggested/entered name here
       },
     });
   };
@@ -256,6 +273,20 @@ const Lobby = ({
       : "Disconnected";
   console.log("Connection title:", connectionTitle);
 
+  useEffect(() => {
+    if (signedIntoLobby && playerId && lobbyId) {
+      console.log("✅ Triggering refreshLobby after login for:", lobbyId);
+      sendMessage({
+        payload: {
+          type: "lobby",
+          action: "refreshLobby",
+          playerId,
+          lobbyId,
+        },
+      });
+    }
+  }, [signedIntoLobby]);
+
   return (
     <div className="lobby">
       <div
@@ -285,22 +316,32 @@ const Lobby = ({
       </div>
       <div>
         <h5>Lobby Messages Received</h5>
-        <JsonView
-          data={lobbyMessagesReceived}
-          shouldExpandNode={(level, value, field) => {
-            if (level === 0) return true; // Expand root
-            if (
-              level === 1 &&
-              Array.isArray(lobbyMessagesReceived) &&
-              lobbyMessagesReceived.length > 0 &&
-              value === lobbyMessagesReceived[lobbyMessagesReceived.length - 1]
-            ) {
-              return true; // Expand first level of last message
-            }
-            return false;
-          }}
-          style={{ fontSize: "14px", lineHeight: "1.2" }}
-        />
+        {/* Previous Messages collapsed in a <details> section */}
+        {Array.isArray(lobbyMessagesReceived) &&
+          lobbyMessagesReceived.length > 1 && (
+            <details style={{ marginBottom: "8px" }}>
+              <summary>
+                Previous Messages ({lobbyMessagesReceived.length - 1})
+              </summary>
+              {lobbyMessagesReceived.slice(0, -1).map((msg, index) => (
+                <JsonView
+                  data={msg}
+                  key={`prev-lobby-msg-${index}`}
+                  shouldExpandNode={() => false} // keep these collapsed
+                  style={{ fontSize: "14px", lineHeight: "1.2" }}
+                />
+              ))}
+            </details>
+          )}
+        {/* Last message shown expanded */}
+        {lobbyMessagesReceived.slice(-1).map((msg, index) => (
+          <JsonView
+            data={msg}
+            key={`last-lobby-msg-${index}`}
+            shouldExpandNode={(level) => level === 0} // expand just root
+            style={{ fontSize: "14px", lineHeight: "1.2" }}
+          />
+        ))}
       </div>
       <div className="selectedGameState">
         <h5>Selected Game State</h5>
@@ -323,16 +364,41 @@ const Lobby = ({
           <li>No players connected yet</li>
         )}
       </ul>
+      <h5>Create New Game:</h5>
+      <label
+        htmlFor="gameTypeSelect"
+        style={{ display: "block", fontWeight: "bold", marginBottom: "4px" }}
+      >
+        Select New Game Type:
+      </label>
       <select
+        id="gameTypeSelect"
         value={selectedGameType}
         onChange={(e) => setSelectedGameType(e.target.value)}
       >
         <option value="rock-paper-scissors">Rock Paper Scissors</option>
         <option value="odds-and-evens">Odds and Evens</option>
       </select>
-      <button onClick={handleCreateGame}>Create Game</button>
+      <div style={{ marginBottom: "10px" }}>
+        <label
+          htmlFor="gameNameInput"
+          style={{ display: "block", fontWeight: "bold", marginBottom: "4px" }}
+        >
+          New GameId:
+        </label>
+        <input
+          id="gameNameInput"
+          type="text"
+          value={suggestedName}
+          onChange={(e) => setSuggestedName(e.target.value)}
+          placeholder="Enter game name"
+          style={{ marginBottom: "10px", padding: "5px", width: "100%" }}
+        />
+      </div>
 
-      <button onClick={handleListGames}>List Games</button>
+      <button onClick={handleCreateGame}>Create New Game</button>
+
+      <button onClick={handleListGames}>Refresh Games</button>
       <button
         onClick={handleJoinGame}
         disabled={

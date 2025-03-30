@@ -38,15 +38,18 @@ const App = () => {
   const [lobbyMessages, setLobbyMessages] = useState({});
   const [connections, setConnections] = useState(new Map());
   const [removeRelayConnections, setRemoveRelayConnections] = useState([]);
-  const [lobbiesInitialized, setLobbiesInitialized] = useState(false);
+  const [lobbyConnectionsInit, setLobbyConnectionsInit] = useState(false);
+  const [selectedLobbyId, setSelectedLobbyId] = useState(null);
 
   useEffect(() => {
-    if (lobbiesInitialized) {
-      console.warn("⚠️ Lobbies already initialized. Skipping URL setup...");
+    if (lobbyConnectionsInit) {
+      console.warn(
+        "⚠️ Already connected to lobbies. Skipping lobby connecting..."
+      );
       return;
     }
     if (!playerId) {
-      console.warn("⚠️ Player ID not set. Skipping URL setup...");
+      console.warn("⚠️ Player ID not set. Skipping lobby connecting...");
       return;
     }
 
@@ -58,8 +61,8 @@ const App = () => {
     console.log("🔧 Cleaning up old WebSocket connections on load...");
 
     setAddRelayConnections(initialLobbyUrls);
-    setLobbiesInitialized(true);
-  }, [lobbiesInitialized, playerId]);
+    setLobbyConnectionsInit(initialLobbyUrls);
+  }, [lobbyConnectionsInit, playerId]);
 
   useEffect(() => {
     console.log("🔥 App.jsx Re-Rendered!");
@@ -88,6 +91,11 @@ const App = () => {
   };
 
   const handleMessage = (id, message) => {
+    if (!message) {
+      console.warn("⚠️ No message received");
+      return;
+    }
+
     console.log(`📩 Received from ${id}:`, message);
     if (message.error) {
       console.error(
@@ -96,14 +104,15 @@ const App = () => {
       );
       return;
     }
+    if (!message.payload) {
+      console.warn("⚠️ Missing payload in message");
+      return;
+    }
+
     if (!message.uuid) {
       console.warn("Message UUID:", message.uuid);
     }
     console.log("Message UUID:", message.uuid);
-    if (!message) {
-      console.warn("⚠️ No message received");
-      return;
-    }
     if (message.error) {
       console.error("⚠️ Error in message:", message.error);
       return;
@@ -112,20 +121,27 @@ const App = () => {
       ...prev,
       [id]: [...(prev[id] || []), message],
     }));
-    console.log(messages);
     if (message.payload.type === "lobby") {
       const lobbyId = message.payload.lobbyId;
       if (!lobbyId || lobbyId === undefined) {
         console.warn("⚠️ Lobby ID not found in message payload");
       }
       console.log("🎰 Setting Lobby Message lobbyId:", lobbyId, message);
+
       setLobbyMessages((prev) => {
-        const newMessages = {
+        // Check if the new message is identical to the last message
+        const existingMessages = prev[lobbyId] || [];
+        const lastMessage = existingMessages[existingMessages.length - 1];
+
+        if (lastMessage?.uuid === message.uuid) {
+          console.warn(`⚠️ Duplicate UUID message for lobby ${lobbyId}`);
+          return prev;
+        }
+
+        return {
           ...prev,
-          [lobbyId]: [...(prev[lobbyId] || []), message],
+          [lobbyId]: [...existingMessages, message],
         };
-        console.log("Updated lobbyMessages", newMessages);
-        return newMessages;
       });
       console.log(lobbyMessages);
       return;
@@ -156,6 +172,42 @@ const App = () => {
     console.log("Connections set", connections);
   }, [connections]);
 
+  useEffect(() => {
+    if (!selectedLobbyId) {
+      const firstLobbyId = Array.from(connections.entries()).filter(
+        ([_, conn]) => conn.type === "lobby"
+      )[0]?.[0];
+      if (firstLobbyId) {
+        setSelectedLobbyId(firstLobbyId);
+      }
+    }
+  }, [connections, selectedLobbyId]);
+
+  // useEffect(() => {
+  //   const newGameConnections = [];
+
+  //   gamesToInit.forEach((games, lobbyId) => {
+  //     games.forEach((game) => {
+  //       if (game.relayId && !connections.has(game.relayId)) {
+  //         newGameConnections.push({
+  //           id: game.relayId,
+  //           url: game.relayUrl, // Assuming `relayUrl` is provided in the game
+  //           type: "game",
+  //         });
+  //       }
+  //     });
+  //   });
+
+  //   if (newGameConnections.length > 0) {
+  //     console.log("🎮 Adding new game connections:", newGameConnections);
+  //     setAddRelayConnections((prev) => [...prev, ...newGameConnections]);
+  //   }
+  // }, [gamesToInit, connections]);
+
+  const connectedLobbies = Array.from(connections.entries()).filter(
+    ([_, conn]) => conn.type === "lobby" && conn.readyState === 1
+  );
+
   return (
     <ErrorBoundary>
       <div className="container mt-5">
@@ -180,7 +232,191 @@ const App = () => {
           )}
         </div>
 
-        {playerId &&
+        <div className="col-md-12">
+          <h4>Select a Lobby:</h4>
+
+          {/* Lobby selector buttons */}
+          <div
+            className="border p-2 rounded mb-3"
+            style={{ maxHeight: "200px", overflowY: "auto" }}
+          >
+            {connectedLobbies.map(([id]) => (
+              <button
+                key={id}
+                onClick={() => setSelectedLobbyId(id)}
+                className={`btn w-100 text-start mb-1 ${
+                  selectedLobbyId === id
+                    ? "btn-primary"
+                    : "btn-outline-secondary"
+                }`}
+                style={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {id}
+              </button>
+            ))}
+          </div>
+
+          {/* Only render mounted lobbies that are connected */}
+          {connectedLobbies.map(([id, conn]) => (
+            <div
+              key={id}
+              style={{ display: selectedLobbyId === id ? "block" : "none" }}
+            >
+              <Lobby
+                lobbyId={id}
+                playerId={playerId}
+                sendMessage={(msg) => handleSendMessage(id, msg)}
+                message={lobbyMessages[id]?.slice(-1)[0] || {}}
+                connectionUrl={conn.url}
+                setGamesToInit={setGamesToInit}
+                lobbyConnections={connections}
+                setRemoveRelayConnections={setRemoveRelayConnections}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* <div className="mb-3" style={{ maxHeight: "200px", overflowY: "auto" }}>
+          {Array.from(connections.entries())
+            .filter(([_, conn]) => conn.type === "lobby")
+            .slice(0, 5)
+            .map(([id]) => (
+              <button
+                key={id}
+                onClick={() => setSelectedLobbyId(id)}
+                className={`btn w-100 text-start mb-1 ${
+                  selectedLobbyId === id
+                    ? "btn-primary"
+                    : "btn-outline-secondary"
+                }`}
+                style={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {id}
+              </button>
+            ))}
+        </div> */}
+        {/* <div className="col-md-12 row">
+          <div className="col-md-4">
+            <h4>Select a Lobby:</h4>
+            <div
+              className="border p-2 rounded"
+              style={{ maxHeight: "200px", overflowY: "auto" }}
+            >
+              {Array.from(connections.entries())
+                .filter(([_, conn]) => conn.type === "lobby")
+                .slice(0, 5)
+                .map(([id]) => (
+                  <button
+                    key={id}
+                    onClick={() => setSelectedLobbyId(id)}
+                    className={`btn w-100 text-start mb-1 ${
+                      selectedLobbyId === id
+                        ? "btn-primary"
+                        : "btn-outline-secondary"
+                    }`}
+                    style={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {id}
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          <div className="col-md-8">
+            {selectedLobbyId && connections.has(selectedLobbyId) && (
+              <Lobby
+                key={selectedLobbyId}
+                lobbyId={selectedLobbyId}
+                playerId={playerId}
+                sendMessage={(msg) => handleSendMessage(selectedLobbyId, msg)}
+                message={lobbyMessages[selectedLobbyId]?.slice(-1)[0] || {}}
+                connectionUrl={connections.get(selectedLobbyId).url}
+                setGamesToInit={setGamesToInit}
+                lobbyConnections={connections}
+                setRemoveRelayConnections={setRemoveRelayConnections}
+              />
+            )}
+          </div>
+        </div> */}
+        {/* <div className="col-md-12">
+          <h4>Select a Lobby:</h4>
+          <div
+            className="border p-2 rounded mb-3"
+            style={{ maxHeight: "200px", overflowY: "auto" }}
+          >
+            {Array.from(connections.entries())
+              .filter(([_, conn]) => conn.type === "lobby")
+              .slice(0, 5)
+              .map(([id, conn]) => (
+                <div
+                  key={id}
+                  style={{ display: selectedLobbyId === id ? "block" : "none" }}
+                >
+                  <Lobby
+                    key={id}
+                    lobbyId={id}
+                    playerId={playerId}
+                    sendMessage={(msg) => handleSendMessage(id, msg)}
+                    message={lobbyMessages[id]?.slice(-1)[0] || {}}
+                    connectionUrl={conn.url}
+                    setGamesToInit={setGamesToInit}
+                    lobbyConnections={connections}
+                    setRemoveRelayConnections={setRemoveRelayConnections}
+                  />
+                </div>
+              ))} */}
+
+        {/* {Array.from(connections.entries())
+              .filter(([_, conn]) => conn.type === "lobby")
+              .slice(0, 5)
+              .map(([id]) => (
+                <button
+                  key={id}
+                  onClick={() => setSelectedLobbyId(id)}
+                  className={`btn w-100 text-start mb-1 ${
+                    selectedLobbyId === id
+                      ? "btn-primary"
+                      : "btn-outline-secondary"
+                  }`}
+                  style={{
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {id}
+                </button>
+              ))} */}
+        {/* </div> */}
+
+        {/* {selectedLobbyId && connections.has(selectedLobbyId) && (
+            <Lobby
+              key={selectedLobbyId}
+              lobbyId={selectedLobbyId}
+              playerId={playerId}
+              sendMessage={(msg) => handleSendMessage(selectedLobbyId, msg)}
+              message={lobbyMessages[selectedLobbyId]?.slice(-1)[0] || {}}
+              connectionUrl={connections.get(selectedLobbyId).url}
+              setGamesToInit={setGamesToInit}
+              lobbyConnections={connections}
+              setRemoveRelayConnections={setRemoveRelayConnections}
+            />
+          )} */}
+        {/* </div> */}
+
+        {/* {playerId &&
           Array.from(connections.entries())
             .filter(
               ([id, connection]) =>
@@ -202,7 +438,94 @@ const App = () => {
                   setRemoveRelayConnections={setRemoveRelayConnections}
                 />
               );
-            })}
+            })} */}
+
+        {/* <div className="col-md-12">
+          <h4>Select a Lobby:</h4>
+
+          <div
+            className="border p-2 rounded mb-3"
+            style={{ maxHeight: "200px", overflowY: "auto" }}
+          > */}
+        {/* {Array.from(connections.entries())
+              .filter(([_, conn]) => conn.type === "lobby")
+              .slice(0, 5)
+              .map(([id]) => (
+                <button
+                  key={id}
+                  onClick={() => setSelectedLobbyId(id)}
+                  className={`btn w-100 text-start mb-1 ${
+                    selectedLobbyId === id
+                      ? "btn-primary"
+                      : "btn-outline-secondary"
+                  }`}
+                  style={{
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {id}
+                </button>
+              ))} */}
+        {/* {connectedLobbies.map(([id]) => (
+  <button
+    key={id}
+    onClick={() => setSelectedLobbyId(id)}
+    className={`btn w-100 text-start mb-1 ${
+      selectedLobbyId === id ? "btn-primary" : "btn-outline-secondary"
+    }`}
+    style={{
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+    }}
+  >
+    {id}
+  </button>
+))} */}
+
+        {/* {connectedLobbies.map(([id, conn]) => (
+              <div
+                key={id}
+                style={{ display: selectedLobbyId === id ? "block" : "none" }}
+              >
+                <Lobby
+                  lobbyId={id}
+                  playerId={playerId}
+                  sendMessage={(msg) => handleSendMessage(id, msg)}
+                  message={lobbyMessages[id]?.slice(-1)[0] || {}}
+                  connectionUrl={conn.url}
+                  setGamesToInit={setGamesToInit}
+                  lobbyConnections={connections}
+                  setRemoveRelayConnections={setRemoveRelayConnections}
+                />
+              </div>
+            ))}
+          </div> */}
+
+        {/* Render all lobbies, but only show the selected one */}
+        {/* {Array.from(connections.entries())
+            .filter(([_, conn]) => conn.type === "lobby")
+            .slice(0, 5)
+            .map(([id, conn]) => (
+              <div
+                key={id}
+                style={{ display: selectedLobbyId === id ? "block" : "none" }}
+              >
+                <Lobby
+                  lobbyId={id}
+                  playerId={playerId}
+                  sendMessage={(msg) => handleSendMessage(id, msg)}
+                  message={lobbyMessages[id]?.slice(-1)[0] || {}}
+                  connectionUrl={conn.url}
+                  setGamesToInit={setGamesToInit}
+                  lobbyConnections={connections}
+                  setRemoveRelayConnections={setRemoveRelayConnections}
+                />
+              </div>
+            ))} */}
+        {/* </div> */}
 
         {connections.size === 0 && <p>Lobby not started...</p>}
         {console.log("Player ID", playerId)}

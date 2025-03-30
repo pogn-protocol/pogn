@@ -9,6 +9,7 @@ const useRelayConnection = ({
   onMessage,
   setConnections,
   closingConnections,
+  manualCloseRef,
 }) => {
   const [prevMessage, setPrevMessage] = useState(null);
   const reconnectTimeoutRef = useRef(null);
@@ -56,7 +57,7 @@ const useRelayConnection = ({
     //   }
     // },
     share: true,
-    shouldReconnect: () => !closingConnections.has(id), // ✅ only reconnect if not manually closing
+    shouldReconnect: () => !manualCloseRef.current,
     reconnectAttempts: 5,
     reconnectInterval: 3000,
     share: true,
@@ -85,16 +86,42 @@ const useRelayConnection = ({
     let customState = readyState;
 
     // If readyState is CLOSED and it's not a manual close, mark as reconnecting
-    if (readyState === 3 && !closingConnections.has(id)) {
-      console.log(`🛠️ Reconnecting state override for ${id}`);
-      customState = 4; // Our custom "Re-connecting" state
+    // if (readyState === 3 && !closingConnections.has(id)) {
+    //   console.log(`🛠️ Reconnecting state override for ${id}`);
+    //   customState = 4; // Our custom "Re-connecting" state
+    // }
+    if (readyState === 3) {
+      if (closingConnections.has(id)) {
+        console.log(`🛑 ${id} is closing manually — skipping reconnect`);
+        return;
+      }
+
+      // otherwise auto-reconnect logic:
+      reconnectTimeoutRef.current = setTimeout(() => {
+        console.warn(`⏱️ Auto-reconnect window expired for ${id}`);
+        setShouldAttemptReconnect(false);
+        setConnections((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(id);
+          return newMap;
+        });
+      }, 10000);
     }
 
     // updateConnection({ sendJsonMessage, readyState: customState, url, type });
+    // updateConnection({
+    //   sendJsonMessage,
+    //   readyState,
+    //   customReadyState: customState, // ⬅️ Track this separately
+    //   url,
+    //   type,
+    // });
+
     updateConnection({
       sendJsonMessage,
       readyState,
-      customReadyState: customState, // ⬅️ Track this separately
+      customReadyState:
+        readyState === 3 && !closingConnections.has(id) ? 4 : readyState,
       url,
       type,
     });
@@ -244,6 +271,7 @@ const RelayItem = ({
   setConnections,
   closingConnections,
   customReadyState,
+  manualCloseRef,
 }) => {
   const { readyState, sendJsonMessage } = useRelayConnection({
     id,
@@ -252,7 +280,27 @@ const RelayItem = ({
     onMessage,
     setConnections,
     closingConnections,
+    manualCloseRef,
   });
+  const [countdown, setCountdown] = useState(null); // ✅ this line is missing!
+
+  useEffect(() => {
+    if (!closingConnections.has(id)) return;
+
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === 1) {
+          clearInterval(interval);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    setCountdown(closingConnections.get(id)?.countdown || 5); // initialize to 5
+
+    return () => clearInterval(interval);
+  }, [closingConnections, id]);
 
   return (
     <div className=" border rounded shadow-sm w-52">
@@ -284,7 +332,8 @@ const RelayItem = ({
         <div className="text-xs opacity-80">
           {closingConnections.has(id) ? (
             <span className="text-orange-500">
-              🛑 Shutting down... {closingConnections.get(id)?.countdown}s
+              🛑 Shutting down...{" "}
+              {countdown ?? closingConnections.get(id)?.countdown}s
             </span>
           ) : customReadyState === 1 ? (
             "✅"
@@ -331,6 +380,7 @@ const RelayManager = ({
     },
     [connections]
   );
+  const manualCloseRefs = useRef({}); // ⬅️ Tracks which IDs are manual close
 
   useEffect(() => {
     setSendMessage(() => sendMessageToRelay);
@@ -347,6 +397,14 @@ const RelayManager = ({
     setConnections((prev) => {
       const newMap = new Map(prev);
       addRelayConnections.forEach((relay) => {
+        if (!relay.id) {
+          console.error("❌ Relay ID is missing:", relay);
+          return;
+        }
+        if (!relay.url) {
+          console.error("❌ Relay URL is missing:", relay);
+          return;
+        }
         if (!newMap.has(relay.id)) {
           newMap.set(relay.id, relay);
           console.log(`✅ Relay ${relay.id} added to connections`);
@@ -357,6 +415,7 @@ const RelayManager = ({
       return newMap;
     });
   }, [addRelayConnections]);
+
   useEffect(() => {
     console.log("Removing relays from connections:", removeRelayConnections);
     if (removeRelayConnections && removeRelayConnections.length > 0) {
@@ -364,76 +423,55 @@ const RelayManager = ({
         "🗑 Removing relays from connections:",
         removeRelayConnections
       );
-
-      // Set closing state for each connection being removed
       removeRelayConnections.forEach((id) => {
+        // Mark as manually closing so the hook doesn't reconnect
+        manualCloseRefs.current[id] = true; // ⬅️ Tell the hook this is manual
+
         setClosingConnections((prev) => {
           const updated = new Map(prev);
-          updated.set(id, {
-            reason: "Manual shutdown",
-            timestamp: Date.now(),
-            countdown: 5, // Start countdown at 5 seconds
-          });
+          updated.set(id, { countdown: 5, startedAt: Date.now() });
           return updated;
         });
 
-        // Countdown logic
-        const interval = setInterval(() => {
+        setTimeout(() => {
+          setConnections((prev) => {
+            const newMap = new Map(prev);
+            if (newMap.has(id)) {
+              newMap.delete(id);
+              console.log(`✅ Relay ${id} removed after timeout`);
+            }
+            return newMap;
+          });
+
           setClosingConnections((prev) => {
             const updated = new Map(prev);
-            const connection = updated.get(id);
-            if (connection) {
-              if (connection.countdown > 1) {
-                connection.countdown -= 1;
-                updated.set(id, connection);
-              } else {
-                // Remove the connection after countdown
-                clearInterval(interval);
-                updated.delete(id);
-                setConnections((prev) => {
-                  const newMap = new Map(prev);
-                  newMap.delete(id);
-                  console.log(`✅ Relay ${id} fully removed after countdown`);
-                  return newMap;
-                });
-              }
-            }
+            updated.delete(id);
             return updated;
           });
-        }, 1000);
+        }, 5000); // ⏱️ Delay actual removal
       });
 
-      // ✅ Clear removeRelayConnections after marking as closing
+      // Clear the queue immediately (we're handling it now)
       setRemoveRelayConnections([]);
+
+      // setConnections((prev) => {
+      //   const newMap = new Map(prev);
+      //   removeRelayConnections.forEach((id) => {
+      //     if (newMap.has(id)) {
+      //       newMap.delete(id);
+      //       console.log(`✅ Relay ${id} removed from connections`);
+      //     } else {
+      //       console.warn(`⚠️ Relay ${id} not found in connections`);
+      //     }
+      //   });
+      //   console.log("✅ Connections after removal (inside callback):", newMap);
+      //   return newMap;
+      // });
+
+      // // ✅ Clear removeRelayConnections after cleanup
+      // setRemoveRelayConnections([]);
     }
   }, [removeRelayConnections, setConnections, setRemoveRelayConnections]);
-
-  // useEffect(() => {
-  //   console.log("Removing relays from connections:", removeRelayConnections);
-  //   if (removeRelayConnections && removeRelayConnections.length > 0) {
-  //     console.log(
-  //       "🗑 Removing relays from connections:",
-  //       removeRelayConnections
-  //     );
-
-  //     setConnections((prev) => {
-  //       const newMap = new Map(prev);
-  //       removeRelayConnections.forEach((id) => {
-  //         if (newMap.has(id)) {
-  //           newMap.delete(id);
-  //           console.log(`✅ Relay ${id} removed from connections`);
-  //         } else {
-  //           console.warn(`⚠️ Relay ${id} not found in connections`);
-  //         }
-  //       });
-  //       console.log("✅ Connections after removal (inside callback):", newMap);
-  //       return newMap;
-  //     });
-
-  //     // ✅ Clear removeRelayConnections after cleanup
-  //     setRemoveRelayConnections([]);
-  //   }
-  // }, [removeRelayConnections, setConnections, setRemoveRelayConnections]);
 
   // useEffect(() => {
   //   console.log("Removing relays from connections:", removeRelayConnections);
@@ -486,6 +524,9 @@ const RelayManager = ({
           setConnections={setConnections}
           sendMessageToRelay={sendMessageToRelay}
           closingConnections={closingConnections} // ✅ Pass it down
+          manualCloseRef={
+            manualCloseRefs.current[relay.id] || { current: false }
+          } // ✅ Correct place
         />
       ))}
     </div>

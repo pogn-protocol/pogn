@@ -404,6 +404,17 @@ const GameConsole = ({
     });
   };
 
+  const disconnectGame = (gameId) => {
+    if (!gameId || !gameConnections.has(gameId)) {
+      console.warn(
+        `⚠️ Cannot disconnect: invalid or missing gameId: ${gameId}`
+      );
+      return;
+    }
+    console.log(`🧹 Requested disconnect from game ${gameId}`);
+    setRemoveRelayConnections((prev) => [...prev, gameId]);
+  };
+
   const renderGameComponent = (gameId, gameState, gameUrl) => {
     console.log(
       "Rendering game component:",
@@ -413,29 +424,44 @@ const GameConsole = ({
       "at URL:",
       gameUrl
     );
+    const sharedProps = {
+      sendGameMessage: (msg) => sendGameMessage(gameId, { ...msg }),
+      playerId,
+      gameState,
+      gameId,
+      disconnectSelf: () => disconnectGame(gameId), // ✅ secure scoped disconnect
+    };
     switch (gameState.gameType) {
       case "rock-paper-scissors":
-        return (
-          <RockPaperScissors
-            sendGameMessage={(msg) => sendGameMessage(gameId, { ...msg })}
-            playerId={playerId}
-            gameState={gameState}
-            gameId={gameId}
-          />
-        );
+        return <RockPaperScissors {...sharedProps} />;
       case "odds-and-evens":
-        console.log("Rendering Odds and Evens component...", gameState);
-        return (
-          <OddsAndEvens
-            sendGameMessage={(msg) => sendGameMessage(gameId, { ...msg })}
-            playerId={playerId}
-            gameState={gameState}
-            gameId={gameId}
-          />
-        );
+        return <OddsAndEvens {...sharedProps} />;
       default:
         return <p>Game type not supported.</p>;
     }
+    // switch (gameState.gameType) {
+    //   case "rock-paper-scissors":
+    //     return (
+    //       <RockPaperScissors
+    //         sendGameMessage={(msg) => sendGameMessage(gameId, { ...msg })}
+    //         playerId={playerId}
+    //         gameState={gameState}
+    //         gameId={gameId}
+    //       />
+    //     );
+    //   case "odds-and-evens":
+    //     console.log("Rendering Odds and Evens component...", gameState);
+    //     return (
+    //       <OddsAndEvens
+    //         sendGameMessage={(msg) => sendGameMessage(gameId, { ...msg })}
+    //         playerId={playerId}
+    //         gameState={gameState}
+    //         gameId={gameId}
+    //       />
+    //     );
+    //   default:
+    //     return <p>Game type not supported.</p>;
+    // }
   };
 
   return (

@@ -18,9 +18,13 @@ class LobbyController {
     this.messages = [];
   }
 
-  processMessage(message) {
-    console.log("Preserved messages", this.messages);
+  async processMessage(message) {
     console.log("Processing lobby message:", message);
+    this.messages.push(message);
+    console.log(
+      "Preserved lobbyController.processedMessage message. Preserved messages",
+      this.messages
+    );
 
     const { payload } = message;
     const { lobbyId, action, playerId, gameId, gameType } = payload || {};
@@ -43,12 +47,19 @@ class LobbyController {
     }
 
     console.log("lobby", lobby);
-    return this.messageHandlers[action]({
+    let response = await this.messageHandlers[action]({
       lobby,
       playerId,
       gameId,
       gameType,
     });
+
+    console.log("LobbyController response", response);
+
+    if (!response.payload?.lobbyId) {
+      response.payload.lobbyId = lobby.lobbyId;
+    }
+    return response;
   }
 
   gameEnded({ lobby, gameId }) {
@@ -178,12 +189,13 @@ class LobbyController {
         action: "refreshLobby",
         lobbyPlayers: lobby.getLobbyPlayers(),
         lobbyGames: lobby.getLobbyGames(),
+        lobbyId: lobby.lobbyId,
       },
       broadcast: true,
     };
   }
 
-  async createGame({ lobby, playerId, gameType }) {
+  async createGame({ lobby, playerId, gameType, gameId }) {
     try {
       console.log(playerId, "creating", gameType, "game.");
 
@@ -202,36 +214,44 @@ class LobbyController {
         };
       }
 
-      const game = this.gameController.createGame(
+      let game = this.gameController.createGame(
         gameType,
-        true,
-        lobby.lobbyId
+        false,
+        lobby.lobbyId,
+        gameId
       );
       console.log("Game created:", game);
-
-      try {
-        const relay = await this.gameController.createRelay(
-          gameType,
-          game.gameId,
-          this.gamePorts,
-          lobby.lobbyId
-        );
-
-        game.relayId = relay.id;
-        game.wsAddress = relay.wsAddress;
-
-        console.log(
-          "GameRelay initialized:",
-          this.relayManager.relays.get(game.relayId)
-        );
-        console.log("Relay WebSocket address:", game.wsAddress);
-      } catch (error) {
-        console.error("❌ Failed to create relay for the game:", error.message);
+      if (!game) {
         return {
           type: "error",
-          payload: { message: "Relay creation failed." },
+          payload: { message: "Game creation failed." },
         };
       }
+
+      const [relay] = await this.relayManager.createRelays([
+        {
+          type: "game",
+          id: game.gameId,
+          options: {
+            ports: this.gameController.gamePorts,
+            controller: this.gameController,
+            lobbyId: lobby.lobbyId,
+          },
+        },
+      ]);
+      console.log("Relay created:", relay);
+      if (!relay || relay.length === 0) {
+        throw new Error("New game relay creation failed.");
+      }
+
+      game.relayId = relay.id;
+      game.wsAddress = relay.wsAddress;
+
+      console.log(
+        "GameRelay initialized:",
+        this.relayManager.relays.get(game.relayId)
+      );
+      console.log("Created", game);
 
       setTimeout(() => {
         const gameRelay = this.relayManager.relays.get(game.relayId);
@@ -300,14 +320,16 @@ class LobbyController {
   refreshLobby({ lobby }) {
     console.log("Refreshing lobby...");
 
-    this.relayManager.relays.get(lobby.lobbyId).broadcastResponse({
+    return {
       payload: {
         type: "lobby",
         action: "refreshLobby",
+        lobbyId: lobby.lobbyId,
         lobbyPlayers: lobby.getLobbyPlayers(),
         lobbyGames: lobby.getLobbyGames(),
       },
-    });
+      broadcast: true,
+    };
   }
 
   //create two lobby games with 2 players each ids:
