@@ -12,6 +12,9 @@ const Lobby = ({
   lobbyId,
   setRemoveRelayConnections,
   lobbyConnections,
+  signedInLobbies,
+  setSignedInLobbies,
+  setAddRelayConnections,
 }) => {
   const [signedIntoLobby, setSignedIntoLobby] = useState(false);
   const [lobbyGames, setLobbyGames] = useState([]);
@@ -31,6 +34,28 @@ const Lobby = ({
   const [lobbyMessagesReceived, setLobbyMessagesReceived] = useState([]);
   const [suggestedName, setSuggestedName] = useState("");
 
+  const isSignedIn = signedInLobbies.has(lobbyId);
+
+  const handleLogin = () => {
+    const connection = lobbyConnections.get(lobbyId);
+    if (connection?.readyState === 1) {
+      console.log(`✅ Logging into lobby ${lobbyId}...`);
+      sendMessage({
+        payload: {
+          type: "lobby",
+          action: "login",
+          lobbyId,
+          playerId,
+        },
+      });
+
+      setSignedInLobbies((prev) => new Set(prev).add(lobbyId));
+      setSignedIntoLobby(true);
+    } else {
+      console.warn(`❌ Lobby ${lobbyId} connection not ready.`);
+    }
+  };
+
   useEffect(() => {
     if (playerId) {
       const gameName = generateAnimalName(playerId + Math.random().toString());
@@ -38,33 +63,33 @@ const Lobby = ({
     }
   }, [playerId]);
 
-  useEffect(() => {
-    console.log("Lobby ID changed:", lobbyId);
-    if (!lobbyId) {
-      console.warn("Lobby ID is not defined. Cannot proceed.");
-      return;
-    }
-    if (!signedIntoLobby) {
-      const connection = lobbyConnections.get(lobbyId);
-      console.log("Connection", connection);
-      if (connection?.readyState === 1) {
-        console.log(
-          `✅ Lobby ${lobbyId} connection established. Sending login...`
-        );
-        sendMessage({
-          payload: {
-            type: "lobby",
-            action: "login",
-            lobbyId: lobbyId,
-            playerId,
-          },
-        });
-        setSignedIntoLobby(true);
-      } else {
-        console.warn(`❌ Lobby ${lobbyId} connection not ready yet.`);
-      }
-    }
-  }, [signedIntoLobby, lobbyId]);
+  // useEffect(() => {
+  //   console.log("Lobby ID changed:", lobbyId);
+  //   if (!lobbyId) {
+  //     console.warn("Lobby ID is not defined. Cannot proceed.");
+  //     return;
+  //   }
+  //   if (!signedIntoLobby) {
+  //     const connection = lobbyConnections.get(lobbyId);
+  //     console.log("Connection", connection);
+  //     if (connection?.readyState === 1) {
+  //       console.log(
+  //         `✅ Lobby ${lobbyId} connection established. Sending login...`
+  //       );
+  //       sendMessage({
+  //         payload: {
+  //           type: "lobby",
+  //           action: "login",
+  //           lobbyId: lobbyId,
+  //           playerId,
+  //         },
+  //       });
+  //       setSignedIntoLobby(true);
+  //     } else {
+  //       console.warn(`❌ Lobby ${lobbyId} connection not ready yet.`);
+  //     }
+  //   }
+  // }, [signedIntoLobby, lobbyId]);
 
   useEffect(() => {
     console.log("Lobby Message Received by Lobby");
@@ -161,6 +186,36 @@ const Lobby = ({
           setHasJoined(false);
         }
         break;
+
+      // case "newLobby":
+      //   const { lobbyId, lobbyAddress } = payload;
+
+      //   if (!newId || !lobbyAddress) {
+      //     console.warn("⚠️ Missing new lobbyId or address");
+      //     break;
+      //   }
+
+      //   console.log(
+      //     `🔌 Adding new lobby connection: ${newId} @ ${lobbyAddress}`
+      //   );
+
+      //   // setRemoveRelayConnections((prev) =>
+      //   //   prev.filter((conn) => conn.id !== newId)
+      //   // ); // optional: remove if already exists
+
+      //   // This triggers WebSocketManager to connect
+      //   window.setTimeout(() => {
+      //     setAddRelayConnections((prev) => [
+      //       ...prev,
+      //       { id: lobbyId, url: lobbyAddress, type: "lobby" },
+      //     ]);
+      //   }, 100); // delay avoids React race condition
+
+      //   if (signedInLobbies && setSignedInLobbies) {
+      //     setSignedInLobbies((prev) => new Set(prev).add(newId));
+      //   }
+      //   break;
+
       default:
         console.warn(`Unhandled action: ${action}`);
     }
@@ -298,233 +353,263 @@ const Lobby = ({
         }}
       >
         <h5>Lobby ID: {lobbyId}</h5>
-        <div className="d-flex  mb-2">
-          <div
-            style={{
-              width: "20px",
-              height: "20px",
-              borderRadius: "50%",
-              backgroundColor: connectionColor,
-              border: "1px solid #333",
-            }}
-            title={connectionTitle}
-          ></div>
-          <div style={{ marginLeft: "10px" }}>
-            <p> {connectionTitle}</p>
-          </div>
-        </div>
-      </div>
-      <div>
-        <h5>Lobby Messages Received</h5>
-        {/* Previous Messages collapsed in a <details> section */}
-        {Array.isArray(lobbyMessagesReceived) &&
-          lobbyMessagesReceived.length > 1 && (
-            <details style={{ marginBottom: "8px" }}>
-              <summary>
-                Previous Messages ({lobbyMessagesReceived.length - 1})
-              </summary>
-              {lobbyMessagesReceived.slice(0, -1).map((msg, index) => (
+        {!isSignedIn ? (
+          <button className="btn btn-secondary mb-3" onClick={handleLogin}>
+            Login to Lobby
+          </button>
+        ) : (
+          <>
+            <div className="d-flex  mb-2">
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  backgroundColor: connectionColor,
+                  border: "1px solid #333",
+                }}
+                title={connectionTitle}
+              ></div>
+              <div style={{ marginLeft: "10px" }}>
+                <p> {connectionTitle}</p>
+              </div>
+            </div>
+            {/* </div> */}
+          </>
+        )}
+        {/* </div> */}
+        {isSignedIn && (
+          <>
+            <div>
+              <h5>Lobby Messages Received</h5>
+              {/* Previous Messages collapsed in a <details> section */}
+              {Array.isArray(lobbyMessagesReceived) &&
+                lobbyMessagesReceived.length > 1 && (
+                  <details style={{ marginBottom: "8px" }}>
+                    <summary>
+                      Previous Messages ({lobbyMessagesReceived.length - 1})
+                    </summary>
+                    {lobbyMessagesReceived.slice(0, -1).map((msg, index) => (
+                      <JsonView
+                        data={msg}
+                        key={`prev-lobby-msg-${index}`}
+                        shouldExpandNode={() => false} // keep these collapsed
+                        style={{ fontSize: "14px", lineHeight: "1.2" }}
+                      />
+                    ))}
+                  </details>
+                )}
+              {/* Last message shown expanded */}
+              {lobbyMessagesReceived.slice(-1).map((msg, index) => (
                 <JsonView
                   data={msg}
-                  key={`prev-lobby-msg-${index}`}
-                  shouldExpandNode={() => false} // keep these collapsed
+                  key={`last-lobby-msg-${index}`}
+                  shouldExpandNode={(level) => level === 0} // expand just root
                   style={{ fontSize: "14px", lineHeight: "1.2" }}
                 />
               ))}
-            </details>
-          )}
-        {/* Last message shown expanded */}
-        {lobbyMessagesReceived.slice(-1).map((msg, index) => (
-          <JsonView
-            data={msg}
-            key={`last-lobby-msg-${index}`}
-            shouldExpandNode={(level) => level === 0} // expand just root
-            style={{ fontSize: "14px", lineHeight: "1.2" }}
-          />
-        ))}
-      </div>
-      <div className="selectedGameState">
-        <h5>Selected Game State</h5>
-        <JsonView
-          data={selectedGamestate}
-          shouldExpandNode={(level) => level === 0} // Expand only the first level
-          style={{ fontSize: "14px", lineHeight: "1.2" }}
-        />
-      </div>
-      <h5>LobbyId: {lobbyId}</h5>
-      <p>Players in Lobby: {lobbyPlayers.length}</p>
-      <ul>
-        {lobbyPlayers.length > 0 ? (
-          lobbyPlayers.map((player, index) => (
-            <li key={index}>
-              <strong>Player {index + 1}:</strong> {player}
-            </li>
-          ))
-        ) : (
-          <li>No players connected yet</li>
-        )}
-      </ul>
-      <h5>Create New Game:</h5>
-      <label
-        htmlFor="gameTypeSelect"
-        style={{ display: "block", fontWeight: "bold", marginBottom: "4px" }}
-      >
-        Select New Game Type:
-      </label>
-      <select
-        id="gameTypeSelect"
-        value={selectedGameType}
-        onChange={(e) => setSelectedGameType(e.target.value)}
-      >
-        <option value="rock-paper-scissors">Rock Paper Scissors</option>
-        <option value="odds-and-evens">Odds and Evens</option>
-      </select>
-      <div style={{ marginBottom: "10px" }}>
-        <label
-          htmlFor="gameNameInput"
-          style={{ display: "block", fontWeight: "bold", marginBottom: "4px" }}
-        >
-          New GameId:
-        </label>
-        <input
-          id="gameNameInput"
-          type="text"
-          value={suggestedName}
-          onChange={(e) => setSuggestedName(e.target.value)}
-          placeholder="Enter game name"
-          style={{ marginBottom: "10px", padding: "5px", width: "100%" }}
-        />
-      </div>
-
-      <button onClick={handleCreateGame}>Create New Game</button>
-
-      <button onClick={handleListGames}>Refresh Games</button>
-      <button
-        onClick={handleJoinGame}
-        disabled={
-          hasJoined ||
-          isJoining ||
-          lobbyPlayers.length === 0 ||
-          !selectedGamestate.gameId ||
-          selectedGamestate.players.length >=
-            selectedGamestate.instance.maxPlayers
-        }
-      >
-        {hasJoined
-          ? "Joined" // If the player has joined
-          : isJoining
-          ? "Joining..." // If the player is in the process of joining
-          : "Join Game"}{" "}
-      </button>
-
-      {hasJoined &&
-        selectedGameId &&
-        (selectedGamestate.lobbyStatus === "canStart" ||
-          selectedGamestate.lobbyStatus === "readyToStart") && (
-          <button
-            onClick={handleStartGame}
-            disabled={
-              Object.keys(
-                lobbyGames.find((game) => game.gameId === selectedGameId)
-                  ?.players || {}
-              ).length < 2 // Disable if less than 2 players
-            }
-            style={{
-              marginTop: "10px",
-              backgroundColor:
-                Object.keys(
-                  lobbyGames.find((game) => game.gameId === selectedGameId)
-                    ?.players || {}
-                ).length >= 2
-                  ? "#28a745" // Green for enabled
-                  : "#ccc", // Gray for disabled
-              cursor:
-                Object.keys(
-                  lobbyGames.find((game) => game.gameId === selectedGameId)
-                    ?.players || {}
-                ).length >= 2
-                  ? "pointer"
-                  : "not-allowed", // Pointer for clickable, not-allowed otherwise
-            }}
-          >
-            {Object.keys(
-              lobbyGames.find((game) => game.gameId === selectedGameId)
-                ?.players || {}
-            ).length >= 2
-              ? "Start Game" // Show "Start Game" if 2+ players
-              : "Waiting for Players"}{" "}
-          </button>
-        )}
-
-      <div className="lobbyGames">
-        {lobbyGames.length > 0 ? (
-          <ul>
-            {lobbyGames.map((game, index) => (
-              <li
-                key={index}
-                onClick={() => handleSelect(game.gameId)} // Handle click to select the game
+            </div>
+            <div className="selectedGameState">
+              <h5>Selected Game State</h5>
+              <JsonView
+                data={selectedGamestate}
+                shouldExpandNode={(level) => level === 0} // Expand only the first level
+                style={{ fontSize: "14px", lineHeight: "1.2" }}
+              />
+            </div>
+            <h5>LobbyId: {lobbyId}</h5>
+            <p>Players in Lobby: {lobbyPlayers.length}</p>
+            <ul>
+              {lobbyPlayers.length > 0 ? (
+                lobbyPlayers.map((player, index) => (
+                  <li key={index}>
+                    <strong>Player {index + 1}:</strong> {player}
+                  </li>
+                ))
+              ) : (
+                <li>No players connected yet</li>
+              )}
+            </ul>
+            <h5>Create New Game:</h5>
+            <label
+              htmlFor="gameTypeSelect"
+              style={{
+                display: "block",
+                fontWeight: "bold",
+                marginBottom: "4px",
+              }}
+            >
+              Select New Game Type:
+            </label>
+            <select
+              id="gameTypeSelect"
+              value={selectedGameType}
+              onChange={(e) => setSelectedGameType(e.target.value)}
+            >
+              <option value="rock-paper-scissors">Rock Paper Scissors</option>
+              <option value="odds-and-evens">Odds and Evens</option>
+            </select>
+            <div style={{ marginBottom: "10px" }}>
+              <label
+                htmlFor="gameNameInput"
                 style={{
-                  cursor: "pointer",
-                  padding: "10px",
-                  border: "1px solid #ccc",
-                  borderRadius: "5px",
-                  margin: "5px 0",
-                  backgroundColor:
-                    selectedGameId === game.gameId ? "#d3f9d8" : "#fff", // Highlight selected
-                  fontWeight:
-                    selectedGameId === game.gameId ? "bold" : "normal", // Bold selected
+                  display: "block",
+                  fontWeight: "bold",
+                  marginBottom: "4px",
                 }}
               >
-                <div
-                  style={{ display: "flex", justifyContent: "space-between" }}
+                New GameId:
+              </label>
+              <input
+                id="gameNameInput"
+                type="text"
+                value={suggestedName}
+                onChange={(e) => setSuggestedName(e.target.value)}
+                placeholder="Enter game name"
+                style={{ marginBottom: "10px", padding: "5px", width: "100%" }}
+              />
+            </div>
+
+            <div className="d-grid">
+              <button onClick={handleCreateGame}>Create New Game</button>
+
+              <button onClick={handleListGames}>Refresh Games</button>
+              <button
+                onClick={handleJoinGame}
+                disabled={
+                  hasJoined ||
+                  isJoining ||
+                  lobbyPlayers.length === 0 ||
+                  !selectedGamestate.gameId ||
+                  selectedGamestate.players.length >=
+                    selectedGamestate.instance.maxPlayers
+                }
+              >
+                {hasJoined
+                  ? "Joined" // If the player has joined
+                  : isJoining
+                  ? "Joining..." // If the player is in the process of joining
+                  : "Join Game"}{" "}
+              </button>
+            </div>
+
+            {hasJoined &&
+              selectedGameId &&
+              (selectedGamestate.lobbyStatus === "canStart" ||
+                selectedGamestate.lobbyStatus === "readyToStart") && (
+                <button
+                  onClick={handleStartGame}
+                  disabled={
+                    Object.keys(
+                      lobbyGames.find((game) => game.gameId === selectedGameId)
+                        ?.players || {}
+                    ).length < 2 // Disable if less than 2 players
+                  }
+                  style={{
+                    marginTop: "10px",
+                    backgroundColor:
+                      Object.keys(
+                        lobbyGames.find(
+                          (game) => game.gameId === selectedGameId
+                        )?.players || {}
+                      ).length >= 2
+                        ? "#28a745" // Green for enabled
+                        : "#ccc", // Gray for disabled
+                    cursor:
+                      Object.keys(
+                        lobbyGames.find(
+                          (game) => game.gameId === selectedGameId
+                        )?.players || {}
+                      ).length >= 2
+                        ? "pointer"
+                        : "not-allowed", // Pointer for clickable, not-allowed otherwise
+                  }}
                 >
-                  <div>
-                    <strong>Game {index + 1}:</strong> {game.gameId}
-                  </div>
-                  {game.players?.includes(playerId) && (
-                    <span
+                  {Object.keys(
+                    lobbyGames.find((game) => game.gameId === selectedGameId)
+                      ?.players || {}
+                  ).length >= 2
+                    ? "Start Game" // Show "Start Game" if 2+ players
+                    : "Waiting for Players"}{" "}
+                </button>
+              )}
+
+            <div className="lobbyGames">
+              {lobbyGames.length > 0 ? (
+                <ul>
+                  {lobbyGames.map((game, index) => (
+                    <li
+                      key={index}
+                      onClick={() => handleSelect(game.gameId)} // Handle click to select the game
                       style={{
-                        backgroundColor: "#28a745",
-                        color: "white",
-                        padding: "2px 8px",
-                        borderRadius: "12px",
-                        fontSize: "12px",
-                        fontWeight: "bold",
+                        cursor: "pointer",
+                        padding: "10px",
+                        border: "1px solid #ccc",
+                        borderRadius: "5px",
+                        margin: "5px 0",
+                        backgroundColor:
+                          selectedGameId === game.gameId ? "#d3f9d8" : "#fff", // Highlight selected
+                        fontWeight:
+                          selectedGameId === game.gameId ? "bold" : "normal", // Bold selected
                       }}
                     >
-                      Joined
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <strong>Game Type:</strong> {game.gameType}
-                </div>
-                <div>
-                  <div>
-                    <strong>Players:</strong>{" "}
-                    {Object.keys(game.players || {}).length} /{" "}
-                    {game.instance?.maxPlayers || "N/A"}
-                  </div>
-                  {game.players && Object.keys(game.players).length > 0 ? (
-                    <ul>
-                      {Object.entries(game.players).map(
-                        ([playerId, playerData], playerIndex) => (
-                          <li key={playerIndex}>
-                            <strong>Player {playerIndex + 1}:</strong>{" "}
-                            {playerId}
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  ) : (
-                    <div>No players connected yet</div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No games available</p>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div>
+                          <strong>Game {index + 1}:</strong> {game.gameId}
+                        </div>
+                        {game.players?.includes(playerId) && (
+                          <span
+                            style={{
+                              backgroundColor: "#28a745",
+                              color: "white",
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                              fontSize: "12px",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            Joined
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <strong>Game Type:</strong> {game.gameType}
+                      </div>
+                      <div>
+                        <div>
+                          <strong>Players:</strong>{" "}
+                          {Object.keys(game.players || {}).length} /{" "}
+                          {game.instance?.maxPlayers || "N/A"}
+                        </div>
+                        {game.players &&
+                        Object.keys(game.players).length > 0 ? (
+                          <ul>
+                            {Object.entries(game.players).map(
+                              ([playerId, playerData], playerIndex) => (
+                                <li key={playerIndex}>
+                                  <strong>Player {playerIndex + 1}:</strong>{" "}
+                                  {playerId}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        ) : (
+                          <div>No players connected yet</div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No games available</p>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

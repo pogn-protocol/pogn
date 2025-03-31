@@ -40,6 +40,12 @@ const App = () => {
   const [removeRelayConnections, setRemoveRelayConnections] = useState([]);
   const [lobbyConnectionsInit, setLobbyConnectionsInit] = useState(false);
   const [selectedLobbyId, setSelectedLobbyId] = useState(null);
+  const [signedInLobbies, setSignedInLobbies] = useState(new Set());
+  const [autoLogin, setAutoLogin] = useState(true);
+  const [createLobbyId, setCreateLobbyId] = useState("lobby3");
+  const [selectedConnectionId, setSelectedConnectionId] = useState("");
+  const [lobbyConnectId, setLobbyConnectId] = useState("lobby3");
+  const [lobbyConnectUrl, setLobbyConnectUrl] = useState("ws://localhost:8081");
 
   useEffect(() => {
     if (lobbyConnectionsInit) {
@@ -56,7 +62,7 @@ const App = () => {
     console.log("✅ Setting lobby and game URLs...");
     const initialLobbyUrls = [
       { id: "lobby1", url: "ws://localhost:8080", type: "lobby" },
-      { id: "lobby2", url: "ws://localhost:8081", type: "lobby" },
+      // { id: "lobby2", url: "ws://localhost:8081", type: "lobby" },
     ];
     console.log("🔧 Cleaning up old WebSocket connections on load...");
 
@@ -128,6 +134,34 @@ const App = () => {
       }
       console.log("🎰 Setting Lobby Message lobbyId:", lobbyId, message);
 
+      if (message.payload.action === "newLobby") {
+        console.log("📡 Received newLobby action from relay:", message);
+
+        if (!lobbyId) {
+          console.warn(
+            "⚠️ Missing lobbyId or lobbyAddress in newLobby message"
+          );
+          return;
+        }
+
+        // Remove if somehow already pending
+        setRemoveRelayConnections((prev) =>
+          prev.filter((conn) => conn.id !== lobbyId)
+        );
+
+        // Add new connection via WebSocketManager
+        setAddRelayConnections((prev) => [
+          ...prev,
+          { id: lobbyId, url: message.payload.lobbyAddress, type: "lobby" },
+        ]);
+
+        if (false) {
+          setSignedInLobbies((prev) => new Set(prev).add(lobbyId));
+        }
+
+        return; // ⛔️ Skip the rest, we handled it
+      }
+
       setLobbyMessages((prev) => {
         // Check if the new message is identical to the last message
         const existingMessages = prev[lobbyId] || [];
@@ -187,6 +221,12 @@ const App = () => {
     }
   }, [connections, selectedLobbyId]);
 
+  useEffect(() => {
+    if (!selectedConnectionId && connectedLobbies.length > 0) {
+      setSelectedConnectionId(connectedLobbies[0][0]);
+    }
+  }, [connectedLobbies, selectedConnectionId]);
+
   return (
     <ErrorBoundary>
       <div className="container mt-5">
@@ -211,7 +251,218 @@ const App = () => {
           )}
         </div>
 
-        <div className="col-md-12">
+        <div className="mt-3 w-100 text-start">
+          <h4 className="mb-2">Create Lobby:</h4>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: "8px",
+              flexWrap: "wrap",
+            }}
+          >
+            <select
+              className="form-select"
+              style={{ width: "200px" }}
+              value={selectedConnectionId}
+              onChange={(e) => setSelectedConnectionId(e.target.value)}
+            >
+              <option value="">Select Relay</option>
+              {connectedLobbies.map(([id, conn]) => (
+                <option key={id} value={id}>
+                  {id} - {conn.url}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Lobby ID"
+              style={{ width: "150px" }}
+              value={createLobbyId}
+              onChange={(e) => setCreateLobbyId(e.target.value)}
+            />
+
+            <button
+              className="btn btn-secondary"
+              disabled={!selectedConnectionId || !createLobbyId}
+              onClick={() => {
+                const connection = connections.get(selectedConnectionId);
+                if (connection?.readyState === 1) {
+                  sendMessageToUrl(selectedConnectionId, {
+                    relayId: selectedConnectionId,
+                    payload: {
+                      type: "lobby",
+                      action: "createLobby",
+                      lobbyId: createLobbyId,
+                      playerId,
+                    },
+                    uuid: uuidv4(),
+                    relayId: selectedConnectionId,
+                  });
+
+                  console.log("🎯 Sent createLobby to", selectedConnectionId);
+
+                  if (autoLogin) {
+                    setSignedInLobbies((prev) =>
+                      new Set(prev).add(createLobbyId)
+                    );
+                  }
+
+                  // setNewLobbyId("");
+                } else {
+                  console.warn(`Connection ${selectedConnectionId} not ready`);
+                }
+              }}
+            >
+              Create Lobby
+            </button>
+
+            <div className="form-check form-switch d-flex align-items-center">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="autoLoginSwitch"
+                checked={autoLogin}
+                onChange={() => setAutoLogin(!autoLogin)}
+              />
+              <label
+                className="form-check-label ms-1"
+                htmlFor="autoLoginSwitch"
+              >
+                Auto Login
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 w-100 text-start">
+          <h4 className="mb-2">Connect to a Lobby Manually:</h4>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-start",
+              gap: "8px",
+            }}
+          >
+            <input
+              type="text"
+              className="form-control"
+              placeholder="ws://localhost:8081"
+              style={{ width: "300px" }}
+              value={lobbyConnectUrl}
+              onChange={(e) => setLobbyConnectUrl(e.target.value)}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="LobbyId"
+              style={{ width: "200px" }}
+              value={lobbyConnectId}
+              onChange={(e) => setLobbyConnectId(e.target.value)}
+            />
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                if (!lobbyConnectUrl || !lobbyConnectId) return;
+                setAddRelayConnections((prev) => [
+                  ...prev,
+                  { id: lobbyConnectId, url: lobbyConnectUrl, type: "lobby" },
+                ]);
+                if (autoLogin) {
+                  setSignedInLobbies((prev) =>
+                    new Set(prev).add(lobbyConnectId)
+                  );
+                }
+                setLobbyConnectUrl("");
+                setLobbyConnectId("");
+              }}
+            >
+              Connect
+            </button>
+            <div className="form-check form-switch d-flex align-items-center ms-2">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="autoLoginSwitch"
+                checked={autoLogin}
+                onChange={() => setAutoLogin(!autoLogin)}
+              />
+              <label
+                className="form-check-label ms-1"
+                htmlFor="autoLoginSwitch"
+              >
+                Auto Login
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* <div className="mt-3 w-100 text-start">
+          <h4 className="mb-2">Connect to a Lobby Manually:</h4>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-start",
+              gap: "8px",
+            }}
+          >
+            <input
+              type="text"
+              className="form-control"
+              placeholder="ws://localhost:8081"
+              style={{ width: "300px" }}
+              value={newLobbyUrl}
+              onChange={(e) => setNewLobbyUrl(e.target.value)}
+            />
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                if (!newLobbyUrl) return;
+                const newLobbyId = "lobby2";
+                setAddRelayConnections((prev) => [
+                  ...prev,
+                  { id: newLobbyId, url: newLobbyUrl, type: "lobby" },
+                ]);
+                if (autoLogin) {
+                  setSignedInLobbies((prev) => new Set(prev).add(newLobbyId));
+                }
+                setNewLobbyUrl("");
+              }}
+
+              // onClick={() => {
+              //   if (!newLobbyUrl) return;
+              //   const newLobbyId = "lobby2";
+              //   setAddRelayConnections((prev) => [
+              //     ...prev,
+              //     { id: newLobbyId, url: newLobbyUrl, type: "lobby" },
+              //   ]);
+              //   setNewLobbyUrl("");
+              // }}
+            >
+              Connect
+            </button>
+            <div className="form-check form-switch d-flex align-items-center ms-2">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="autoLoginSwitch"
+                checked={autoLogin}
+                onChange={() => setAutoLogin(!autoLogin)}
+              />
+              <label
+                className="form-check-label ms-1"
+                htmlFor="autoLoginSwitch"
+              >
+                Auto Login
+              </label>
+            </div>
+          </div>      
+        </div> */}
+
+        <div className="col-md-12 mt-3">
           <h4>Select a Lobby:</h4>
 
           {/* Lobby selector buttons */}
@@ -254,6 +505,9 @@ const App = () => {
                 setGamesToInit={setGamesToInit}
                 lobbyConnections={connections}
                 setRemoveRelayConnections={setRemoveRelayConnections}
+                signedInLobbies={signedInLobbies}
+                setSignedInLobbies={setSignedInLobbies}
+                setAddRelayConnections={setAddRelayConnections}
               />
             </div>
           ))}

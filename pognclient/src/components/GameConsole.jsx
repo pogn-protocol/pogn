@@ -24,19 +24,6 @@ const GameConsole = ({
   const [gameStates, setGameStates] = useState(new Map());
   const [selectedGameId, setSelectedGameId] = useState(null);
 
-  const connectedGames = Array.from(gameConnections.entries()).filter(
-    ([_, conn]) => conn.type === "game" && conn.readyState === 1
-  );
-
-  useEffect(() => {
-    if (!selectedGameId) {
-      const firstGameId = connectedGames[0]?.[0];
-      if (firstGameId) {
-        setSelectedGameId(firstGameId);
-      }
-    }
-  }, [connectedGames, selectedGameId]);
-
   useEffect(() => {
     if (!message || Object.keys(message).length === 0) {
       console.log("No message received.");
@@ -479,6 +466,21 @@ const GameConsole = ({
     // }
   };
 
+  const connectedGames = Array.from(gameConnections.entries()).filter(
+    ([id, conn]) =>
+      conn.readyState === 1 && gameStates.get(id)?.lobbyStatus === "started"
+  );
+  console.log("Connected games:", connectedGames);
+
+  useEffect(() => {
+    if (!selectedGameId) {
+      const firstGameId = connectedGames[0]?.[0];
+      if (firstGameId) {
+        setSelectedGameId(firstGameId);
+      }
+    }
+  }, [connectedGames, selectedGameId]);
+
   return (
     <div>
       <h1 className="mb-4">Game Console</h1>
@@ -487,22 +489,24 @@ const GameConsole = ({
         className="border p-2 rounded mb-3"
         style={{ maxHeight: "200px", overflowY: "auto" }}
       >
-        {Array.from(gameConnections.entries()).map(([id]) => (
-          <button
-            key={id}
-            onClick={() => setSelectedGameId(id)}
-            className={`btn w-100 text-start mb-1 ${
-              selectedGameId === id ? "btn-primary" : "btn-outline-secondary"
-            }`}
-            style={{
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {id}
-          </button>
-        ))}
+        {Array.from(gameConnections.entries())
+          .filter(([id]) => gameStates.get(id)?.lobbyStatus === "started")
+          .map(([id]) => (
+            <button
+              key={id}
+              onClick={() => setSelectedGameId(id)}
+              className={`btn w-100 text-start mb-1 ${
+                selectedGameId === id ? "btn-primary" : "btn-outline-secondary"
+              }`}
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {id}
+            </button>
+          ))}
       </div>
 
       <div

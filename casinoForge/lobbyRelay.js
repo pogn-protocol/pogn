@@ -2,11 +2,11 @@ const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
 
 class LobbyRelay extends Relay {
-  constructor(relayId, ports, lobbyController, targetUrl = null) {
-    super("lobby", relayId, ports);
+  constructor(id, ports, lobbyController, targetUrl = null) {
+    super("lobby", id, ports);
     this.lobbyController = lobbyController;
     this.relayConnections = new Map();
-    this.relayId = relayId;
+    this.relayId = id;
     this.gameConnections = [];
   }
 
@@ -111,7 +111,7 @@ class LobbyRelay extends Relay {
     let response;
     if (!error) {
       response =
-        action === "login"
+        action === "login" && payload.lobbyId !== "lobby3"
           ? await this.lobbyController.testGames(payload.lobbyId)
           : await this.lobbyController.processMessage(message);
     } else {
@@ -120,7 +120,9 @@ class LobbyRelay extends Relay {
         payload: { error },
       };
     }
-    response.relayId = this.relayId;
+    if (!response.relayId) {
+      response.relayId = this.relayId;
+    }
     response.uuid = uuidv4(); // Assign unique identifier to messages
     console.log("Lobby response", response);
 

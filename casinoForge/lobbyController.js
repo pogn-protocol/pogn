@@ -14,52 +14,64 @@ class LobbyController {
       startGame: (data) => this.startGame(data),
       refreshLobby: (data) => this.refreshLobby(data),
       gameEnded: (data) => this.gameEnded(data),
+      testGames: (data) => this.testGames(data),
+      createLobby: (data) => this.createLobby(data),
     };
     this.messages = [];
+    this.ports = [8080, 8081, 8082, 8083, 8084]; // Default ports for game relays
   }
 
   async processMessage(message) {
-    console.log("Processing lobby message:", message);
-    this.messages.push(message);
-    console.log(
-      "Preserved lobbyController.processedMessage message. Preserved messages",
-      this.messages
-    );
+    try {
+      console.log("Processing lobby message:", message);
+      this.messages.push(message);
+      console.log(
+        "Preserved lobbyController.processedMessage message. Preserved messages",
+        this.messages
+      );
 
-    const { payload } = message;
-    const { lobbyId, action, playerId, gameId, gameType } = payload || {};
+      const { payload } = message;
+      const { lobbyId, action, playerId, gameId, gameType } = payload || {};
 
-    const lobby = this.lobbies.get(lobbyId);
-    if (!lobby) {
-      console.warn(`⚠️ Lobby ${lobbyId} not found.`);
+      const lobby = this.lobbies.get(lobbyId);
+      if (!lobby && action !== "createLobby") {
+        console.warn(`⚠️ Lobby ${lobbyId} not found.`);
+        return {
+          type: "error",
+          payload: { message: `Lobby ${lobbyId} not found.` },
+        };
+      }
+
+      if (!this.messageHandlers[action]) {
+        console.warn(`⚠️ Unknown action: ${action}`);
+        return {
+          type: "error",
+          payload: { message: `Unknown action: ${action}` },
+        };
+      }
+
+      console.log("lobby", lobby);
+      let response = await this.messageHandlers[action]({
+        lobby,
+        playerId,
+        gameId,
+        gameType,
+        lobbyId,
+      });
+
+      console.log("LobbyController response", response);
+
+      if (!response.payload?.lobbyId) {
+        response.payload.lobbyId = lobbyId;
+      }
+      return response;
+    } catch (error) {
+      console.error("Error processing message in LobbyController:", error);
       return {
         type: "error",
-        payload: { message: `Lobby ${lobbyId} not found.` },
+        payload: { message: "Failed to process message." },
       };
     }
-
-    if (!this.messageHandlers[action]) {
-      console.warn(`⚠️ Unknown action: ${action}`);
-      return {
-        type: "error",
-        payload: { message: `Unknown action: ${action}` },
-      };
-    }
-
-    console.log("lobby", lobby);
-    let response = await this.messageHandlers[action]({
-      lobby,
-      playerId,
-      gameId,
-      gameType,
-    });
-
-    console.log("LobbyController response", response);
-
-    if (!response.payload?.lobbyId) {
-      response.payload.lobbyId = lobby.lobbyId;
-    }
-    return response;
   }
 
   gameEnded({ lobby, gameId }) {
@@ -424,7 +436,7 @@ class LobbyController {
   //   };
   // }
 
-  createLobby(lobbyId, ports) {
+  async createLobby({ lobbyId, ports }) {
     console.log("Creating lobby:", lobbyId);
     if (this.lobbies.has(lobbyId)) {
       console.warn(`Lobby ${lobbyId} already exists.`);
@@ -434,23 +446,42 @@ class LobbyController {
       };
     }
 
-    this.lobbies.set(lobbyId, new Lobby(lobbyId));
+    let newLobby = new Lobby(lobbyId);
     console.log("Lobbies", this.lobbies);
-    this.relayManager.createRelays([
+    let [newLobbyRelay] = await this.relayManager.createRelays([
       {
         type: "lobby",
         id: lobbyId,
         options: {
-          ports: ports,
+          ports: ports || this.ports,
           controller: this,
         },
       },
     ]);
+
+    if (!newLobbyRelay.wsAddress) {
+      console.error("Failed to create lobby relay. No WebSocket address.");
+      return {
+        type: "error",
+        payload: { message: "Failed to create lobby relay." },
+      };
+    }
+
+    newLobby.relay = newLobbyRelay;
+    newLobby.wsAddress = newLobbyRelay.wsAddress;
+    newLobby.relayId = newLobbyRelay.id;
+
+    this.lobbies.set(lobbyId, newLobby);
+
+    console.log("Lobby created:", newLobby);
+    console.log(this.lobbies);
     return {
+      relayId: newLobbyRelay.id,
       payload: {
         type: "lobby",
-        action: "refreshLobby",
+        action: "newLobby",
         lobbyId: lobbyId,
+        lobbyAddress: newLobbyRelay.wsAddress,
         lobbyPlayers: this.lobbies.get(lobbyId).getLobbyPlayers(),
         lobbyGames: this.lobbies.get(lobbyId).getLobbyGames(),
       },
