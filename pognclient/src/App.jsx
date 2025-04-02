@@ -6,9 +6,10 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import ErrorBoundary from "./ErrorBoundary";
 import Lobby from "./components/Lobby";
 import GameConsole from "./components/GameConsole";
-import WebSocketManager from "./components/WebSocketManager";
 import { JsonView } from "react-json-view-lite";
 import { v4 as uuidv4 } from "uuid";
+import useMessages from "./components/hooks/useMessages";
+import RelayManager from "./components/RelayManager";
 
 window.onerror = function (message, source, lineno, colno, error) {
   console.error(
@@ -31,12 +32,8 @@ window.addEventListener("unhandledrejection", function (event) {
 const App = () => {
   const [playerId, setPlayerId] = useState(null);
   const [gamesToInit, setGamesToInit] = useState(new Map());
-  const [messages, setMessages] = useState({});
   const [sendMessageToUrl, setSendMessageToUrl] = useState(() => () => {});
   const [addRelayConnections, setAddRelayConnections] = useState([]);
-  const [gameMessages, setGameMessages] = useState({});
-  const [lobbyMessages, setLobbyMessages] = useState({});
-  const [connections, setConnections] = useState(new Map());
   const [removeRelayConnections, setRemoveRelayConnections] = useState([]);
   const [lobbyConnectionsInit, setLobbyConnectionsInit] = useState(false);
   const [selectedLobbyId, setSelectedLobbyId] = useState(null);
@@ -45,7 +42,23 @@ const App = () => {
   const [createLobbyId, setCreateLobbyId] = useState("lobby3");
   const [selectedConnectionId, setSelectedConnectionId] = useState("");
   const [lobbyConnectId, setLobbyConnectId] = useState("lobby3");
-  const [lobbyConnectUrl, setLobbyConnectUrl] = useState("ws://localhost:8081");
+  const [lobbyConnectUrl, setLobbyConnectUrl] = useState("ws://localhost:8082");
+  const [connections, setConnections] = useState(new Map());
+
+  const {
+    messages,
+    lobbyMessages,
+    gameMessages,
+    handleMessage,
+    handleSendMessage,
+  } = useMessages(
+    playerId,
+    connections,
+    sendMessageToUrl,
+    setAddRelayConnections,
+    setRemoveRelayConnections,
+    setSignedInLobbies
+  );
 
   useEffect(() => {
     if (lobbyConnectionsInit) {
@@ -67,148 +80,16 @@ const App = () => {
     console.log("🔧 Cleaning up old WebSocket connections on load...");
 
     setAddRelayConnections(initialLobbyUrls);
-    setLobbyConnectionsInit(initialLobbyUrls);
+    setLobbyConnectionsInit(true);
   }, [lobbyConnectionsInit, playerId]);
 
   useEffect(() => {
     console.log("🔥 App.jsx Re-Rendered!");
   });
 
-  const handleSendMessage = (id, message) => {
-    console.log("handleSendMessage", id, message);
-    const connection = connections.get(id);
-    console.log("connection", connection);
-    if (!connection) {
-      console.warn(`⚠️ Connection ${id} not found`);
-      return;
-    }
-    if (connection.readyState !== 1) {
-      console.warn(`⚠️ Connection ${id} not ready`);
-      return;
-    }
-    message.uuid = uuidv4();
-    message.relayId = id;
-    message.payload.player = playerId;
-    console.log(
-      `🚀 Sending message to ${id} with UUID ${message.uuid}`,
-      message
-    );
-    sendMessageToUrl(id, message);
-  };
-
-  const handleMessage = (id, message) => {
-    if (!message) {
-      console.warn("⚠️ No message received");
-      return;
-    }
-
-    console.log(`📩 Received from ${id}:`, message);
-    if (message.error) {
-      console.error(
-        `⚠️ Error Recieved from relay ${message.relayId}: `,
-        message.error
-      );
-      return;
-    }
-    if (!message.payload) {
-      console.warn("⚠️ Missing payload in message");
-      return;
-    }
-
-    if (!message.uuid) {
-      console.warn("Message UUID:", message.uuid);
-    }
-    console.log("Message UUID:", message.uuid);
-    if (message.error) {
-      console.error("⚠️ Error in message:", message.error);
-      return;
-    }
-    setMessages((prev) => ({
-      ...prev,
-      [id]: [...(prev[id] || []), message],
-    }));
-    if (message.payload.type === "lobby") {
-      const lobbyId = message.payload.lobbyId;
-      if (!lobbyId || lobbyId === undefined) {
-        console.warn("⚠️ Lobby ID not found in message payload");
-      }
-      console.log("🎰 Setting Lobby Message lobbyId:", lobbyId, message);
-
-      if (message.payload.action === "newLobby") {
-        console.log("📡 Received newLobby action from relay:", message);
-
-        if (!lobbyId) {
-          console.warn(
-            "⚠️ Missing lobbyId or lobbyAddress in newLobby message"
-          );
-          return;
-        }
-
-        // Remove if somehow already pending
-        setRemoveRelayConnections((prev) =>
-          prev.filter((conn) => conn.id !== lobbyId)
-        );
-
-        // Add new connection via WebSocketManager
-        setAddRelayConnections((prev) => [
-          ...prev,
-          { id: lobbyId, url: message.payload.lobbyAddress, type: "lobby" },
-        ]);
-
-        if (false) {
-          setSignedInLobbies((prev) => new Set(prev).add(lobbyId));
-        }
-
-        return; // ⛔️ Skip the rest, we handled it
-      }
-
-      setLobbyMessages((prev) => {
-        // Check if the new message is identical to the last message
-        const existingMessages = prev[lobbyId] || [];
-        const lastMessage = existingMessages[existingMessages.length - 1];
-
-        if (lastMessage?.uuid === message.uuid) {
-          console.warn(`⚠️ Duplicate UUID message for lobby ${lobbyId}`);
-          return prev;
-        }
-
-        return {
-          ...prev,
-          [lobbyId]: [...existingMessages, message],
-        };
-      });
-      console.log(lobbyMessages);
-      return;
-    }
-
-    if (message.payload.type === "game") {
-      const gameId = message.payload.gameId;
-      if (!gameId || gameId === undefined) {
-        console.warn("⚠️ Game ID not found in message payload");
-      }
-      console.log("🎰 Setting Game Message gameId:", gameId, message);
-      setGameMessages((prev) => ({
-        ...prev,
-        [gameId]: [...(prev[gameId] || []), message],
-      }));
-      console.log(gameMessages);
-      return;
-    }
-
-    console.warn(`⚠️ Unknown message type received from ${id}:`, message);
-  };
-
-  useEffect(() => {
-    console.log("All messages", messages);
-  }, [messages]);
-
   useEffect(() => {
     console.log("Connections set", connections);
   }, [connections]);
-
-  const connectedLobbies = Array.from(connections.entries()).filter(
-    ([_, conn]) => conn.type === "lobby" && conn.readyState === 1
-  );
 
   useEffect(() => {
     if (!selectedLobbyId) {
@@ -221,6 +102,10 @@ const App = () => {
     }
   }, [connections, selectedLobbyId]);
 
+  const connectedLobbies = Array.from(connections.entries()).filter(
+    ([_, conn]) => conn.type === "lobby" && conn.readyState === 1
+  );
+
   useEffect(() => {
     if (!selectedConnectionId && connectedLobbies.length > 0) {
       setSelectedConnectionId(connectedLobbies[0][0]);
@@ -232,18 +117,17 @@ const App = () => {
       <div className="container mt-5">
         <Player setPlayerId={setPlayerId} />
         {playerId && <Dashboard playerName="Player" playerId={playerId} />}
-        <div>
+        <div className="mt-3">
           {addRelayConnections && addRelayConnections.length > 0 ? (
             <>
-              <h3 className="mt-3">Connections:</h3>
-              <WebSocketManager
+              <RelayManager
                 addRelayConnections={addRelayConnections}
-                onMessage={handleMessage}
-                setSendMessage={setSendMessageToUrl}
-                setConnections={setConnections}
-                connections={connections}
                 removeRelayConnections={removeRelayConnections}
                 setRemoveRelayConnections={setRemoveRelayConnections}
+                onMessage={handleMessage}
+                setSendMessage={setSendMessageToUrl}
+                connections={connections}
+                setConnections={setConnections}
               />
             </>
           ) : (
@@ -310,8 +194,6 @@ const App = () => {
                       new Set(prev).add(createLobbyId)
                     );
                   }
-
-                  // setNewLobbyId("");
                 } else {
                   console.warn(`Connection ${selectedConnectionId} not ready`);
                 }
@@ -400,68 +282,6 @@ const App = () => {
           </div>
         </div>
 
-        {/* <div className="mt-3 w-100 text-start">
-          <h4 className="mb-2">Connect to a Lobby Manually:</h4>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-start",
-              gap: "8px",
-            }}
-          >
-            <input
-              type="text"
-              className="form-control"
-              placeholder="ws://localhost:8081"
-              style={{ width: "300px" }}
-              value={newLobbyUrl}
-              onChange={(e) => setNewLobbyUrl(e.target.value)}
-            />
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                if (!newLobbyUrl) return;
-                const newLobbyId = "lobby2";
-                setAddRelayConnections((prev) => [
-                  ...prev,
-                  { id: newLobbyId, url: newLobbyUrl, type: "lobby" },
-                ]);
-                if (autoLogin) {
-                  setSignedInLobbies((prev) => new Set(prev).add(newLobbyId));
-                }
-                setNewLobbyUrl("");
-              }}
-
-              // onClick={() => {
-              //   if (!newLobbyUrl) return;
-              //   const newLobbyId = "lobby2";
-              //   setAddRelayConnections((prev) => [
-              //     ...prev,
-              //     { id: newLobbyId, url: newLobbyUrl, type: "lobby" },
-              //   ]);
-              //   setNewLobbyUrl("");
-              // }}
-            >
-              Connect
-            </button>
-            <div className="form-check form-switch d-flex align-items-center ms-2">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                id="autoLoginSwitch"
-                checked={autoLogin}
-                onChange={() => setAutoLogin(!autoLogin)}
-              />
-              <label
-                className="form-check-label ms-1"
-                htmlFor="autoLoginSwitch"
-              >
-                Auto Login
-              </label>
-            </div>
-          </div>      
-        </div> */}
-
         <div className="col-md-12 mt-3">
           <h4>Select a Lobby:</h4>
 
@@ -512,36 +332,6 @@ const App = () => {
             </div>
           ))}
         </div>
-
-        {/* {playerId ? (
-          <GameConsole
-            playerId={playerId}
-            selectedGameId={selectedGameId}
-            message={
-              selectedGameId
-                ? gameMessages[selectedGameId]?.slice(-1)[0] || {}
-                : {}
-            }
-            sendGameMessage={(id, msg) => handleSendMessage(id, msg)}
-            sendLobbyMessage={(id, msg) => handleSendMessage(id, msg)}
-            gamesToInit={gamesToInit}
-            lobbyUrl={"ws://localhost:8080"}
-            gameConnections={
-              new Map(
-                Array.from(connections.entries()).filter(
-                  ([id, connection]) => connection.type === "game"
-                )
-              )
-            }
-            setAddRelayConnections={setAddRelayConnections}
-            setGamesToInit={setGamesToInit}
-            gameMessages={gameMessages}
-            setRemoveRelayConnections={setRemoveRelayConnections}
-          />
-        ) : (
-          <p>Game not started...</p>
-        )} */}
-
         {connections.size === 0 && <p>Lobby not started...</p>}
         {console.log("Player ID", playerId)}
         {console.log("Games to init", gamesToInit)}

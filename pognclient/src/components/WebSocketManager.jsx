@@ -451,68 +451,9 @@ const RelayManager = ({
         }, 5000); // ⏱️ Delay actual removal
       });
 
-      // Clear the queue immediately (we're handling it now)
       setRemoveRelayConnections([]);
-
-      // setConnections((prev) => {
-      //   const newMap = new Map(prev);
-      //   removeRelayConnections.forEach((id) => {
-      //     if (newMap.has(id)) {
-      //       newMap.delete(id);
-      //       console.log(`✅ Relay ${id} removed from connections`);
-      //     } else {
-      //       console.warn(`⚠️ Relay ${id} not found in connections`);
-      //     }
-      //   });
-      //   console.log("✅ Connections after removal (inside callback):", newMap);
-      //   return newMap;
-      // });
-
-      // // ✅ Clear removeRelayConnections after cleanup
-      // setRemoveRelayConnections([]);
     }
   }, [removeRelayConnections, setConnections, setRemoveRelayConnections]);
-
-  // useEffect(() => {
-  //   console.log("Removing relays from connections:", removeRelayConnections);
-  //   if (removeRelayConnections && removeRelayConnections.length > 0) {
-  //     console.log(
-  //       "🗑 Removing relays from connections:",
-  //       removeRelayConnections
-  //     );
-
-  //     setConnections((prev) => {
-  //       const newMap = new Map(prev);
-  //       removeRelayConnections.forEach((id) => {
-  //         if (newMap.has(id)) {
-  //           newMap.delete(id);
-  //           console.log(`✅ Relay ${id} removed from connections`);
-  //         } else {
-  //           console.warn(`⚠️ Relay ${id} not found in connections`);
-  //         }
-  //       });
-  //       return newMap;
-  //     });
-  //     console.log("✅ Connections after removal:", connections);
-
-  //     // ✅ Clear removeRelayConnections after cleanup
-  //     setRemoveRelayConnections([]);
-  //   }
-  // }, [removeRelayConnections, setConnections]);
-
-  // Wait 5 seconds, then remove from both closingConnections and connections
-  // setTimeout(() => {
-  //   setClosingConnections((prev) => {
-  //     const updated = new Map(prev);
-  //     updated.delete(id);
-  //     return updated;
-  //   });
-  //   setConnections((prev) => {
-  //     const updated = new Map(prev);
-  //     updated.delete(id);
-  //     return updated;
-  //   });
-  // }, 5000);
 
   return (
     <div className="d-flex flex-row">
