@@ -8,9 +8,10 @@ import {
   defaultStyles,
 } from "react-json-view-lite";
 import "react-json-view-lite/dist/index.css";
+import { verifyGameMessage } from "../utils/verifications";
 
 const GameConsole = ({
-  sendGameMessage,
+  sendMessage,
   message = {},
   playerId = "",
   gamesToInit,
@@ -23,33 +24,49 @@ const GameConsole = ({
 }) => {
   const [gameStates, setGameStates] = useState(new Map());
   const [selectedGameId, setSelectedGameId] = useState(null);
+  const [gameMessagesSent, setGameMessagesSent] = useState({});
+
+  const sendGameMessage = (gameId, message) => {
+    setGameMessagesSent((prev) => {
+      const updated = { ...prev };
+      updated[gameId] = [...(updated[gameId] || []), message];
+      return updated;
+    });
+    // existing logic
+    sendMessage(gameId, message); // or however you're sending
+  };
 
   useEffect(() => {
-    if (!message || Object.keys(message).length === 0) {
-      console.log("No message received.");
-      return;
-    }
-    console.log("Processing Game message:", message);
-    const { payload } = message;
-    if (!payload) {
-      console.warn("No payload in message:", message);
-      return;
-    }
-    const { type, action } = payload;
-    if (type !== "game") {
-      console.warn("Message sent to game not of type game:", type);
-      return;
-    }
-    if (!action) {
-      console.warn("No action in payload:", payload);
-      return;
-    }
-    const gameId = payload?.gameId;
+    // if (!message || Object.keys(message).length === 0) {
+    //   console.log("No message received.");
+    //   return;
+    // }
+    // console.log("Processing Game message:", message);
+    // const { payload } = message;
+    // if (!payload) {
+    //   console.warn("No payload in message:", message);
+    //   return;
+    // }
+    // const { type, action } = payload;
+    // if (type !== "game") {
+    //   console.warn("Message sent to game not of type game:", type);
+    //   return;
+    // }
+    // if (!action) {
+    //   console.warn("No action in payload:", payload);
+    //   return;
+    // }
+    // const gameId = payload?.gameId;
 
-    if (!gameId) {
-      console.warn("No gameId in payload:", payload);
-      return;
-    }
+    // if (!gameId) {
+    //   console.warn("No gameId in payload:", payload);
+    //   return;
+    // }
+
+    if (!verifyGameMessage(message)) return;
+
+    const { payload } = message;
+    const { action, gameId } = payload;
     switch (action) {
       case "gameAction":
       case "results":
@@ -573,7 +590,65 @@ const GameConsole = ({
                 )}
                 {renderGameComponent(gameId, gameState, wsAddress)}
                 <p>Game Messages:</p>
-                {gameMessages[gameId]?.length > 1 && (
+                <div style={{ display: "flex", gap: "20px" }}>
+                  {/* Received Messages */}
+                  <div>
+                    <h6>Received</h6>
+                    {gameMessages[gameId]?.length > 1 && (
+                      <details style={{ marginBottom: "8px" }}>
+                        <summary>
+                          Previous ({gameMessages[gameId].length - 1})
+                        </summary>
+                        {gameMessages[gameId].slice(0, -1).map((msg, i) => (
+                          <JsonView
+                            data={msg}
+                            key={`recv-${gameId}-${i}`}
+                            shouldExpandNode={() => false}
+                            style={{ fontSize: "14px", lineHeight: "1.2" }}
+                          />
+                        ))}
+                      </details>
+                    )}
+                    {gameMessages[gameId]?.slice(-1).map((msg, i) => (
+                      <JsonView
+                        data={msg}
+                        key={`recv-last-${gameId}-${i}`}
+                        shouldExpandNode={() => true}
+                        style={{ fontSize: "14px", lineHeight: "1.2" }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Sent Messages */}
+                  <div>
+                    <h6>Sent</h6>
+                    {gameMessagesSent[gameId]?.length > 1 && (
+                      <details style={{ marginBottom: "8px" }}>
+                        <summary>
+                          Previous ({gameMessagesSent[gameId].length - 1})
+                        </summary>
+                        {gameMessagesSent[gameId].slice(0, -1).map((msg, i) => (
+                          <JsonView
+                            data={msg}
+                            key={`sent-${gameId}-${i}`}
+                            shouldExpandNode={() => false}
+                            style={{ fontSize: "14px", lineHeight: "1.2" }}
+                          />
+                        ))}
+                      </details>
+                    )}
+                    {gameMessagesSent[gameId]?.slice(-1).map((msg, i) => (
+                      <JsonView
+                        data={msg}
+                        key={`sent-last-${gameId}-${i}`}
+                        shouldExpandNode={() => true}
+                        style={{ fontSize: "14px", lineHeight: "1.2" }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* {gameMessages[gameId]?.length > 1 && (
                   <details style={{ marginBottom: "8px" }}>
                     <summary>
                       Previous Messages ({gameMessages[gameId].length - 1})
@@ -587,17 +662,17 @@ const GameConsole = ({
                       />
                     ))}
                   </details>
-                )}
+                )} */}
 
                 {/* Render the last message fully expanded */}
-                {gameMessages[gameId]?.slice(-1).map((msg, index) => (
+                {/* {gameMessages[gameId]?.slice(-1).map((msg, index) => (
                   <JsonView
                     data={msg}
                     key={`last-game-msg-${gameId}-${index}`}
                     shouldExpandNode={() => true} // Always fully expanded for the last message
                     style={{ fontSize: "14px", lineHeight: "1.2" }}
                   />
-                ))}
+                ))} */}
               </div>
             );
           })}

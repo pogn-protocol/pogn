@@ -3,6 +3,7 @@ import "./css/lobby.css";
 import { JsonView } from "react-json-view-lite";
 import "react-json-view-lite/dist/index.css";
 import generateAnimalName from "../utils/animalNames.js";
+import { verifyLobbyMessage } from "../utils/verifications.js";
 
 const Lobby = ({
   playerId,
@@ -32,15 +33,21 @@ const Lobby = ({
   });
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
   const [lobbyMessagesReceived, setLobbyMessagesReceived] = useState([]);
+  const [lobbyMessagesSent, setLobbyMessagesSent] = useState([]);
   const [suggestedName, setSuggestedName] = useState("");
 
   const isSignedIn = signedInLobbies.has(lobbyId);
+
+  const sendLobbyMessage = (message) => {
+    setLobbyMessagesSent((prev) => [...prev, message]); // track sent messages
+    sendMessage(message); // call the original send
+  };
 
   const handleLogin = () => {
     const connection = lobbyConnections.get(lobbyId);
     if (connection?.readyState === 1) {
       console.log(`✅ Logging into lobby ${lobbyId}...`);
-      sendMessage({
+      sendLobbyMessage({
         payload: {
           type: "lobby",
           action: "login",
@@ -76,7 +83,7 @@ const Lobby = ({
   //       console.log(
   //         `✅ Lobby ${lobbyId} connection established. Sending login...`
   //       );
-  //       sendMessage({
+  //       sendLobbyMessage({
   //         payload: {
   //           type: "lobby",
   //           action: "login",
@@ -92,52 +99,55 @@ const Lobby = ({
   // }, [signedIntoLobby, lobbyId]);
 
   useEffect(() => {
-    console.log("Lobby Message Received by Lobby");
-    if (!message || Object.keys(message).length === 0) {
-      console.warn("Invalid message object:", message);
-      return;
-    }
+    console.log("Lobby Message Received by Lobby:", message);
     setLobbyMessagesReceived((prev) => [...prev, message]);
 
-    console.log("Processing Lobby message:", message);
+    // if (!message || Object.keys(message).length === 0) {
+    //   console.warn("Invalid message object:", message);
+    //   return;
+    // }
+
+    // console.log("Processing Lobby message:", message);
+    // const { payload } = message;
+    // if (!payload) {
+    //   console.warn("No payload in message:", message);
+    //   return;
+    // }
+    // const { type, action } = payload;
+    // if (type !== "lobby") {
+    //   console.warn("Message sent to lobby not of type lobby:", type);
+    //   return;
+    // }
+    // if (!action) {
+    //   console.warn("No action in payload:", payload);
+    //   return;
+    // }
+    // const gameId = payload?.gameId;
+    // if (playerId !== payload?.playerId) {
+    //   console.warn("PlayerId mismatch:", playerId, payload?.playerId);
+    // }
+    // if (lobbyId !== payload?.lobbyId) {
+    //   console.warn("LobbyId mismatch:", lobbyId, payload?.lobbyId);
+    // }
+
+    if (!verifyLobbyMessage(message, playerId, lobbyId)) return;
     const { payload } = message;
-    if (!payload) {
-      console.warn("No payload in message:", message);
-      return;
-    }
-    const { type, action } = payload;
-    if (type !== "lobby") {
-      console.warn("Message sent to lobby not of type lobby:", type);
-      return;
-    }
-    if (!action) {
-      console.warn("No action in payload:", payload);
-      return;
-    }
-    const gameId = payload?.gameId;
-    if (playerId !== payload?.playerId) {
-      console.warn("PlayerId mismatch:", playerId, payload?.playerId);
-    }
-    if (lobbyId !== payload?.lobbyId) {
-      console.warn("LobbyId mismatch:", lobbyId, payload?.lobbyId);
-    }
+    const { action } = payload;
 
     console.log(
       "LobbyId",
       lobbyId,
       "PlayerId",
       playerId,
-      "GameId",
-      gameId,
       "Action",
       action,
       "Payload",
       payload
     );
-    if ((!gameId, !playerId, !lobbyId)) {
-      console.warn("Missing gameId, playerId, or lobbyId in payload:", payload);
-      return;
-    }
+    // if ((!gameId, !playerId, !lobbyId)) {
+    //   console.warn("Missing gameId, playerId, or lobbyId in payload:", payload);
+    //   return;
+    // }
 
     switch (action) {
       case "refreshLobby":
@@ -186,36 +196,6 @@ const Lobby = ({
           setHasJoined(false);
         }
         break;
-
-      // case "newLobby":
-      //   const { lobbyId, lobbyAddress } = payload;
-
-      //   if (!newId || !lobbyAddress) {
-      //     console.warn("⚠️ Missing new lobbyId or address");
-      //     break;
-      //   }
-
-      //   console.log(
-      //     `🔌 Adding new lobby connection: ${newId} @ ${lobbyAddress}`
-      //   );
-
-      //   // setRemoveRelayConnections((prev) =>
-      //   //   prev.filter((conn) => conn.id !== newId)
-      //   // ); // optional: remove if already exists
-
-      //   // This triggers WebSocketManager to connect
-      //   window.setTimeout(() => {
-      //     setAddRelayConnections((prev) => [
-      //       ...prev,
-      //       { id: lobbyId, url: lobbyAddress, type: "lobby" },
-      //     ]);
-      //   }, 100); // delay avoids React race condition
-
-      //   if (signedInLobbies && setSignedInLobbies) {
-      //     setSignedInLobbies((prev) => new Set(prev).add(newId));
-      //   }
-      //   break;
-
       default:
         console.warn(`Unhandled action: ${action}`);
     }
@@ -257,7 +237,7 @@ const Lobby = ({
 
   const handleStartGame = () => {
     console.log("Starting game...", selectedGamestate.gameId);
-    sendMessage({
+    sendLobbyMessage({
       payload: {
         type: "lobby",
         lobbyId: lobbyId,
@@ -270,7 +250,7 @@ const Lobby = ({
 
   const handleListGames = () => {
     console.log(`${playerId} listing games...`);
-    sendMessage({
+    sendLobbyMessage({
       payload: {
         type: "lobby",
         lobbyId: lobbyId,
@@ -284,7 +264,7 @@ const Lobby = ({
     console.log(
       `${playerId} creating game of type ${selectedGameType} with name ${suggestedName}`
     );
-    sendMessage({
+    sendLobbyMessage({
       payload: {
         type: "lobby",
         lobbyId: lobbyId,
@@ -299,7 +279,7 @@ const Lobby = ({
   const handleJoinGame = () => {
     console.log(`${playerId} joining game... ${selectedGamestate.gameId}`);
     setIsJoining(true);
-    sendMessage({
+    sendLobbyMessage({
       payload: {
         type: "lobby",
         lobbyId: lobbyId,
@@ -331,7 +311,7 @@ const Lobby = ({
   useEffect(() => {
     if (signedIntoLobby && playerId && lobbyId) {
       console.log("✅ Triggering refreshLobby after login for:", lobbyId);
-      sendMessage({
+      sendLobbyMessage({
         payload: {
           type: "lobby",
           action: "refreshLobby",
@@ -380,34 +360,71 @@ const Lobby = ({
         {/* </div> */}
         {isSignedIn && (
           <>
-            <div>
-              <h5>Lobby Messages Received</h5>
-              {/* Previous Messages collapsed in a <details> section */}
-              {Array.isArray(lobbyMessagesReceived) &&
-                lobbyMessagesReceived.length > 1 && (
-                  <details style={{ marginBottom: "8px" }}>
-                    <summary>
-                      Previous Messages ({lobbyMessagesReceived.length - 1})
-                    </summary>
-                    {lobbyMessagesReceived.slice(0, -1).map((msg, index) => (
-                      <JsonView
-                        data={msg}
-                        key={`prev-lobby-msg-${index}`}
-                        shouldExpandNode={() => false} // keep these collapsed
-                        style={{ fontSize: "14px", lineHeight: "1.2" }}
-                      />
-                    ))}
-                  </details>
-                )}
-              {/* Last message shown expanded */}
-              {lobbyMessagesReceived.slice(-1).map((msg, index) => (
-                <JsonView
-                  data={msg}
-                  key={`last-lobby-msg-${index}`}
-                  shouldExpandNode={(level) => level === 0} // expand just root
-                  style={{ fontSize: "14px", lineHeight: "1.2" }}
-                />
-              ))}
+            <div className="lobbyMessages d-flex flex-row">
+              <div>
+                <h5>Lobby Messages Received</h5>
+                {/* Previous Messages collapsed in a <details> section */}
+                {Array.isArray(lobbyMessagesReceived) &&
+                  lobbyMessagesReceived.length > 1 && (
+                    <details style={{ marginBottom: "8px" }}>
+                      <summary>
+                        Previous Messages ({lobbyMessagesReceived.length - 1})
+                      </summary>
+                      {lobbyMessagesReceived.slice(0, -1).map((msg, index) => (
+                        <JsonView
+                          data={msg}
+                          key={`prev-lobby-msg-${index}`}
+                          shouldExpandNode={() => false} // keep these collapsed
+                          style={{ fontSize: "14px", lineHeight: "1.2" }}
+                        />
+                      ))}
+                    </details>
+                  )}
+                {/* Last message shown expanded */}
+                {lobbyMessagesReceived.slice(-1).map((msg, index) => (
+                  <JsonView
+                    data={msg}
+                    key={`last-lobby-msg-${index}`}
+                    shouldExpandNode={(level, value, field) =>
+                      level === 0 || field === "payload"
+                    }
+                    style={{ fontSize: "14px", lineHeight: "1.2" }}
+                  />
+                ))}
+              </div>
+              <div>
+                <h5>Lobby Messages Sent</h5>
+
+                {/* Previous Messages collapsed in a <details> section */}
+                {Array.isArray(lobbyMessagesSent) &&
+                  lobbyMessagesSent.length > 1 && (
+                    <details style={{ marginBottom: "8px" }}>
+                      <summary>
+                        Previous Messages ({lobbyMessagesSent.length - 1})
+                      </summary>
+                      {lobbyMessagesSent.slice(0, -1).map((msg, index) => (
+                        <JsonView
+                          data={msg}
+                          key={`prev-lobby-sent-msg-${index}`}
+                          shouldExpandNode={() => false}
+                          style={{ fontSize: "14px", lineHeight: "1.2" }}
+                        />
+                      ))}
+                    </details>
+                  )}
+
+                {/* Last message shown expanded */}
+                {lobbyMessagesSent.slice(-1).map((msg, index) => (
+                  <JsonView
+                    data={msg}
+                    key={`last-lobby-sent-msg-${index}`}
+                    shouldExpandNode={(level, value, field) =>
+                      level === 0 || field === "payload"
+                    }
+                    style={{ fontSize: "14px", lineHeight: "1.2" }}
+                  />
+                ))}
+              </div>
             </div>
             <div className="selectedGameState">
               <h5>Selected Game State</h5>

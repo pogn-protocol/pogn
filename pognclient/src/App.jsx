@@ -339,7 +339,7 @@ const App = () => {
           <GameConsole
             playerId={playerId}
             message={Object.values(gameMessages).flat().slice(-1)[0] || {}}
-            sendGameMessage={(id, msg) => handleSendMessage(id, msg)}
+            sendMessage={(id, msg) => handleSendMessage(id, msg)}
             sendLobbyMessage={(id, msg) => handleSendMessage(id, msg)}
             gamesToInit={gamesToInit}
             lobbyUrl={"ws://localhost:8080"}
