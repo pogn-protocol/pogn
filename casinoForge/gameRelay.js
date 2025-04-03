@@ -1,6 +1,7 @@
 const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
 const RelayConnector = require("./relayConnector");
+const { verifyGameRelayMessageRecieved } = require("./verifications");
 
 class GameRelay extends Relay {
   constructor(relayId, ports, gameController) {
@@ -64,43 +65,28 @@ class GameRelay extends Relay {
       // response.error = `Game relay ${this.relayId} received message for different relay:`;
     }
 
-    const payload = message.payload;
-    if (!payload) {
-      console.error("No payload in message:", message);
-      error = "No payload in message";
-    }
-    const { type, action, gameId, playerId } = payload;
-    if (!gameId) {
-      console.warn("No gameId in payload:", payload);
-      error = "No gameId in payload";
-    }
-    if (!type || type !== "game") {
-      console.error("Type not set to game:", type);
-      error = "Type not set to game";
-    }
-    if (!action) {
-      console.error("No action in payload:", payload);
-      error = "No action in payload";
-    }
-    if (!playerId) {
-      console.error("No playerId in payload.");
-      error = "No playerId in payload";
-    }
+    const { isValid, error: validationError } =
+      require("./verifications").verifyGameRelayMessageRecieved(
+        message,
+        this.relayId,
+        this.gameIds
+      );
 
-    if (!this.gameIds.includes(gameId)) {
-      console.warn("⚠️ Game not found in this relay.");
-      return;
-    }
-    const game = this.gameController.activeGames.get(gameId);
-    if (!game) {
-      console.warn("⚠️ Game not found.");
+    if (!isValid) {
+      console.warn(`❌ Verification failed: ${validationError}`);
+      const errorResponse = {
+        type: "error",
+        payload: { message: validationError },
+        relayId: this.relayId,
+        uuid: uuidv4(),
+      };
+      this.sendResponse(
+        message?.payload?.playerId || message?.relayId,
+        errorResponse
+      );
       return;
     }
 
-    if (playerId) {
-      this.webSocketMap.set(playerId, ws);
-      console.log(`✅ WebSocket mapped to real player ID: ${playerId}`);
-    }
     try {
       let response;
       if (!error) {

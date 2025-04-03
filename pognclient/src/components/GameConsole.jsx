@@ -37,32 +37,6 @@ const GameConsole = ({
   };
 
   useEffect(() => {
-    // if (!message || Object.keys(message).length === 0) {
-    //   console.log("No message received.");
-    //   return;
-    // }
-    // console.log("Processing Game message:", message);
-    // const { payload } = message;
-    // if (!payload) {
-    //   console.warn("No payload in message:", message);
-    //   return;
-    // }
-    // const { type, action } = payload;
-    // if (type !== "game") {
-    //   console.warn("Message sent to game not of type game:", type);
-    //   return;
-    // }
-    // if (!action) {
-    //   console.warn("No action in payload:", payload);
-    //   return;
-    // }
-    // const gameId = payload?.gameId;
-
-    // if (!gameId) {
-    //   console.warn("No gameId in payload:", payload);
-    //   return;
-    // }
-
     if (!verifyGameMessage(message)) return;
 
     const { payload } = message;
@@ -647,32 +621,6 @@ const GameConsole = ({
                     ))}
                   </div>
                 </div>
-
-                {/* {gameMessages[gameId]?.length > 1 && (
-                  <details style={{ marginBottom: "8px" }}>
-                    <summary>
-                      Previous Messages ({gameMessages[gameId].length - 1})
-                    </summary>
-                    {gameMessages[gameId].slice(0, -1).map((msg, index) => (
-                      <JsonView
-                        data={msg}
-                        key={`prev-game-msg-${gameId}-${index}`}
-                        shouldExpandNode={() => false} // Always collapsed for previous messages
-                        style={{ fontSize: "14px", lineHeight: "1.2" }}
-                      />
-                    ))}
-                  </details>
-                )} */}
-
-                {/* Render the last message fully expanded */}
-                {/* {gameMessages[gameId]?.slice(-1).map((msg, index) => (
-                  <JsonView
-                    data={msg}
-                    key={`last-game-msg-${gameId}-${index}`}
-                    shouldExpandNode={() => true} // Always fully expanded for the last message
-                    style={{ fontSize: "14px", lineHeight: "1.2" }}
-                  />
-                ))} */}
               </div>
             );
           })}

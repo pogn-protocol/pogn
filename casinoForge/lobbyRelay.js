@@ -1,5 +1,6 @@
 const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
+const { verifyLobbyRelayMessageRecieved } = require("./verifications");
 
 class LobbyRelay extends Relay {
   constructor(id, ports, lobbyController, targetUrl = null) {
@@ -11,8 +12,8 @@ class LobbyRelay extends Relay {
   }
 
   async processMessage(ws, message) {
-    console.log("Processing message in lobby relay:", message);
-    let error = null;
+    console.log(`${this.relayId} processing message in lobby relay:`, message);
+
     if (message?.payload?.type === "relayConnector") {
       console.log("LobbyRelay processing relayConnector message:", message);
       const oldId = [...this.webSocketMap.keys()].find(
@@ -39,6 +40,15 @@ class LobbyRelay extends Relay {
       return;
     }
 
+    const { valid, error } = verifyLobbyRelayMessageRecieved(message);
+    if (!valid) {
+      console.error(error);
+      return this.sendResponse(ws, { payload: { type: "error", error } });
+    }
+
+    const { payload } = message;
+    const { action, lobbyId, playerId } = payload;
+
     if (this.gameConnections.some((id) => id === message?.relayId)) {
       console.warn("Lobby relay processing message from game relay:", message);
       return;
@@ -52,29 +62,6 @@ class LobbyRelay extends Relay {
         message
       );
       return;
-    }
-
-    const payload = message.payload;
-    if (!payload) {
-      console.error("No payload in message:", message);
-      error = "No payload in message";
-    }
-    const { type, action, lobbyId, playerId } = payload;
-    if (!lobbyId) {
-      console.error("No lobbyId in payload:", payload);
-      error = "No lobbyId in payload";
-    }
-    if (!type || type !== "lobby") {
-      console.error("Type not set to lobby:", type);
-      error = "Type not set to lobby";
-    }
-    if (!action) {
-      console.error("No action in payload:", payload);
-      error = "No action in payload";
-    }
-    if (!playerId) {
-      console.warn("No playerId in payload.");
-      error = "No playerId in payload";
     }
 
     console.log("Processing lobby message:", { action, payload });
