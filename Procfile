@@ -1,1 +1,1 @@
-web: npm install && npm run build && node ghInit.js
+web: npm install && node ghInit.js
