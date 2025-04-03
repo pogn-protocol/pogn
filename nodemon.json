@@ -1,3 +1,0 @@
-{
-  "ignore": ["pognclient/", "node_modules/", "*.log", "testData/"]
-}
