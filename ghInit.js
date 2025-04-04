@@ -46,7 +46,7 @@ lobbyController.createLobby({ lobbyId: "lobby2" });
 //   controller: lobbyController,
 // });
 
-// ✅ Create a game relay/
+// ✅ Create a game relay
 // new relay("game", "game1", 9000, "ws://localhost:9001");
 // new relay("game", "game2", 9001, "ws://localhost:9000");
 
