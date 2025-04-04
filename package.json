@@ -2,7 +2,7 @@
   "name": "pogn",
   "version": "1.0.0",
   "description": "In order to decentralize the poker industry we need a proof of concept which is modular enough to evolve into a full fledged protocol in which other poker sites and skin’s can use for the basis of their projects.",
-  "main": "server.js",
+  "main": "ghInit.js",
   "dependencies": {
     "browserslist": "^4.24.4",
     "caniuse-lite": "^1.0.30001703",
