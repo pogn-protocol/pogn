@@ -1,1 +1,1 @@
-server: npm install && node ghInit.js
+web: npm start
