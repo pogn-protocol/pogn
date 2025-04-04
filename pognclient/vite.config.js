@@ -8,6 +8,7 @@ export default defineConfig({
     watch: {
       usePolling: false, // Use polling if file changes aren't detected
     },
+    port: process.env.PORT || 8080, // Heroku provides the PORT environment variable
     hmr: true, // Ensure HMR is enabled
   },
   optimizeDeps: {

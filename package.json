@@ -11,6 +11,7 @@
     "electron-to-chromium": "^1.5.114",
     "esbuild": "^0.25.1",
     "escalade": "^3.2.0",
+    "express": "^5.1.0",
     "gensync": "^1.0.0-beta.2",
     "globals": "^11.12.0",
     "js-tokens": "^4.0.0",
@@ -37,7 +38,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ghInit.js"
+    "start": "node server.js"
   },
   "author": "",
   "license": "ISC"
