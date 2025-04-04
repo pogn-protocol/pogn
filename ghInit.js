@@ -34,7 +34,7 @@ const relayConfigs = [
 
 console.log("creating lobbies");
 //lobbyController.createLobby({type:"lobby", id: "lobby1", options: {controller: lobbyController} });
-//lobbyController.createLobby({ type: "lobby", id: "lobby2", options: { controller: lobbyController } })
+//lobbyController.createLobby({ type: "lobby", id: "lobby2", options: { controller: lobbyController } })//
 lobbyController.createLobby({ lobbyId: "lobby1" });
 lobbyController.createLobby({ lobbyId: "lobby2" });
 
