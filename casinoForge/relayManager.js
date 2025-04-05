@@ -17,6 +17,8 @@ class RelayManager {
     this.gamePorts = gamePorts; // ✅ Define lobby ports
     this.sharedPortMode = sharedPortMode; // ✅ Define if shared port is used
     this.sharedServer = sharedServer; // ✅ Shared server instance
+    console.log("sharedServer", sharedServer);
+    console.log("sharedPortMode", sharedPortMode);
   }
 
   async createRelays(relayConfigs = []) {
@@ -56,6 +58,12 @@ class RelayManager {
             options.ports || this.lobbyPorts,
             options.controller
           );
+          console.log(
+            "sharedServer",
+            this.sharedServer,
+            "sharedPortMode",
+            this.sharedPortMode
+          );
           await relay.init(this.sharedPortMode ? this.sharedServer : null);
 
           break;
@@ -66,6 +74,12 @@ class RelayManager {
             options.ports || this.gamePorts,
             options.controller,
             options.lobbyId
+          );
+          console.log(
+            "sharedServer",
+            this.sharedServer,
+            "sharedPortMode",
+            this.sharedPortMode
           );
           relayInitialized = await relay.init(
             this.sharedPortMode ? this.sharedServer : null

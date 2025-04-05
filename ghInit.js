@@ -17,9 +17,9 @@ app.listen(PORT, () => {
 });
 
 // 🛠️ Optional shared WebSocket server for Heroku (single port)
-let sharedWss = null;
+let sharedServer = null;
 if (pognConfigs.SHARED_PORT_MODE) {
-  sharedWss = new Server({ port: pognConfigs.PORT });
+  sharedServer = new Server({ port: pognConfigs.PORT });
   console.log(`🔁 Shared WebSocket server started on port ${pognConfigs.PORT}`);
 }
 
@@ -28,7 +28,7 @@ const relayManager = new RelayManager({
   lobbyPorts: pognConfigs.LOBBY_PORTS,
   gamePorts: pognConfigs.GAME_PORTS,
   sharedPortMode: pognConfigs.SHARED_PORT_MODE,
-  sharedWss,
+  sharedServer,
 });
 
 // 🎮 Init Game + Lobby controllers

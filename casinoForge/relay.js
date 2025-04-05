@@ -12,6 +12,8 @@ class Relay {
     this.wss = null; // WebSocket server instance
     this.wsAddress = null; // WebSocket address
     this.messages = []; // Store messages for later use
+    // this.sharedServer = sharedServer;
+
     //this.consoleTest(Date.now(), 15000); // Broadcast every 5 seconds
   }
 
@@ -26,6 +28,9 @@ class Relay {
   }
 
   async init(sharedWss = null) {
+    console.log(
+      `🔗 Initializing ${this.type} Relay ${this.id}...Sharedwss ${sharedWss}`
+    );
     if (sharedWss) {
       // ✅ Heroku mode: Use shared WebSocket server
       this.wss = sharedWss;
