@@ -4,6 +4,17 @@ const LobbyController = require("./casinoForge/lobbyController");
 const relay = require("./casinoForge/relay");
 const lobbyRelay = require("./casinoForge/lobbyRelay");
 const gameRelay = require("./casinoForge/gameRelay");
+const express = require("express");
+
+const app = express();
+app.get("/", (req, res) => {
+  res.send("Relay server is alive.");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Dummy HTTP server listening on port ${PORT}`);
+});
 
 // ✅ Initialize Controllers
 let gamePorts = [9000, 9001, 9002, 9003, 9004]; // ✅ Define game ports
