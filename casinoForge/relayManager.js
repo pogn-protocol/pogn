@@ -64,6 +64,11 @@ class RelayManager {
             "sharedPortMode",
             this.sharedPortMode
           );
+          console.log(
+            `[RelayManager] Initializing relay ${id} with sharedWss =`,
+            !!(this.sharedPortMode && this.sharedServer)
+          );
+
           await relay.init(this.sharedPortMode ? this.sharedServer : null);
 
           break;
@@ -81,6 +86,11 @@ class RelayManager {
             "sharedPortMode",
             this.sharedPortMode
           );
+          console.log(
+            `[RelayManager] Initializing relay ${id} with sharedWss =`,
+            !!(this.sharedPortMode && this.sharedServer)
+          );
+
           relayInitialized = await relay.init(
             this.sharedPortMode ? this.sharedServer : null
           );

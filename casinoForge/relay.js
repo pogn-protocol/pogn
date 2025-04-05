@@ -33,14 +33,21 @@ class Relay {
     );
 
     if (sharedWss) {
-      // ✅ Heroku mode: Use shared WebSocket server
       this.wss = sharedWss;
       this.wsAddress = `ws://${this.host}:${process.env.PORT}`;
-      console.log(`✅ [Shared] Relay ${this.id} using ${this.wsAddress}`);
-      this.setupWebSocketHandlers();
-      return true; // 🔐 Make sure to exit here!
-    }
 
+      // 🛑 Only attach handlers once!
+      if (!this.wss._relayHandlerAttached) {
+        this.setupWebSocketHandlers();
+        this.wss._relayHandlerAttached = true;
+      } else {
+        console.log(
+          `🟡 Skipping handler attach for ${this.id} (already attached)`
+        );
+      }
+
+      return true;
+    }
     // 🚨 Defensive guard in case we somehow get here again
     if (this.wss) {
       console.warn(`🟡 Relay ${this.id} already initialized, skipping init.`);
