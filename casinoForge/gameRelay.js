@@ -4,12 +4,13 @@ const RelayConnector = require("./relayConnector");
 const { verifyGameRelayMessageRecieved } = require("./verifications");
 
 class GameRelay extends Relay {
-  constructor(relayId, ports, gameController, host) {
-    console.log("Initializing GameRelay...", relayId, ports);
-    super("game", relayId, ports, host);
+  constructor({ id, ports, gameController, lobbyId, host }) {
+    console.log("Initializing GameRelay...", id, ports);
+    //  constructor({type, id, ports, host = "localhost"}) {
+    super({ type: "game", id, ports, host });
     this.gameController = gameController;
     this.ports = ports;
-    this.relayId = relayId;
+    this.relayId = id;
     this.players = [];
     this.lobbyWs = null;
     this.lobbyId = null;

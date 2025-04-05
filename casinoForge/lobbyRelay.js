@@ -3,8 +3,9 @@ const { v4: uuidv4 } = require("uuid");
 const { verifyLobbyRelayMessageRecieved } = require("./verifications");
 
 class LobbyRelay extends Relay {
-  constructor(id, ports, lobbyController, host) {
-    super("lobby", id, ports, host);
+  constructor({ id, ports, lobbyController, host }) {
+    //  constructor({ type, id, ports, host = "localhost" }) {
+    super({ type: "lobby", id, ports, host });
     this.lobbyController = lobbyController;
     this.relayConnections = new Map();
     this.relayId = id;
