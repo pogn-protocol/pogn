@@ -5,10 +5,18 @@ const GameRelay = require("./gameRelay");
 const RelayConnector = require("./relayConnector");
 
 class RelayManager {
-  constructor() {
+  constructor({
+    lobbyPorts = [],
+    gamePorts = [],
+    sharedPort = false,
+    sharedServer = null,
+  } = {}) {
     this.relays = new Map(); // ✅ Store all relays (lobby & game)
     // this.gamePorts = [9000]; // ✅ Define game ports
-    this.lobbyPorts = [8080]; // ✅ Define lobby ports
+    this.lobbyPorts = lobbyPorts;
+    this.gamePorts = gamePorts; // ✅ Define lobby ports
+    this.sharedPort = sharedPort; // ✅ Define if shared port is used
+    this.sharedServer = sharedServer; // ✅ Shared server instance
   }
 
   async createRelays(relayConfigs = []) {
@@ -30,6 +38,17 @@ class RelayManager {
 
       let relay;
       let relayInitialized = false;
+
+      const ports =
+        options.ports ||
+        (type === "lobby"
+          ? this.sharedPort
+            ? this.lobbyPorts
+            : [...this.lobbyPorts]
+          : this.sharedPort
+          ? this.gamePorts
+          : [...this.gamePorts]);
+
       switch (type) {
         case "lobby":
           relay = new LobbyRelay(
@@ -37,7 +56,7 @@ class RelayManager {
             options.ports || this.lobbyPorts,
             options.controller
           );
-          await relay.init(); // Await relay initialization
+          await relay.init(this.sharedPort ? this.sharedServer : null);
 
           break;
 
@@ -48,7 +67,10 @@ class RelayManager {
             options.controller,
             options.lobbyId
           );
-          relayInitialized = await relay.init(); // Await relay initialization
+          relayInitialized = await relay.init(
+            this.sharedPort ? this.sharedServer : null
+          );
+
           relay.gameIds = [id];
           if (relayInitialized) {
             console.log(`🔥 Created gameRelay for ${id}`);

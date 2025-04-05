@@ -3,7 +3,7 @@ const OddsAndEvens = require("./oddsAndEvens");
 const Game = require("./game");
 
 class gameController {
-  constructor(gamePorts = [], lobbyWsUrl, relayManager) {
+  constructor({ gamePorts = [], lobbyWsUrl, relayManager } = {}) {
     if (gameController.instance) return gameController.instance;
     gameController.instance = this;
     this.gameClasses = {

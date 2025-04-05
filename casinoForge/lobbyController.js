@@ -2,7 +2,7 @@ const Lobby = require("./lobby");
 const Player = require("./player");
 
 class LobbyController {
-  constructor(gameController, relayManager) {
+  constructor({ gameController, relayManager, lobbyPorts = [], lobbyWsUrl }) {
     this.gameController = gameController;
     this.relayManager = relayManager;
     this.lobbies = new Map();
@@ -18,7 +18,8 @@ class LobbyController {
       createLobby: (data) => this.createLobby(data),
     };
     this.messages = [];
-    this.ports = [8080, 8081, 8082, 8083, 8084]; // Default ports for game relays
+    this.ports = lobbyPorts;
+    this.lobbyWsUrl = lobbyWsUrl;
   }
 
   async processMessage(message) {
@@ -511,7 +512,7 @@ class LobbyController {
     }
 
     const players = [
-      "56f2460208eb7d54950a0d33c62e9e83089b8cdaa2ad87a8e0015ecc5a5a0d5c",
+      "be7c4cf8b9db6950491f2de3ece4668a1beb93972082d021256146a2b4ae1348",
       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
     ];
     this.joinLobby({ lobby, playerId: players[0] });
