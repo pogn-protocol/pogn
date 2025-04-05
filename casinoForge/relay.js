@@ -32,6 +32,11 @@ class Relay {
       `🔗 Initializing ${this.type} Relay ${this.id}...Sharedwss ${sharedWss}`
     );
 
+    console.log(
+      `🔗 Initializing ${this.type} Relay ${this.id}...Sharedwss`,
+      sharedWss
+    );
+
     if (sharedWss) {
       this.wss = sharedWss;
       this.wsAddress = `ws://${this.host}:${process.env.PORT}`;

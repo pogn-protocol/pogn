@@ -51,6 +51,15 @@ class RelayManager {
           ? this.gamePorts
           : [...this.gamePorts]);
 
+      console.log(
+        "Creating relay with ports",
+        ports,
+        "sharedPortMode",
+        this.sharedPortMode,
+        "sharedServer",
+        this.sharedServer
+      );
+
       switch (type) {
         case "lobby":
           relay = new LobbyRelay(

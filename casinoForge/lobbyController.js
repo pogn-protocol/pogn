@@ -449,12 +449,15 @@ class LobbyController {
 
     let newLobby = new Lobby(lobbyId);
     console.log("Lobbies", this.lobbies);
+    console.log("sharedServer", this.relayManager.sharedServer);
+    console.log("sharedPortMode", this.relayManager.sharedPortMode);
     let [newLobbyRelay] = await this.relayManager.createRelays([
       {
         type: "lobby",
         id: lobbyId,
         options: {
-          ports: ports || this.ports,
+          //ports: ports || this.ports || null,
+          // sharedServer: this.relayManager.sharedServer,
           controller: this,
         },
       },
