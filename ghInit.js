@@ -27,7 +27,7 @@ if (pognConfigs.SHARED_PORT_MODE) {
 const relayManager = new RelayManager({
   lobbyPorts: pognConfigs.LOBBY_PORTS,
   gamePorts: pognConfigs.GAME_PORTS,
-  sharedPort: pognConfigs.SHARED_PORT_MODE,
+  sharedPortMode: pognConfigs.SHARED_PORT_MODE,
   sharedWss,
 });
 

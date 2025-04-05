@@ -8,14 +8,14 @@ class RelayManager {
   constructor({
     lobbyPorts = [],
     gamePorts = [],
-    sharedPort = false,
+    sharedPortMode = false,
     sharedServer = null,
   } = {}) {
     this.relays = new Map(); // ✅ Store all relays (lobby & game)
     // this.gamePorts = [9000]; // ✅ Define game ports
     this.lobbyPorts = lobbyPorts;
     this.gamePorts = gamePorts; // ✅ Define lobby ports
-    this.sharedPort = sharedPort; // ✅ Define if shared port is used
+    this.sharedPortMode = sharedPortMode; // ✅ Define if shared port is used
     this.sharedServer = sharedServer; // ✅ Shared server instance
   }
 
@@ -42,10 +42,10 @@ class RelayManager {
       const ports =
         options.ports ||
         (type === "lobby"
-          ? this.sharedPort
+          ? this.sharedPortMode
             ? this.lobbyPorts
             : [...this.lobbyPorts]
-          : this.sharedPort
+          : this.sharedPortMode
           ? this.gamePorts
           : [...this.gamePorts]);
 
@@ -56,7 +56,7 @@ class RelayManager {
             options.ports || this.lobbyPorts,
             options.controller
           );
-          await relay.init(this.sharedPort ? this.sharedServer : null);
+          await relay.init(this.sharedPortMode ? this.sharedServer : null);
 
           break;
 
@@ -68,7 +68,7 @@ class RelayManager {
             options.lobbyId
           );
           relayInitialized = await relay.init(
-            this.sharedPort ? this.sharedServer : null
+            this.sharedPortMode ? this.sharedServer : null
           );
 
           relay.gameIds = [id];

@@ -12,7 +12,7 @@ const CONFIGS = {
   production: {
     SHARED_PORT_MODE: true,
     PORT: parseInt(process.env.PORT),
-    WS_URL: `wss://${process.env.HEROKU_APP_NAME}.herokuapp.com`,
+    WS_URL: `wss://pogn-a5fe730540b4.herokuapp.com/`,
     LOBBY_IDS: ["lobby1", "lobby2"],
     GAME_PORTS: [parseInt(process.env.PORT)],
     LOBBY_PORTS: [parseInt(process.env.PORT)],
