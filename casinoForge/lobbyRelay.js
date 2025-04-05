@@ -28,7 +28,20 @@ class LobbyRelay extends Relay {
       }
 
       this.webSocketMap.set(message?.payload?.relayId, ws);
-      this.gameConnections.push(message?.payload?.relayId);
+      // ✅ Prevent self-registration
+      const incomingRelayId = message?.payload?.relayId;
+
+      if (incomingRelayId !== this.relayId) {
+        console.log(
+          `Lobby relay ${this.relayId} received relayConnector message from ${incomingRelayId}`
+        );
+        this.gameConnections.push(incomingRelayId);
+      } else {
+        console.log(
+          `Lobby relay ${this.relayId} received its own relayConnector message. Ignoring.`
+        );
+      }
+      //   this.gameConnections.push(message?.payload?.relayId);
       return;
     }
 
