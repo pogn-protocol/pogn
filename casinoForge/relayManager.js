@@ -64,12 +64,19 @@ class RelayManager {
 
       switch (type) {
         case "lobby":
-          relay = new LobbyRelay(
+          //  constructor({ id, ports, lobbyController, host }) {
+          // relay = new LobbyRelay(
+          //   id,
+          //   options.ports || this.lobbyPorts,
+          //   options.controller,
+          //   options.host || this.host
+          // );
+          relay = new LobbyRelay({
             id,
-            options.ports || this.lobbyPorts,
-            options.controller,
-            options.host || this.host
-          );
+            ports: options.ports || this.lobbyPorts,
+            lobbyController: options.controller,
+            host: options.host || this.host,
+          });
           console.log(
             "sharedServer",
             this.sharedServer,
@@ -86,13 +93,20 @@ class RelayManager {
           break;
 
         case "game":
-          relay = new GameRelay(
-            id,
-            options.ports || this.gamePorts,
-            options.controller,
-            options.lobbyId,
-            options.host || this.host
-          );
+          //  constructor({relayId, ports, gameController, host}) {
+          // relay = new GameRelay(
+          //   id,
+          //   options.ports || this.gamePorts,
+          //   options.controller,
+          //   options.host || this.host
+          // );
+          relay = new GameRelay({
+            relayId: id,
+            ports: options.ports || this.gamePorts,
+            gameController: options.controller,
+            lobbyId: options.lobbyId,
+            host: options.host || this.host,
+          });
           console.log(
             "sharedServer",
             this.sharedServer,

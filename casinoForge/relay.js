@@ -2,7 +2,7 @@ const { Server } = require("ws");
 const { v4: uuidv4 } = require("uuid");
 
 class Relay {
-  constructor(type, id, ports, host = "localhost") {
+  constructor({ type, id, ports, host = "localhost" }) {
     console.log(`🚀 Initializing ${type} Relay (ID: ${id}, Ports: ${ports})`);
     this.type = type;
     this.id = id; // Unique relay ID
