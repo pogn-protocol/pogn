@@ -31,16 +31,23 @@ class Relay {
     console.log(
       `🔗 Initializing ${this.type} Relay ${this.id}...Sharedwss ${sharedWss}`
     );
+
     if (sharedWss) {
       // ✅ Heroku mode: Use shared WebSocket server
       this.wss = sharedWss;
       this.wsAddress = `ws://${this.host}:${process.env.PORT}`;
       console.log(`✅ [Shared] Relay ${this.id} using ${this.wsAddress}`);
       this.setupWebSocketHandlers();
+      return true; // 🔐 Make sure to exit here!
+    }
+
+    // 🚨 Defensive guard in case we somehow get here again
+    if (this.wss) {
+      console.warn(`🟡 Relay ${this.id} already initialized, skipping init.`);
       return true;
     }
 
-    // 🔁 Local mode: Try each port until one works
+    // 🔁 Local mode fallback
     let initialized = false;
 
     for (const port of this.ports) {
@@ -84,6 +91,64 @@ class Relay {
 
     return initialized;
   }
+
+  // async init(sharedWss = null) {
+  //   console.log(
+  //     `🔗 Initializing ${this.type} Relay ${this.id}...Sharedwss ${sharedWss}`
+  //   );
+  //   if (sharedWss) {
+  //     // ✅ Heroku mode: Use shared WebSocket server
+  //     this.wss = sharedWss;
+  //     this.wsAddress = `ws://${this.host}:${process.env.PORT}`;
+  //     console.log(`✅ [Shared] Relay ${this.id} using ${this.wsAddress}`);
+  //     this.setupWebSocketHandlers();
+  //     return true;
+  //   }
+
+  //   // 🔁 Local mode: Try each port until one works
+  //   let initialized = false;
+
+  //   for (const port of this.ports) {
+  //     try {
+  //       await new Promise((resolve, reject) => {
+  //         const server = new Server({ port });
+
+  //         server.on("listening", () => {
+  //           this.wss = server;
+  //           this.wsAddress = `ws://${this.host}:${port}`;
+  //           console.log(`✅ Relay ${this.id} running on ${this.wsAddress}`);
+  //           this.setupWebSocketHandlers();
+  //           initialized = true;
+  //           resolve();
+  //         });
+
+  //         server.on("error", (error) => {
+  //           if (error.code === "EADDRINUSE") {
+  //             console.warn(`⚠️ Port ${port} in use, trying next...`);
+  //             resolve(); // try next port
+  //           } else {
+  //             console.error(`❌ Error on port ${port}:`, error.message);
+  //             reject(error);
+  //           }
+  //         });
+
+  //         server.on("close", () => {
+  //           console.log(`🛑 Server on port ${port} closed.`);
+  //         });
+  //       });
+
+  //       if (initialized) break;
+  //     } catch (err) {
+  //       console.error(`❌ Failed to init Relay ${this.id} on port ${port}`);
+  //     }
+  //   }
+
+  //   if (!initialized) {
+  //     console.error(`❌ All ports failed for Relay ${this.id}`, this.ports);
+  //   }
+
+  //   return initialized;
+  // }
 
   // async init() {
   //   let initialized = false;
