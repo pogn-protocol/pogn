@@ -511,7 +511,7 @@ class LobbyController {
     }
 
     const players = [
-      "c0ce18d4d92c90d3f82f0d8c9108f6fc9933c5b867bc5c9e7dc35082fba2f3a4",
+      "56f2460208eb7d54950a0d33c62e9e83089b8cdaa2ad87a8e0015ecc5a5a0d5c",
       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
     ];
     this.joinLobby({ lobby, playerId: players[0] });
