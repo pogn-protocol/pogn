@@ -10,9 +10,10 @@ const CONFIGS = {
     LOBBY_PORTS: [8080, 8081],
   },
   production: {
+    HOST: "pogn-a5fe730540b4.herokuapp.com",
     SHARED_PORT_MODE: true,
     PORT: parseInt(process.env.PORT),
-    WS_URL: `wss://pogn-a5fe730540b4.herokuapp.com/`,
+    WS_URL: `wss://pogn-a5fe730540b4.herokuapp.com`,
     LOBBY_IDS: ["lobby1", "lobby2"],
     GAME_PORTS: [parseInt(process.env.PORT)],
     LOBBY_PORTS: [parseInt(process.env.PORT)],

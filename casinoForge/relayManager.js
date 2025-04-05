@@ -10,6 +10,7 @@ class RelayManager {
     gamePorts = [],
     sharedPortMode = false,
     sharedServer = null,
+    host = null,
   } = {}) {
     this.relays = new Map(); // ✅ Store all relays (lobby & game)
     // this.gamePorts = [9000]; // ✅ Define game ports
@@ -19,6 +20,7 @@ class RelayManager {
     this.sharedServer = sharedServer; // ✅ Shared server instance
     console.log("sharedServer", sharedServer);
     console.log("sharedPortMode", sharedPortMode);
+    this.host = host; // ✅ Host for WebSocket connections
   }
 
   async createRelays(relayConfigs = []) {
@@ -65,7 +67,8 @@ class RelayManager {
           relay = new LobbyRelay(
             id,
             options.ports || this.lobbyPorts,
-            options.controller
+            options.controller,
+            options.host || this.host
           );
           console.log(
             "sharedServer",
@@ -87,7 +90,8 @@ class RelayManager {
             id,
             options.ports || this.gamePorts,
             options.controller,
-            options.lobbyId
+            options.lobbyId,
+            options.host || this.host
           );
           console.log(
             "sharedServer",

@@ -38,6 +38,7 @@ const relayManager = new RelayManager({
   gamePorts: pognConfigs.GAME_PORTS,
   sharedPortMode: pognConfigs.SHARED_PORT_MODE,
   sharedServer,
+  host: pognConfigs.HOST,
 });
 
 // 🎮 Init Game + Lobby controllers
