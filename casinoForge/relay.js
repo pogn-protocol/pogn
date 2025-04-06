@@ -13,7 +13,6 @@ class Relay {
     this.wsAddress = null; // WebSocket address
     this.messages = []; // Store messages for later use
     // this.sharedServer = sharedServer;
-
     //this.consoleTest(Date.now(), 15000); // Broadcast every 5 seconds
   }
 

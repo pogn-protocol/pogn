@@ -17,8 +17,47 @@ const server = http.createServer(app);
 let sharedServer = null;
 
 if (pognConfigs.SHARED_PORT_MODE) {
-  sharedServer = new Server({ server }); // ✅ attach to *existing* HTTP server
+  sharedServer = new Server({ server });
   console.log(`🔁 Shared WebSocket server attached to port ${PORT}`);
+}
+
+const relayManager = new RelayManager({
+  lobbyPorts: pognConfigs.LOBBY_PORTS,
+  gamePorts: pognConfigs.GAME_PORTS,
+  sharedPortMode: pognConfigs.SHARED_PORT_MODE,
+  sharedServer,
+  host: pognConfigs.HOST,
+});
+
+if (pognConfigs.SHARED_PORT_MODE) {
+  // sharedServer = new Server({ server }); // ✅ attach to *existing* HTTP server
+  console.log(`🔁 Shared WebSocket server attached to port ${PORT}`);
+  sharedServer.on("connection", (ws) => {
+    ws.once("message", (rawMsg) => {
+      let relayId;
+      try {
+        const parsed = JSON.parse(rawMsg);
+        relayId = parsed.relayId;
+        if (!relayId) throw new Error("Missing relayId");
+      } catch (err) {
+        console.error("❌ Invalid first message (must include relayId):", err);
+        ws.close();
+        return;
+      }
+
+      const relay = relayManager.relays.get(relayId);
+      if (!relay) {
+        console.warn(`⚠️ No relay found for relayId: ${relayId}`);
+        ws.close();
+        return;
+      }
+
+      console.log(`🔗 Routing shared WebSocket to Relay ${relayId}`);
+      relay.handleConnection(ws); // 👈 forward to correct relay
+      // Re-inject the original message as if it just came in again:
+      ws.emit("message", rawMsg);
+    });
+  });
 }
 
 //if heroku, use the shared server
@@ -34,13 +73,6 @@ server.listen(PORT, () => {
 //}
 
 // 🔧 Initialize Relay Manager with config-driven ports
-const relayManager = new RelayManager({
-  lobbyPorts: pognConfigs.LOBBY_PORTS,
-  gamePorts: pognConfigs.GAME_PORTS,
-  sharedPortMode: pognConfigs.SHARED_PORT_MODE,
-  sharedServer,
-  host: pognConfigs.HOST,
-});
 
 // 🎮 Init Game + Lobby controllers
 const gameController = new GameController({
