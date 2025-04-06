@@ -40,7 +40,7 @@ class Relay {
     if (sharedWss) {
       this.wss = sharedWss;
       //this.wsAddress = `ws://${this.host}:${process.env.PORT || this.ports[0]}`;
-      const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
+      const protocol = process.env.ENV === "production" ? "wss" : "ws";
       const port = process.env.PORT || this.ports[0] || 3000;
       const host = this.host || "localhost";
       console.log("protocol", protocol, "port", port, "host", host);
