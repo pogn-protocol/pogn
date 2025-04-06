@@ -44,7 +44,7 @@ class Relay {
       const port = process.env.PORT || this.ports[0] || 3000;
       const host = this.host || "localhost";
       console.log("protocol", protocol, "port", port, "host", host);
-      this.wsAddress = `${protocol}://${host}:${port}`;
+      this.wsAddress = `${protocol}://${host}`;
 
       // 🛑 Only attach handlers once!
       if (!this.wss._relayHandlerAttached) {
@@ -310,7 +310,7 @@ class Relay {
     console.log(`📡 Broadcasting from ${this.type} Relay ID: ${this.id}`);
     response.uuid = uuidv4(); // Assign unique identifier to messages
     console.log("Response:", response);
-    console.log("WebSocket Map:", this.webSocketMap);
+    //console.log("WebSocket Map:", this.webSocketMap);
 
     for (const [id, ws] of this.webSocketMap.entries()) {
       if (ws.readyState === ws.OPEN) {
