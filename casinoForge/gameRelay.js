@@ -13,7 +13,7 @@ class GameRelay extends Relay {
     this.relayId = id;
     this.players = [];
     this.lobbyWs = null;
-    this.lobbyId = null;
+    this.lobbyId = lobbyId || null;
     this.gameIds = [];
     this.relayConnections = [];
     //console ever 5 seconds if running

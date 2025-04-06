@@ -22,15 +22,16 @@ if (pognConfigs.SHARED_PORT_MODE) {
 }
 
 //if heroku, use the shared server
-if (process.env.NODE_ENV === "production") {
-  app.get("/", (req, res) => {
-    res.send("Relay server is alive.");
-  });
+//if (process.env.NODE_ENV === "production") {
 
-  server.listen(PORT, () => {
-    console.log(`🌐 HTTP+WS server listening on port ${PORT}`);
-  });
-}
+app.get("/", (req, res) => {
+  res.send("Relay server is alive.");
+});
+
+server.listen(PORT, () => {
+  console.log(`🌐 HTTP+WS server listening on port ${PORT}`);
+});
+//}
 
 // 🔧 Initialize Relay Manager with config-driven ports
 const relayManager = new RelayManager({
