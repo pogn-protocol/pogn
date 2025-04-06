@@ -168,7 +168,7 @@ class gameController {
   }
 
   async createGameRelay(gameId, lobbyId, ports) {
-    console.log("Creating game relay", gameId, ports);
+    console.log("Creating game relay", gameId, lobbyId, ports);
     try {
       const gameRelay = await this.relayManager.createRelays([
         {
