@@ -39,7 +39,7 @@ class Relay {
 
     if (sharedWss) {
       this.wss = sharedWss;
-      this.wsAddress = `ws://${this.host}:${process.env.PORT}`;
+      this.wsAddress = `ws://${this.host}:${process.env.PORT || this.ports[0]}`;
 
       // 🛑 Only attach handlers once!
       if (!this.wss._relayHandlerAttached) {

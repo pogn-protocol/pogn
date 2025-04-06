@@ -139,13 +139,13 @@ class RelayManager {
               );
               relay.lobbyWs = lobbyRelay.ws;
               relay.lobbyId = options.lobbyId;
-
+              const isDirectMode = this.sharedPortMode;
               lobbyRelay.relayConnections.set(
                 relay.id,
                 new RelayConnector(
                   lobbyRelay.id,
                   relay.id,
-                  relay.wsAddress,
+                  isDirectMode ? null : relay.wsAddress,
                   (message) => {
                     console.log(
                       `📩 lobby relayConnector Recieved Message from GameRelay ${relay.id}:`,
@@ -155,8 +155,11 @@ class RelayManager {
                       relay.id
                     );
                     let ws = relayConnector?.relaySocket;
-                    if (ws) {
-                      lobbyRelay.processMessage(ws, message);
+                    if (ws || isDirectMode) {
+                      lobbyRelay.processMessage(ws || null, message);
+                      console.log(
+                        `📩 lobby relayConnector processed message from GameRelay ${relay.id}`
+                      );
                     } else {
                       console.warn(
                         `⚠️ No relayConnector found for GameRelay ${relay.id}.`

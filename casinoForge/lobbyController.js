@@ -447,7 +447,7 @@ class LobbyController {
       };
     }
 
-    let newLobby = new Lobby(lobbyId);
+    let newLobby = new Lobby({ lobbyId });
     console.log("Lobbies", this.lobbies);
     console.log("sharedServer", this.relayManager.sharedServer);
     console.log("sharedPortMode", this.relayManager.sharedPortMode);

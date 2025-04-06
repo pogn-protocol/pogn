@@ -2,11 +2,12 @@ const ENV = process.env.NODE_ENV || "development";
 
 const CONFIGS = {
   development: {
-    SHARED_PORT_MODE: false,
-    PORT: 3000,
+    HOST: "localhost",
+    SHARED_PORT_MODE: true,
+    PORT: 8080,
     WS_URL: "ws://localhost",
     LOBBY_IDS: ["lobby1", "lobby2"],
-    GAME_PORTS: [9000, 9001, 9002, 9003],
+    GAME_PORTS: [8080, 9001, 9002, 9003],
     LOBBY_PORTS: [8080, 8081],
   },
   production: {

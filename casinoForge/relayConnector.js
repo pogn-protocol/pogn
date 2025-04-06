@@ -9,7 +9,8 @@ class RelayConnector {
     onMessage,
     onOpen = null,
     maxTries = 5,
-    duration = 5000
+    duration = 5000,
+    directMode = false
   ) {
     this.clientId = clientId;
     this.targetId = targetId;
@@ -20,10 +21,16 @@ class RelayConnector {
     this.duration = duration;
     this.tries = 0;
     this.relaySocket = null;
+    this.directMode = directMode;
     console.log(
       `🚀 Initializing RelayConnector client: ${this.clientId} Target: ${targetUrl}`
     );
-    if (targetUrl) {
+    if (this.directMode) {
+      console.log(
+        `⚡ Direct relay connection mode enabled for ${this.clientId} ➡ ${this.targetId}`
+      );
+      if (this.onOpen) this.onOpen(); // simulate open
+    } else if (targetUrl) {
       console.log(`🔗 Connecting to relay at ${targetUrl}`);
       this.autoConnect();
     }
