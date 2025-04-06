@@ -101,7 +101,7 @@ class RelayManager {
           //   options.host || this.host
           // );
           relay = new GameRelay({
-            relayId: id,
+            id: id,
             ports: options.ports || this.gamePorts,
             gameController: options.controller,
             lobbyId: options.lobbyId,
