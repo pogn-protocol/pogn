@@ -1,5 +1,75 @@
 # Poker and Other Games on Nostr
 
+POGN is a nodejs implementation of [cypherpoker.js](https://github.com/monicanagent/cypherpoker.js) on NOSTR.  Its purpose is to serve as [a microkernal for p2p message based games and development](https://medium.com/p/4f2a40e62656).
+
+## POGN Server
+POGN Server is a test implementation of a POGN relay using pognConfigs.js production configs on Heroku with ghInit.js as the start file. The POGN adminConsole serves as its GUI. The Heroku implementation requires and demonstrates a shared server websocket connection but POGN can also manage relay connections and ports individually with pognConfigs.
+
+## POGN Client Demo
+[POGN Client Demo - https://pognclient-5546e625c597.herokuapp.com/](https://pognclient-5546e625c597.herokuapp.com/)
+
+Repo: https://github.com/pogn-protocol/pognclient
+
+> A browser-based client for testing multiplayer lobbies and games using the POGN protocol.
+
+---
+
+<img src="https://github.com/user-attachments/assets/fc3f740c-3374-44b5-9ead-4375bd5e9095" alt="POGN Client Screenshot" width="300"/>
+
+### 🔹 Quick Start
+
+- Auto-generates a `playerId` and opens a lobby connection to **`lobby1`**
+- Click **Login** to fetch 2 games via the lobby refresh
+- You will be **auto-joined** to the 2 default games
+- Create and join a new game via the UI
+- When the **minimum number of players** has joined, click **Start** to begin the game
+
+---
+
+### 🔸 Multiplayer Testing
+
+Use **two clients** to:
+- Create a new game
+- Join the game from both clients
+- Start the game when ready
+
+---
+
+### 🔁 Connecting to Another Lobby
+
+To connect to **lobby2**:
+1. Enter `"lobby2"` in the input field
+2. Click **Connect**
+
+---
+
+### 🛰️ Debug Tools
+
+- 🔁 **Ping** connections to test latency
+- 📤 View **sent** messages to the POGN server
+- 📥 View **received** messages from the POGN server
+
+---
+
+## POGN adminConsole
+[POGN adminConsole Demo https://pognclient-5546e625c597.herokuapp.com/ →](https://pognclient-5546e625c597.herokuapp.com/)
+
+Repo: https://github.com/pogn-protocol/pognadminconsole
+
+UI for interacting with the **POGN server**.
+
+- 🔌 **Auto-connects** to `lobby1` on load.
+- 👤 Click **Login** to get a lobby refresh with players and games.
+- ♻️ Manually **refresh lobby** to update lobby state.
+- 🌐 Connect to **`lobby2`** using its ID.
+- 🛎️ **Ping** any active connection to check responsiveness.
+- 📬 See **messages sent** to and **received** from the POGN server.
+
+
+<img src="https://github.com/user-attachments/assets/2c596a8c-5381-45f9-a66e-e64d6fa011c3" alt="POGN adminConsole Screenshot" width="300"/>
+
+# Poker and Other Games on Nostr
+
 In order to decentralize the poker industry we need a proof of concept which is modular enough to evolve into a full fledged protocol in which other poker sites and skin’s can use for the basis of their projects.
 
 With regard to poker the solution required for cryptographically secure gaming interaction the problem to be addressed is the implementation of mental poker protocols.
