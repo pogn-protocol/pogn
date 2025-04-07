@@ -14,7 +14,7 @@ POGN Server is a test implementation of a POGN relay using pognConfigs.js produc
 
 Repo: https://github.com/pogn-protocol/pognclient
 
-> A browser-based client for testing multiplayer lobbies and games using the POGN protocol.
+> A browser-based client for testing multiple lobbies and games using the POGN protocol.
 
 ---
 
