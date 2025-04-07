@@ -2,6 +2,8 @@
 
 [POGN Client Demo - https://pognclient-5546e625c597.herokuapp.com/](https://pognclient-5546e625c597.herokuapp.com/)
 
+Repo: https://github.com/pogn-protocol/pognclient
+
 > A browser-based client for testing multiplayer lobbies and games using the POGN protocol.
 
 ---
@@ -45,6 +47,8 @@ To connect to **lobby2**:
 
 ## POGN adminConsole
 [POGN adminConsole Demo https://pognclient-5546e625c597.herokuapp.com/ →](https://pognclient-5546e625c597.herokuapp.com/)
+
+Repo: https://github.com/pogn-protocol/pognadminconsole
 
 UI for interacting with the **POGN server**.
 
