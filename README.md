@@ -1,7 +1,7 @@
 # Poker and Other Games on Nostr
 
 ## POGN Server
-POGN Server is a test implementation of a POGN relay using pognConfigs production configs on Heroku and ghInit.js as the start file. The POGN adminConsole serves as its GUI. The Heroku implmentation requires and demonstrates a sharedServer websocket connection.
+POGN Server is a test implementation of a POGN relay using pognConfigs.js production configs on Heroku and ghInit.js as the start file. The POGN adminConsole serves as its GUI. The Heroku implmentation requires and demonstrates a sharedServer websocket connection.
 
 ## POGN Client Demo
 [POGN Client Demo - https://pognclient-5546e625c597.herokuapp.com/](https://pognclient-5546e625c597.herokuapp.com/)
