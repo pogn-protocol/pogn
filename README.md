@@ -20,7 +20,11 @@ Repo: https://github.com/pogn-protocol/pognclient
 
 ---
 
-<img src="https://github.com/user-attachments/assets/fc3f740c-3374-44b5-9ead-4375bd5e9095" alt="POGN Client Screenshot" width="300"/>
+<img src="https://github.com/user-attachments/assets/7bcf128b-85e5-4b24-aaba-b3bce3261419" alt="POGN Client Screenshot" width="300"/>
+<img src="https://github.com/user-attachments/assets/b203058e-ed29-4ce8-a9de-d8fb9959b4a3" alt="POGN Client Screenshot" width="300"/>
+<img src="https://github.com/user-attachments/assets/098bea77-6f53-403c-af44-60761eb142a6" alt="POGN Client Screenshot" width="300"/>
+
+
 
 ### 🔹 Quick Start
 
