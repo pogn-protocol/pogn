@@ -6,7 +6,7 @@ The POGN folder will contain the specializations that are necessary for a p2p PO
 
 <img src="https://github.com/user-attachments/assets/403b73b7-6343-4065-afcd-db2661476d31" alt="POGN Client Screenshot" width="500"/>
 
-## POGN Server
+## POGN Server (ghInit.js + pognConfigs)
 POGN Server is a test implementation of a POGN relay using pognConfigs.js production configs on Heroku with ghInit.js as the start file. The POGN adminConsole serves as its GUI. The Heroku implementation requires and demonstrates a shared server websocket connection but POGN can also manage relay connections and ports individually with pognConfigs.
 
 ## POGN Client Demo
