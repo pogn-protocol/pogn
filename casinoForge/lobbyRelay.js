@@ -108,7 +108,10 @@ class LobbyRelay extends Relay {
     }
 
     this.webSocketMap.set(playerId, ws);
-    console.log(`Player ${playerId} added to WebSocket map.`);
+    // console.log(`🔄 Updating WebSocket ID to ${this.relayId}::${playerId}`);
+    // const socketKey = `${this.relayId}::${playerId}`;
+    // this.webSocketMap.set(socketKey, ws);
+    // console.log(`WebSocket map updated with key: ${socketKey}`);
     let response;
     if (!error) {
       response =

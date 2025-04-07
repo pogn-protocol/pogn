@@ -33,29 +33,34 @@ if (pognConfigs.SHARED_PORT_MODE) {
   // sharedServer = new Server({ server }); // ✅ attach to *existing* HTTP server
   console.log(`🔁 Shared WebSocket server attached to port ${PORT}`);
   sharedServer.on("connection", (ws) => {
-    ws.once("message", (rawMsg) => {
+    ws.on("message", (rawMsg) => {
       let relayId;
+      let parsed;
+
       try {
-        const parsed = JSON.parse(rawMsg);
+        parsed = JSON.parse(rawMsg);
+        console.log("sharedServer parsed message:", parsed);
         relayId = parsed.relayId;
+        console.log("sharedServer relayId:", relayId);
         if (!relayId) throw new Error("Missing relayId");
       } catch (err) {
-        console.error("❌ Invalid first message (must include relayId):", err);
-        ws.close();
+        console.error("❌ Invalid message (must include relayId):", err);
         return;
       }
 
       const relay = relayManager.relays.get(relayId);
       if (!relay) {
         console.warn(`⚠️ No relay found for relayId: ${relayId}`);
-        ws.close();
         return;
       }
+      console.log(`🔗 Routing shared WebSocket to Relay`, relay);
 
-      console.log(`🔗 Routing shared WebSocket to Relay ${relayId}`);
-      relay.handleConnection(ws); // 👈 forward to correct relay
-      // Re-inject the original message as if it just came in again:
-      ws.emit("message", rawMsg);
+      // if (!ws._relayInitialized) {
+      //   relay.handleConnection(ws); // registers ws into webSocketMap
+      //   ws._relayInitialized = true;
+      // }
+
+      relay.handleMessage(ws, rawMsg); // 👈 forward to correct relay
     });
   });
 }
@@ -67,9 +72,6 @@ app.get("/", (req, res) => {
   res.send("Relay server is alive.");
 });
 
-server.listen(PORT, () => {
-  console.log(`🌐 HTTP+WS server listening on port ${PORT}`);
-});
 //}
 
 // 🔧 Initialize Relay Manager with config-driven ports
@@ -92,4 +94,8 @@ const lobbyController = new LobbyController({
 console.log("📦 Bootstrapping Lobbies...");
 pognConfigs.LOBBY_IDS.forEach((lobbyId) => {
   lobbyController.createLobby({ lobbyId });
+});
+
+server.listen(PORT, () => {
+  console.log(`🌐 HTTP+WS server listening on port ${PORT}`);
 });

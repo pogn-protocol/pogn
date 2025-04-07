@@ -46,14 +46,14 @@ class Relay {
       this.wsAddress = `${protocol}://${host}`;
 
       // 🛑 Only attach handlers once!
-      if (!this.wss._relayHandlerAttached) {
-        this.setupWebSocketHandlers();
-        this.wss._relayHandlerAttached = true;
-      } else {
-        console.log(
-          `🟡 Skipping handler attach for ${this.id} (already attached)`
-        );
-      }
+      // if (!this.wss._relayHandlerAttached) {
+      //   this.setupWebSocketHandlers();
+      //   this.wss._relayHandlerAttached = true;
+      // } else {
+      //   console.log(
+      //     `🟡 Skipping handler attach for ${this.id} (already attached)`
+      //   );
+      // }
 
       return true;
     }
@@ -242,50 +242,150 @@ class Relay {
     console.log(`📌 Temporary WebSocket stored for ${tempId}`);
 
     ws.on("message", (message) => {
-      console.log("📨 Relay Received Message");
-      console.log(`📨 ${this.type} Relay Received Message`);
-      //console.log("Message:", message);
+      console.log(
+        `🔗 ${this.type} relay Id ${this.id} recieved message: ${message}`
+      );
+      this.handleMessage(ws, message);
+      // try {
+      //   // ✅ Handle binary buffer messages
+      //   if (Buffer.isBuffer(message)) {
+      //     message = message.toString("utf-8");
+      //   }
+      //   const parsedMessage = JSON.parse(message);
+      //   console.log("Parsed message", parsedMessage);
+      //   this.messages.push(parsedMessage); // Store the message for later use
+      //   if (parsedMessage?.payload?.type === "ping") {
+      //     console.log(`${this.relayId} received ping from client:`, message);
+      //     //get id from ws
+      //     const id = [...this.webSocketMap.keys()].find(
+      //       (key) => this.webSocketMap.get(key) === ws
+      //     );
+      //     console.log(`🔗 Sending pong to ${id}`);
+      //     // ws.send(
+      //     //   JSON.stringify({
+      //     //     relayId: this.relayId,
+      //     //     uuid: parsedMessage.uuid,
+      //     //     payload: {
+      //     //       type: "pong",
+      //     //       action: "pong",
+      //     //       message: "Ping received",
+      //     //     },
+      //     //   })
+      //     // );
 
-      try {
-        // ✅ Handle binary buffer messages
-        if (Buffer.isBuffer(message)) {
-          message = message.toString("utf-8");
-        }
-        const parsedMessage = JSON.parse(message);
-        console.log("Parsed message", parsedMessage);
-        this.messages.push(parsedMessage); // Store the message for later use
-        if (parsedMessage?.payload?.type === "ping") {
-          console.log(`${this.relayId} received ping from client:`, message);
-          ws.send(
-            JSON.stringify({
-              relayId: this.relayId,
-              uuid: message.uuid,
-              payload: {
-                type: "pong",
-                action: "pong",
-                message: "Ping received",
-              },
-            })
-          );
-          return;
-        }
-        console.log(`${this.id} relay messages`, this.messages);
-        if (parsedMessage?.uuid) {
-          console.log(`🔗 Message UUID: ${parsedMessage.uuid}`);
-        }
-        this.processMessage(ws, parsedMessage);
-      } catch (error) {
-        console.error(
-          `❌ Error processing message in ${this.type} Relay:`,
-          error
-        );
-      }
+      //     this.sendResponse(ws, {
+      //       relayId: this.relayId,
+      //       uuid: uuidv4(),
+      //       payload: {
+      //         type: "pong",
+      //         action: "pong",
+      //         message: "Ping received",
+      //       },
+      //     });
+      //     return;
+
+      //     // this.sendResponse(id, {
+      //     //   relayId: this.relayId,
+      //     //   uuid: message.uuid,
+      //     //   payload: {
+      //     //     type: "pong",
+      //     //     action: "pong",
+      //     //     message: "Ping received",
+      //     //   },
+      //     // });
+      //     // return;
+      //   }
+      //   console.log(`${this.id} relay messages`, this.messages);
+      //   if (parsedMessage?.uuid) {
+      //     console.log(`🔗 Message UUID: ${parsedMessage.uuid}`);
+      //   }
+      //   this.processMessage(ws, parsedMessage);
+      // } catch (error) {
+      //   console.error(
+      //     `❌ Error processing message in ${this.type} Relay:`,
+      //     error
+      //   );
+      // }
     });
 
     ws.on("close", () => {
       console.log(`🔌 ${this.type} Relay: websocket disconnected.`);
       this.removeSocket(ws);
     });
+  }
+
+  handleMessage(ws, message) {
+    console.log("ws", ws);
+    console.log(
+      `🔗 handleMessage ${this.type} relay Id ${this.id} recieved message: ${message}`
+    );
+
+    try {
+      // ✅ Handle binary buffer messages
+      if (Buffer.isBuffer(message)) {
+        message = message.toString("utf-8");
+      }
+      const parsedMessage = JSON.parse(message);
+      console.log("Parsed message", parsedMessage);
+      this.messages.push(parsedMessage); // Store the message for later use
+      if (parsedMessage?.payload?.type === "ping") {
+        console.log(`${this.relayId} received ping from client:`, message);
+        //get id from ws
+        const relayId = [...this.webSocketMap.keys()].find(
+          (key) => this.webSocketMap.get(key) === ws
+        );
+        // const   relayId = parsedMessage?.relayId;
+        console.log(`🔗 Sending pong to ${relayId}`);
+        // ws.send(
+        //   JSON.stringify({
+        //     relayId: this.relayId,
+        //     uuid: parsedMessage.uuid,
+        //     payload: {
+        //       type: "pong",
+        //       action: "pong",
+        //       message: "Ping received",
+        //     },
+        //   })
+        // );
+        let pongMessage = {
+          relayId: this.relayId,
+          uuid: uuidv4(),
+          payload: {
+            type: "pong",
+            action: "pong",
+            message: "Ping received",
+          },
+        };
+        console.log("pongMessage", pongMessage);
+        console.log("ws", ws);
+        ws.send(JSON.stringify(pongMessage));
+        //this.sendResponse(relayId, pongMessage);
+
+        // this.sendResponse(ws, pongMessage);
+        return;
+
+        // this.sendResponse(id, {
+        //   relayId: this.relayId,
+        //   uuid: message.uuid,
+        //   payload: {
+        //     type: "pong",
+        //     action: "pong",
+        //     message: "Ping received",
+        //   },
+        // });
+        // return;
+      }
+      console.log(`${this.id} relay messages`, this.messages);
+      if (parsedMessage?.uuid) {
+        console.log(`🔗 Message UUID: ${parsedMessage.uuid}`);
+      }
+      this.processMessage(ws, parsedMessage);
+    } catch (error) {
+      console.error(
+        `❌ Error processing message in ${this.type} Relay:`,
+        error
+      );
+    }
   }
 
   /** 📩 Process Incoming Messages */
@@ -296,6 +396,7 @@ class Relay {
 
   removeSocket(ws) {
     let found = false;
+
     for (const [id, socket] of this.webSocketMap.entries()) {
       if (socket === ws) {
         this.webSocketMap.delete(id);
@@ -303,7 +404,22 @@ class Relay {
         console.log(`🛑 Removed WebSocket reference for ${id}`);
       }
     }
+
+    if (!found) {
+      console.warn("⚠️ Socket to remove not found in webSocketMap");
+    }
   }
+
+  // removeSocket(ws) {
+  //   let found = false;
+  //   for (const [id, socket] of this.webSocketMap.entries()) {
+  //     if (socket === ws) {
+  //       this.webSocketMap.delete(id);
+  //       found = true;
+  //       console.log(`🛑 Removed WebSocket reference for ${id}`);
+  //     }
+  //   }
+  // }
 
   broadcastResponse(response) {
     console.log(`📡 Broadcasting from ${this.type} Relay ID: ${this.id}`);
@@ -321,11 +437,24 @@ class Relay {
     }
   }
 
+  // sendResponse(ws, message) {
+  //   console.log(`📡 ${this.type} Relay id ${this.id} sending to ws ${ws}`);
+  //   console.log("Message:", message);
+  //   // console.log("WebSocket Map:", this.webSocketMap);
+  //   if (!ws || ws.readyState !== ws.OPEN) {
+  //     console.warn(`⚠️ WebSocket not found or not open for ${ws}`);
+  //     return;
+  //   }
+  //   ws.send(JSON.stringify(message));
+  // }
+
   sendResponse(id, message) {
-    console.log(`📡 ${this.type} Relay sending to ${id}:`);
+    console.log(`📡 ${this.type} Relay id ${this.id} sending to ${id}:`);
     console.log("Message:", message);
-    // console.log("WebSocket Map:", this.webSocketMap);
+    console.log("WebSocket Map:", this.webSocketMap);
     const ws = this.webSocketMap.get(id);
+    // const socketKey = `${this.id}::${id}`; // 🔥 matches your map key
+    // const ws = this.webSocketMap.get(socketKey);
     if (!ws || ws.readyState !== ws.OPEN) {
       console.warn(`⚠️ WebSocket not found or not open for ${id}`);
       return;

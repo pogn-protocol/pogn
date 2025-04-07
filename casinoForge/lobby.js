@@ -1,5 +1,5 @@
 class Lobby {
-  constructor(lobbyId) {
+  constructor({ lobbyId }) {
     this.players = [];
     this.games = new Map();
     this.lobbyId = lobbyId || "default";

@@ -470,7 +470,7 @@ class LobbyController {
         payload: { message: "Failed to create lobby relay." },
       };
     }
-
+    console.log("newLobbyRelay", newLobbyRelay);
     newLobby.relay = newLobbyRelay;
     newLobby.wsAddress = newLobbyRelay.wsAddress;
     newLobby.relayId = newLobbyRelay.id;
