@@ -2,10 +2,9 @@
 
 POGN is a nodejs implementation of [cypherpoker.js](https://github.com/monicanagent/cypherpoker.js) on NOSTR.  Its purpose is to serve as [a microkernal for p2p message based games and development](https://medium.com/p/4f2a40e62656).
 
-The POGN folder will contain the specializations that are necessary for a p2p POGN implmentation and the casinoForge is a  playground to refactor and evolve the POGN divisions:
+The POGN folder will contain the specializations that are necessary for a p2p POGN implementation and the casinoForge is a  playground to refactor and evolve the POGN divisions:
 
 <img src="https://github.com/user-attachments/assets/403b73b7-6343-4065-afcd-db2661476d31" alt="POGN Client Screenshot" width="500"/>
-
 
 ## POGN Server
 POGN Server is a test implementation of a POGN relay using pognConfigs.js production configs on Heroku with ghInit.js as the start file. The POGN adminConsole serves as its GUI. The Heroku implementation requires and demonstrates a shared server websocket connection but POGN can also manage relay connections and ports individually with pognConfigs.
