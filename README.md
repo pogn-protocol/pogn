@@ -1,5 +1,7 @@
 # Poker and Other Games on Nostr
 
+(note: the demo does oddsAndEvens only atm)
+
 POGN is a nodejs implementation of [cypherpoker.js](https://github.com/monicanagent/cypherpoker.js) on NOSTR.  Its purpose is to serve as [a microkernal for p2p message based games and development](https://medium.com/p/4f2a40e62656).
 
 The POGN folder will contain the specializations that are necessary for a p2p POGN implementation and the casinoForge is a  playground to refactor and evolve the POGN divisions:
