@@ -41,9 +41,10 @@ class Relay {
       //this.wsAddress = `ws://${this.host}:${process.env.PORT || this.ports[0]}`;
       const protocol = process.env.ENV === "production" ? "wss" : "ws";
       const port = process.env.PORT || this.ports[0] || 3000;
-      const host = this.host || "localhost";
+      const host = this.host;
       console.log("protocol", protocol, "port", port, "host", host);
-      this.wsAddress = `${protocol}://${host}`;
+      this.wsAddress = `${protocol}://${host}:${port}`;
+      console.log(`✅ [Shared] Relay ${this.id} using ${this.wsAddress}`);
 
       // 🛑 Only attach handlers once!
       // if (!this.wss._relayHandlerAttached) {
