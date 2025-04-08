@@ -95,7 +95,11 @@ class RockPaperScissors {
     const choiceResult = this.makeChoice(playerId, gameAction);
     console.log("choiceResult:", choiceResult);
     if (choiceResult.gameAction === "error") {
-      return choiceResult;
+      return {
+        type: "game",
+        action: "error",
+        payload: choiceResult,
+      };
     }
 
     if (this.state === "complete") {
@@ -106,9 +110,12 @@ class RockPaperScissors {
     }
 
     return {
-      gameAction: "waiting",
-      logEntry: "Waiting for other players.",
-      state: this.state,
+      type: "game",
+      action: "waiting",
+      payload: {
+        logEntry: "Waiting for other players.",
+        state: this.state,
+      },
     };
   }
 }

@@ -11,7 +11,8 @@ class OddsAndEvens {
   }
 
   // Assign roles to players
-  assignRoles(playerIds) {
+  assignRoles() {
+    const playerIds = Array.from(this.players.keys());
     console.log("Assigning roles...", playerIds);
     console.log("playerIds", playerIds);
     if (playerIds.length !== 2) {
@@ -19,7 +20,9 @@ class OddsAndEvens {
     }
 
     // Randomly assign roles
-    const shuffledPlayers = playerIds.sort(() => Math.random() - 0.5);
+    // const shuffledPlayers = playerIds.sort(() => Math.random() - 0.5);
+    const shuffledPlayers = [...playerIds].sort(() => Math.random() - 0.5);
+    console.log("shuffledPlayers", shuffledPlayers);
     this.roles[shuffledPlayers[0]] = "odd";
     this.roles[shuffledPlayers[1]] = "even";
 
@@ -40,7 +43,7 @@ class OddsAndEvens {
           console.log("Roles already assigned:", this.roles);
           return {
             logEntry: `Roles requested by player: ${this.roles[playerId]}`,
-            action: "rolesAssigned",
+            gameAction: "rolesAssigned",
             roles: this.roles,
             gameStatus: this.gameStatus,
             message: "Roles already assigned and recieved.",
@@ -50,10 +53,13 @@ class OddsAndEvens {
         this.gameStatus = "in-progress";
         console.log("roles", this.roles);
         console.log("Assigning roles to players...", this.players);
-        const roles = this.assignRoles(this.players);
+        //const roles = this.assignRoles(this.players);
+        // const roles = this.assignRoles(Array.from(this.players.keys()));
+        const roles = this.assignRoles(); // 💡FIXED HERE: no longer passes anything in
+        console.log("roles", roles);
         return {
           logEntry: "Roles assigned.",
-          action: "rolesAssigned",
+          gameAction: "rolesAssigned",
           roles,
           gameStatus: this.gameStatus,
           message: `Recieved assigned roles requested by player: ${playerId}`,
@@ -61,7 +67,7 @@ class OddsAndEvens {
       case "submitNumber":
         return this.submitNumber(playerId, payload.number);
       default:
-        return { type: "error", message: `Unknown action: ${gameAction}` };
+        return { type: "error", message: `Unknown gameAction: ${gameAction}` };
     }
   }
 
@@ -81,7 +87,7 @@ class OddsAndEvens {
 
     return {
       logEntry: `Player ${playerId} submitted number.`,
-      action: "waitingForOpponent",
+      gameAction: "waitingForOpponent",
       gameStatus: this.gameStatus,
       playerId,
       message: `Player ${playerId} submitted number`,
@@ -104,7 +110,7 @@ class OddsAndEvens {
 
     return {
       logEntry: `Game complete. Winner: ${winner}, Sum: ${sum}, Numbers: ${this.numbers}`,
-      action: "results",
+      gameAction: "results",
       gameStatus: this.gameStatus,
       winner,
       loser: winner === player1 ? player2 : player1,

@@ -222,7 +222,7 @@ class gameController {
     this.activeGames.set(game.gameId, game);
     console.log(`activeGames`, this.activeGames);
     game.lobbyStatus = "started";
-    game.instance.players = Array.from(game.players.keys());
+    game.instance.players = new Map(game.players); // ✅ fix 1
 
     game.gameLog.push("Game started.");
     console.log("Game started.", game);

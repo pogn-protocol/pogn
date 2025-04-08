@@ -25,6 +25,24 @@ class GameRelay extends Relay {
   }
 
   processMessage(ws, message) {
+    if (
+      message?.payload?.playerId &&
+      !this.webSocketMap.has(message.payload.playerId)
+    ) {
+      console.log(
+        `🔄 Updating WebSocket map with playerId ${message.payload.playerId}`
+      );
+      this.webSocketMap.set(message.payload.playerId, ws);
+
+      // Optional: clean up temp IDs
+      for (const [key, socket] of this.webSocketMap.entries()) {
+        if (socket === ws && key.startsWith("temp-")) {
+          this.webSocketMap.delete(key);
+          console.log(`🧹 Removed temp socket key ${key}`);
+        }
+      }
+    }
+
     let error = null;
     if (message?.payload?.type === "relayConnector") {
       console.log("GameRelay processing relayConnector message:", message);
@@ -109,12 +127,12 @@ class GameRelay extends Relay {
       if (response?.broadcast) {
         this.broadcastResponse(response);
       } else {
-        this.sendResponse(playerId, response);
+        this.sendResponse(response?.payload?.playerId, response);
       }
       if (privateResponse.payload?.private) {
         //deepcopy
         console.log("GameRelay private response:", privateResponse);
-        this.sendResponse(playerId, privateResponse);
+        this.sendResponse(privateResponse.payload?.playerId, privateResponse);
       }
     } catch (error) {
       console.error("❌ GameRelay Error processing message:", error);

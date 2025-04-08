@@ -65,6 +65,9 @@ class LobbyController {
       if (!response.payload?.lobbyId) {
         response.payload.lobbyId = lobbyId;
       }
+      if (!response.payload?.playerId) {
+        response.payload.playerId = playerId;
+      }
       return response;
     } catch (error) {
       console.error("Error processing message in LobbyController:", error);
