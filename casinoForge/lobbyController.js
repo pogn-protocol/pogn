@@ -529,13 +529,14 @@ class LobbyController {
 
     if (lobbyId === "lobby1") {
       game1 = this.gameController.createGame(
-        "odds-and-evens",
+        //rps
+        "rock-paper-scissors",
         true,
         lobbyId,
         "firstGame"
       );
       game2 = this.gameController.createGame(
-        "odds-and-evens",
+        "rock-paper-scissors",
         true,
         lobbyId,
         "secondGame"

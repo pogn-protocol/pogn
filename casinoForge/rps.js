@@ -1,122 +1,87 @@
 class RockPaperScissors {
   constructor() {
-    this.choices = {}; // Tracks player choices: { playerId: "rock/paper/scissors" }
-    this.winningRules = {
-      rock: "scissors",
-      paper: "rock",
-      scissors: "paper",
-    };
-    this.state = "waiting"; // Game states: waiting, in-progress, complete
+    this.choices = {}; // { playerId: "rock"/"paper"/"scissors" }
+    this.players = new Map();
+    this.state = "waiting";
     this.minPlayers = 2;
     this.maxPlayers = 2;
   }
+
   getGameDetails() {
     return {
-      winningRules: this.winningRules,
-      state: this.state,
+      gameStatus: this.state,
       minPlayers: this.minPlayers,
       maxPlayers: this.maxPlayers,
     };
   }
 
-  // Add a player choice
   makeChoice(playerId, choice) {
-    if (!["rock", "paper", "scissors"].includes(choice)) {
-      console.log("Invalid choice.");
-      return { gameAction: "error", message: "Invalid choice." };
+    const valid = ["rock", "paper", "scissors"];
+    if (!valid.includes(choice)) {
+      return {
+        gameType: "rock-paper-scissors",
+        gameAction: "error",
+        message: "Invalid choice.",
+      };
     }
 
     this.choices[playerId] = choice;
 
-    // Check if all players have made their choice
-    if (this.isReady()) {
-      this.state = "complete";
+    if (!this.players.has(playerId)) {
+      this.players.set(playerId, { playerId });
+    }
+
+    if (Object.keys(this.choices).length === 2) {
+      return this.determineWinner();
     }
 
     return {
-      gameAction: "choiceMade",
-      logEntry: `playerId chose ${choice}`,
-      state: this.state,
+      gameType: "rock-paper-scissors",
+      gameAction: "waiting",
+      message: "Waiting for opponent...",
     };
   }
 
-  // Determine if both players are ready
-  isReady() {
-    return Object.keys(this.choices).length === 2;
-  }
-
-  // Determine the winner of the game
   determineWinner() {
-    if (!this.isReady()) {
+    const rules = { rock: "scissors", paper: "rock", scissors: "paper" };
+    const [p1, p2] = Object.keys(this.choices);
+    const c1 = this.choices[p1];
+    const c2 = this.choices[p2];
+
+    this.state = "complete";
+
+    if (c1 === c2) {
       return {
+        gameType: "rock-paper-scissors",
+        gameAction: "draw",
+        choices: this.choices,
+      };
+    }
+
+    const winner = rules[c1] === c2 ? p1 : p2;
+    const loser = winner === p1 ? p2 : p1;
+
+    return {
+      gameStatus: this.state,
+      gameType: "rock-paper-scissors",
+      gameAction: "results",
+      winner,
+      loser,
+      choices: { [p1]: c1, [p2]: c2 },
+    };
+  }
+
+  processAction(playerId, payload) {
+    const { gameAction } = payload;
+    if (!gameAction) {
+      return {
+        gameType: "rock-paper-scissors",
         gameAction: "error",
-        message: "Not enough choice to determine a winner.",
+        message: "Missing gameAction.",
       };
     }
 
-    const [player1, player2] = Object.keys(this.choices);
-    const choice1 = this.choices[player1];
-    const choice2 = this.choices[player2];
-
-    if (choice1 === choice2) {
-      return { gameAction: "draw", message: "It's a draw!" };
-    }
-
-    const winner = this.winningRules[choice1] === choice2 ? player1 : player2;
-    console.log("winner:", winner, "choice1:", choice1, "choice2:", choice2);
-    return {
-      type: "game",
-      action: "results",
-      payload: {
-        logEntry: `${winner} wins!`,
-        winner,
-        loser: winner === player1 ? player2 : player1,
-        choices: { [player1]: choice1, [player2]: choice2 },
-        state: this.state,
-      },
-      broadcast: true,
-    };
-  }
-
-  // Reset the game state
-  resetGame() {
-    this.choices = {};
-    this.state = "finished";
-    return {
-      gameAction: "reset",
-      logEntry: "Game has been reset.",
-      state: this.state,
-    };
-  }
-
-  // Process an action from the client
-  processAction(gameAction, playerId) {
-    console.log("gameAction:", gameAction, "playerId:", playerId);
-    const choiceResult = this.makeChoice(playerId, gameAction);
-    console.log("choiceResult:", choiceResult);
-    if (choiceResult.gameAction === "error") {
-      return {
-        type: "game",
-        action: "error",
-        payload: choiceResult,
-      };
-    }
-
-    if (this.state === "complete") {
-      // Determine and return the winner
-      const result = this.determineWinner();
-      this.resetGame(); // Reset for the next round
-      return result;
-    }
-
-    return {
-      type: "game",
-      action: "waiting",
-      payload: {
-        logEntry: "Waiting for other players.",
-        state: this.state,
-      },
-    };
+    return this.makeChoice(playerId, gameAction);
   }
 }
 
