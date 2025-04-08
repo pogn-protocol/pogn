@@ -39,8 +39,10 @@ Repo: https://github.com/pogn-protocol/pognclient
 ### 🔸 Multiplayer Testing
 
 Use these id's for two clients to join the auto-created test games:
-player1 Id: be7c4cf8b9db6950491f2de3ece4668a1beb93972082d021256146a2b4ae1348
-player2 Id: df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4
+
+> player1 Id: be7c4cf8b9db6950491f2de3ece4668a1beb93972082d021256146a2b4ae1348
+
+> player2 Id: df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4
 
 Use **two clients** to:
 - Create a new game
