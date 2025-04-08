@@ -1,6 +1,6 @@
 # Poker and Other Games on Nostr
 
-(note: the demo does oddsAndEvens only atm)
+(note: the demo only does oddsAndEvens and rockPaperScissors atm)
 
 POGN is a nodejs implementation of [cypherpoker.js](https://github.com/monicanagent/cypherpoker.js) on NOSTR.  Its purpose is to serve as [a microkernal for p2p message based games and development](https://medium.com/p/4f2a40e62656).
 
