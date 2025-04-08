@@ -536,7 +536,7 @@ class LobbyController {
         "firstGame"
       );
       game2 = this.gameController.createGame(
-        "rock-paper-scissors",
+        "odds-and-evens",
         true,
         lobbyId,
         "secondGame"
@@ -551,7 +551,7 @@ class LobbyController {
         "thirdGame"
       );
       game2 = this.gameController.createGame(
-        "odds-and-evens",
+        "rock-paper-scissors",
         true,
         lobbyId,
         "fourthGame"
