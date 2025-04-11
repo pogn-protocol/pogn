@@ -90,4 +90,4 @@ UI for interacting with the **POGN server**.
 
 Develop games for pogn straight out of the POGN Games Sandbox demo.
 
-<img src="https://github.com/user-attachments/assets/d9e3c834-f7d0-4535-9be0-c88f74fc32a7" alt="POGN adminConsole Screenshot" width="300"/>
+<img src="https://github.com/user-attachments/assets/d488bdc5-e781-468e-ae7f-e905a45d974e" alt="POGN adminConsole Screenshot" width="300"/>
