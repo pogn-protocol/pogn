@@ -1,23 +1,18 @@
-const BaseGame = require("./baseGame");
-
-class RockPaperScissors extends BaseGame {
+class RockPaperScissors {
   constructor() {
-    super(2, 2);
     this.choices = {}; // { playerId: "rock"/"paper"/"scissors" }
+    this.players = new Map();
     this.state = "waiting";
+    this.minPlayers = 2;
+    this.maxPlayers = 2;
   }
 
-  processAction(playerId, payload) {
-    const { gameAction } = payload;
-    if (!gameAction) {
-      return {
-        gameType: "rock-paper-scissors",
-        gameAction: "error",
-        message: "Missing gameAction.",
-      };
-    }
-
-    return this.makeChoice(playerId, gameAction);
+  getGameDetails() {
+    return {
+      gameStatus: this.state,
+      minPlayers: this.minPlayers,
+      maxPlayers: this.maxPlayers,
+    };
   }
 
   makeChoice(playerId, choice) {
@@ -60,7 +55,6 @@ class RockPaperScissors extends BaseGame {
         gameType: "rock-paper-scissors",
         gameAction: "draw",
         choices: this.choices,
-        gameStatus: this.state,
       };
     }
 
@@ -77,11 +71,17 @@ class RockPaperScissors extends BaseGame {
     };
   }
 
-  getGameDetails() {
-    return {
-      ...super.getGameDetails(),
-      gameStatus: this.state,
-    };
+  processAction(playerId, payload) {
+    const { gameAction } = payload;
+    if (!gameAction) {
+      return {
+        gameType: "rock-paper-scissors",
+        gameAction: "error",
+        message: "Missing gameAction.",
+      };
+    }
+
+    return this.makeChoice(playerId, gameAction);
   }
 }
 

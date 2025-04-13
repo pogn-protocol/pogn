@@ -535,7 +535,7 @@ class LobbyController {
 
     if (lobbyId === "lobby1") {
       game1 = this.gameController.createGame(
-        "tic-tac-toe",
+        "odds-and-evens",
         true,
         lobbyId,
         "firstGame"
