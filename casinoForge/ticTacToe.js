@@ -31,6 +31,7 @@ class TicTacToe extends TurnBasedGame {
           const response = {
             ...baseResponse,
             currentTurn: this.currentTurn, // Inject it here
+            board: this.board, // ✅ Add this
           };
 
           console.log(
@@ -57,6 +58,7 @@ class TicTacToe extends TurnBasedGame {
           ...baseResponse,
           roles, // Return full roles
           currentTurn: this.currentTurn, // Inject again
+          board: this.board,
         };
 
         console.log("[TicTacToe] Returning fresh assigned response:", response);

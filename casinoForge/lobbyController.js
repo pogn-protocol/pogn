@@ -535,13 +535,13 @@ class LobbyController {
 
     if (lobbyId === "lobby1") {
       game1 = this.gameController.createGame(
-        "rock-paper-scissors",
+        "tic-tac-toe",
         true,
         lobbyId,
         "firstGame"
       );
       game2 = this.gameController.createGame(
-        "tic-tac-toe",
+        "odds-and-evens",
         true,
         lobbyId,
         "secondGame"
@@ -550,13 +550,13 @@ class LobbyController {
 
     if (lobbyId === "lobby2") {
       game1 = this.gameController.createGame(
-        "odds-and-evens",
+        "rock-paper-scissors",
         true,
         lobbyId,
         "thirdGame"
       );
       game2 = this.gameController.createGame(
-        "rock-paper-scissors",
+        "odds-and-evens",
         true,
         lobbyId,
         "fourthGame"
