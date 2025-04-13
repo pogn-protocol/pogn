@@ -1,6 +1,5 @@
 const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
-const RelayConnector = require("./relayConnector");
 const { verifyGameRelayMessageRecieved } = require("./verifications");
 
 class GameRelay extends Relay {
@@ -84,12 +83,20 @@ class GameRelay extends Relay {
       // response.error = `Game relay ${this.relayId} received message for different relay:`;
     }
 
-    const { isValid, error: validationError } =
-      require("./verifications").verifyGameRelayMessageRecieved(
-        message,
-        this.relayId,
-        this.gameIds
-      );
+    // const { isValid, error: validationError } =
+    //   require("./verifications").verifyGameRelayMessageRecieved(
+    //     message,
+    //     this.relayId,
+    //     this.gameIds
+    //   );
+
+    const { isValid, error: validationError } = verifyGameRelayMessageRecieved(
+      message,
+      this.relayId,
+      this.relayId,
+      this.gameIds
+    );
+    console.log("GameRelay validation:", isValid, validationError);
 
     if (!isValid) {
       console.warn(`❌ Verification failed: ${validationError}`);

@@ -1,5 +1,6 @@
 const RockPaperScissors = require("./rps");
 const OddsAndEvens = require("./oddsAndEvens");
+const TicTacToe = require("./ticTacToe");
 const Game = require("./game");
 
 class gameController {
@@ -9,6 +10,7 @@ class gameController {
     this.gameClasses = {
       "rock-paper-scissors": RockPaperScissors,
       "odds-and-evens": OddsAndEvens,
+      "tic-tac-toe": TicTacToe,
     };
     this.activeGames = new Map();
     this.gamePorts = gamePorts;
@@ -46,54 +48,106 @@ class gameController {
   handleGameAction(ws, payload) {
     console.log("Processing game action:", payload);
 
-    if (!payload?.gameId || !payload?.playerId) {
+    const { gameId, playerId } = payload || {};
+    if (!gameId || !playerId) {
       return {
         type: "error",
         payload: { message: "Invalid payload structure." },
       };
     }
 
-    const game = this.activeGames.get(payload.gameId);
+    const game = this.activeGames.get(gameId);
     if (!game) {
       return {
         type: "error",
-        payload: { message: `Game ${payload.gameId} not found.` },
+        payload: { message: `Game ${gameId} not found.` },
       };
     }
 
-    if (typeof game.instance.processAction === "function") {
-      try {
-        const gameResponse = game.instance.processAction(
-          payload.playerId,
-          payload
-        );
+    // ✅ Turn-based enforcement BEFORE calling processAction
+    const playerIds = Array.from(game.players.keys()).map((id) => String(id));
+    const currentPlayerId = String(playerId);
+    const currentTurn = String(game.instance.currentTurn);
+    console.log(
+      "playerIds",
+      playerIds,
+      "currentPlayerId",
+      currentPlayerId,
+      "currentTurn",
+      currentTurn
+    );
 
-        game.logAction(gameResponse.logEntry);
-        console.log("gameResponse", gameResponse);
-        console.log("logEntry", gameResponse.logEntry);
+    // ✅ Turn-based enforcement BEFORE calling processAction
+    // const isTurnBased = game.instance?.turnBased ?? true;
+    // console.log("isTurnBased", isTurnBased);
+    // if (
+    //   isTurnBased &&
+    //   String(currentPlayerId).trim() !== String(currentTurn).trim()
+    // ) {
+    //   console.warn(
+    //     `❌ Player ${currentPlayerId} attempted to take action out of turn. Current turn: ${currentTurn}`
+    //   );
+    //   return {
+    //     payload: {
+    //       type: "game",
+    //       action: "gameAction",
+    //       message: `It's not your turn.`,
+    //       currentTurn,
+    //     },
+    //     broadcast: false,
+    //   };
+    // }
+    let result;
+    try {
+      result = game.instance.processAction(playerId, payload);
+      console.log("gameController processAction result", result);
+      game.logAction(result?.logEntry || ""); // Log if available
+      //game.gameStatus = result?.gameStatus;
+    } catch (error) {
+      console.error("Error processing game action:", error);
 
-        const response = {
-          payload: {
-            type: "game",
-            action: "gameAction",
-            ...gameResponse,
-            gameId: game.gameId,
-          },
-          broadcast: true,
-        };
-
-        console.log(
-          "gameController Broadcasting gameAction response",
-          response
-        );
-        return response;
-      } catch (error) {
-        console.error(`❌ Error processing game action:`, error);
-      }
-    } else {
-      console.warn(`Game ${payload.gameId} does not support game actions.`);
-      return { type: "error", payload: { message: "Action not supported." } };
+      // return {
+      //   payload: {
+      //     type: "error",
+      //     message: `Game logic error: ${error.message}`,
+      //   },
+      // };
     }
+
+    // const currentIndex = playerIds.indexOf(currentPlayerId);
+    // const isLast = currentIndex === playerIds.length - 1;
+    // const nextPlayer = playerIds[(currentIndex + 1) % playerIds.length];
+    // game.currentTurn = nextPlayer;
+
+    // // ✅ Advance round if last in turn order
+    // if (isLast) {
+    //   game.roundNumber = (game.roundNumber || 1) + 1;
+    // }
+
+    // ✅ End game if max rounds exceeded
+    // if (game.maxRounds && game.roundNumber > game.maxRounds) {
+    //   return {
+    //     payload: {
+    //       type: "game",
+    //       action: "gameAction",
+    //       gameAction: "gameOver",
+    //       gameId: game.gameId,
+    //       message: "Max rounds reached. Game over.",
+    //       roundNumber: game.roundNumber - 1,
+    //     },
+    //     broadcast: true,
+    //   };
+    // }
+    // ✅ Wrap and return full response
+    return {
+      payload: {
+        type: "game",
+        action: "gameAction",
+        ...result,
+        gameId: game.gameId,
+      },
+      broadcast: true,
+    };
   }
 
   endGame(we, payload) {
@@ -115,7 +169,7 @@ class gameController {
     }
 
     console.log("Ending game:", game);
-    game.lobbyStatus = "ended";
+    game.gameStatus = "ended";
     game.gameLog.push("Game ended.");
     console.log("gameRelay", this.relayManager.relays.get(game.relayId));
     this.relayManager.relays.get(game.relayId).sendToLobbyRelay(game.lobbyId, {
@@ -125,11 +179,10 @@ class gameController {
         lobbyId: game.lobbyId,
         playerId: gameId,
         gameId: gameId,
-        lobbyStatus: "ended",
         gameLog: game.gameLog,
       },
     });
-    this.activeGames.get(gameId).lobbyStatus = "ended";
+    //this.activeGames.get(gameId).lobbyStatus = "ended";
     this.activeGames.get(gameId).gameLog.push("Game ended.");
     console.log("active games", this.activeGames);
     return {
@@ -163,7 +216,9 @@ class gameController {
     console.log("game", game);
     game.lobbyId = lobbyId;
     const gameInstance = new this.gameClasses[gameType]();
+    console.log("gameInstance", gameInstance);
     game.setGameInstance(gameInstance);
+    console.log("game created", game);
     return game;
   }
 
@@ -221,42 +276,43 @@ class gameController {
     }
     this.activeGames.set(game.gameId, game);
     console.log(`activeGames`, this.activeGames);
-    game.lobbyStatus = "started";
+    //game.lobbyStatus = "started";
+    game.gameStatus = "started";
     game.instance.players = new Map(game.players); // ✅ fix 1
-
     game.gameLog.push("Game started.");
     console.log("Game started.", game);
-    return;
-  }
 
-  addPlayerToGame(gameId, playerId) {
-    console.log("activeGames", this.activeGames);
-    const game = this.activeGames.get(gameId);
-    if (!game) {
-      return { error: true, message: `Game with ID ${gameId} not found.` };
-    }
-    if (game.players.has(playerId)) {
-      return { error: true, message: `${playerId} is already in the game.` };
-    }
-    if (game.players.size >= game.instance.maxPlayers) {
-      return {
-        error: true,
-        message: "Game is full. Cannot add more players.",
-      };
-    }
-    game.players.set(playerId, { joined: false });
-    console.log(
-      `${playerId} was added to the game. Current players:`,
-      Array.from(game.players.keys())
-    );
-    if (game.players.size >= game.instance.maxPlayers) {
-      game.lobbyStatus = "readyToStart";
-      console.log("The game is ready to start.");
-    } else if (game.players.size >= game.instance.minPlayers) {
-      game.lobbyStatus = "canStart";
-      console.log("The game can start.");
-    }
     return game;
   }
+
+  // addPlayerToGame(gameId, playerId) {
+  //   console.log("activeGames", this.activeGames);
+  //   const game = this.activeGames.get(gameId);
+  //   if (!game) {
+  //     return { error: true, message: `Game with ID ${gameId} not found.` };
+  //   }
+  //   if (game.players.has(playerId)) {
+  //     return { error: true, message: `${playerId} is already in the game.` };
+  //   }
+  //   if (game.players.size >= game.instance.maxPlayers) {
+  //     return {
+  //       error: true,
+  //       message: "Game is full. Cannot add more players.",
+  //     };
+  //   }
+  //   game.players.set(playerId, { joined: false });
+  //   console.log(
+  //     `${playerId} was added to the game. Current players:`,
+  //     Array.from(game.players.keys())
+  //   );
+  //   if (game.players.size >= game.instance.maxPlayers) {
+  //     game.lobbyStatus = "readyToStart";
+  //     console.log("The game is ready to start.");
+  //   } else if (game.players.size >= game.instance.minPlayers) {
+  //     game.lobbyStatus = "canStart";
+  //     console.log("The game can start.");
+  //   }
+  //   return game;
+  // }
 }
 module.exports = gameController;

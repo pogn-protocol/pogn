@@ -81,6 +81,10 @@ class LobbyController {
   gameEnded({ lobby, gameId }) {
     console.log("Game ended shutting relay down for:", gameId);
     this.relayManager.gameEnded(gameId);
+    const game = lobby.getGame(gameId);
+    game.lobbyStatus = "ended";
+    console.log("Game ended:", game);
+
     lobby.removeGame(gameId);
     return {
       payload: {
@@ -104,9 +108,11 @@ class LobbyController {
       };
     }
 
-    this.gameController.startGame(game);
+    let gameStarted = this.gameController.startGame(game);
+    gameStarted.lobbyStatus = "started";
+    console.log("Game started:", gameStarted);
     console.log(this.gameController.activeGames);
-    let gameDetails = game.getGameDetails();
+    let gameDetails = gameStarted.getGameDetails();
     console.log("Game started:", gameDetails);
     return {
       payload: {
@@ -529,14 +535,13 @@ class LobbyController {
 
     if (lobbyId === "lobby1") {
       game1 = this.gameController.createGame(
-        //rps
         "rock-paper-scissors",
         true,
         lobbyId,
         "firstGame"
       );
       game2 = this.gameController.createGame(
-        "odds-and-evens",
+        "tic-tac-toe",
         true,
         lobbyId,
         "secondGame"
@@ -611,11 +616,13 @@ class LobbyController {
       console.log("lobby", lobby);
 
       this.lobbies.set(lobbyId, lobby);
-      this.gameController.startGame(game1);
-      this.gameController.startGame(game2);
+      let game1Started = this.gameController.startGame(game1);
+      game1Started.lobbyStatus = "started";
+      let game2Started = this.gameController.startGame(game2);
+      game2Started.lobbyStatus = "started";
 
       console.log("Lobbies:", Array.from(this.lobbies.entries()));
-      console.log("Test games created:", game1, game2);
+      console.log("Test games created:", game1Started, game2Started);
       console.log("Lobby", lobbyId);
       console.log("Lobby games", lobby.getLobbyGames());
       console.log("Lobby Players", lobby.getLobbyPlayers());

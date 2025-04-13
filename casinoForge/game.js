@@ -6,11 +6,15 @@ class Game {
     this.gameId = gameId || uuidv4(); // Unique game ID
     this.players = new Map();
     this.gameLog = [];
-    this.lobbyStatus = "waiting"; // Possible lobbyStatus: created, joining, started, ended
+    this.lobbyStatus = "joining"; // Possible lobbyStatus: created, joining, started, ended
+    this.gameStatus = "joining"; // Possible gameStatus: waiting, in-progress, complete
     this.instance = null; // Game-specific logic instance (e.g., RockPaperScissors)
     this.gamePorts = [];
     this.lobbyId = null; // Reference to the lobby ID
     this.wsAddress;
+    this.roundNumber = 1;
+    this.maxRounds = null;
+    this.currentTurn = null;
   }
 
   removePlayer(playerId) {
