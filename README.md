@@ -88,6 +88,8 @@ UI for interacting with the **POGN server**.
 
 [POGN Games Sandbox Demo](https://pogngamesandbox-eac15b3c6192.herokuapp.com/)
 
+Repo: https://github.com/pogn-protocol/pogngamesandbox
+
 Develop games for pogn straight out of the POGN Games Sandbox demo.
 
 <img src="https://github.com/user-attachments/assets/d488bdc5-e781-468e-ae7f-e905a45d974e" alt="POGN adminConsole Screenshot" width="300"/>
