@@ -108,11 +108,15 @@ class LobbyController {
       };
     }
 
-    let gameStarted = this.gameController.startGame(game);
-    gameStarted.lobbyStatus = "started";
-    console.log("Game started:", gameStarted);
-    console.log(this.gameController.activeGames);
-    let gameDetails = gameStarted.getGameDetails();
+    //let gameStarted = this.gameController.startGame(game);
+    game.lobbyStatus = "started";
+    console.log("Game started:", game);
+    this.gameController.activeGames.set(game.gameId, game);
+    console.log(
+      "Added started game to active games:",
+      this.gameController.activeGames
+    );
+    let gameDetails = game.getGameDetails();
     console.log("Game started:", gameDetails);
     return {
       payload: {
@@ -535,7 +539,7 @@ class LobbyController {
 
     if (lobbyId === "lobby1") {
       game1 = this.gameController.createGame(
-        "odds-and-evens",
+        "rock-paper-scissors",
         true,
         lobbyId,
         "firstGame"
@@ -616,13 +620,13 @@ class LobbyController {
       console.log("lobby", lobby);
 
       this.lobbies.set(lobbyId, lobby);
-      let game1Started = this.gameController.startGame(game1);
-      game1Started.lobbyStatus = "started";
-      let game2Started = this.gameController.startGame(game2);
-      game2Started.lobbyStatus = "started";
+      this.gameController.startGame(game1);
+      game1.lobbyStatus = "started";
+      this.gameController.startGame(game2);
+      game2.lobbyStatus = "started";
 
       console.log("Lobbies:", Array.from(this.lobbies.entries()));
-      console.log("Test games created:", game1Started, game2Started);
+      console.log("Test games created:", game1, game2);
       console.log("Lobby", lobbyId);
       console.log("Lobby games", lobby.getLobbyGames());
       console.log("Lobby Players", lobby.getLobbyPlayers());
@@ -638,7 +642,7 @@ class LobbyController {
         broadcast: true,
       };
     } catch (error) {
-      console.error("❌ Error creating relays for test games:", error.message);
+      console.error("❌ Error creating test games:", error.message);
     }
   }
 

@@ -2,85 +2,112 @@ const BaseGame = require("./baseGame");
 
 class RockPaperScissors extends BaseGame {
   constructor() {
-    super(2, 2);
-    this.choices = {}; // { playerId: "rock"/"paper"/"scissors" }
-    this.state = "waiting";
+    super({ baseGameOptions: { minPlayers: 2, maxPlayers: 2 } });
+    this.choices = {};
+    this.scores = {};
+    this.roundResults = [];
+    this.winner = null;
+  }
+
+  init() {
+    console.log("[RockPaperScissors] init() called");
+
+    // 🧠 Initialize score tracking
+    for (const id of this.players.keys()) {
+      this.scores[id] = 0;
+    }
+
+    return {
+      gameAction: "gameStarted",
+      message: "Game started! Choose rock, paper, or scissors.",
+      ...this.getGameDetails?.(),
+    };
   }
 
   processAction(playerId, payload) {
     const { gameAction } = payload;
-    if (!gameAction) {
-      return {
-        gameType: "rock-paper-scissors",
-        gameAction: "error",
-        message: "Missing gameAction.",
-      };
-    }
-
-    return this.makeChoice(playerId, gameAction);
-  }
-
-  makeChoice(playerId, choice) {
     const valid = ["rock", "paper", "scissors"];
-    if (!valid.includes(choice)) {
+
+    if (!valid.includes(gameAction)) {
       return {
-        gameType: "rock-paper-scissors",
-        gameAction: "error",
-        message: "Invalid choice.",
+        type: "error",
+        message: "Invalid choice. Must be rock, paper, or scissors.",
       };
     }
 
-    this.choices[playerId] = choice;
+    this.choices[playerId] = gameAction;
 
-    if (!this.players.has(playerId)) {
-      this.players.set(playerId, { playerId });
+    this.logAction?.({
+      logEntry: `Player ${playerId} chose ${gameAction}`,
+      playerId,
+      action: "choose",
+      value: gameAction,
+    });
+
+    const waitingForSecond = Object.keys(this.choices).length < 2;
+
+    if (waitingForSecond) {
+      return {
+        gameAction: "playerChose",
+        private: {
+          yourChoice: gameAction,
+        },
+        ...this.getGameDetails?.(),
+      };
     }
 
-    if (Object.keys(this.choices).length === 2) {
-      return this.determineWinner();
-    }
-
-    return {
-      gameType: "rock-paper-scissors",
-      gameAction: "waiting",
-      message: "Waiting for opponent...",
-    };
-  }
-
-  determineWinner() {
-    const rules = { rock: "scissors", paper: "rock", scissors: "paper" };
     const [p1, p2] = Object.keys(this.choices);
     const c1 = this.choices[p1];
     const c2 = this.choices[p2];
+    const rules = { rock: "scissors", paper: "rock", scissors: "paper" };
 
-    this.state = "complete";
+    let roundWinner = null;
+    let draw = false;
 
     if (c1 === c2) {
-      return {
-        gameType: "rock-paper-scissors",
-        gameAction: "draw",
-        choices: this.choices,
-        gameStatus: this.state,
-      };
+      draw = true;
+    } else {
+      roundWinner = rules[c1] === c2 ? p1 : p2;
+      this.scores[roundWinner] = (this.scores[roundWinner] || 0) + 1;
     }
 
-    const winner = rules[c1] === c2 ? p1 : p2;
-    const loser = winner === p1 ? p2 : p1;
+    this.roundResults.push({
+      round: this.round,
+      choices: { ...this.choices },
+      roundWinner,
+      draw,
+    });
+
+    this.choices = {};
+
+    let message = draw
+      ? `Round ${this.round} is a draw. Both chose ${c1}.`
+      : `Round ${this.round} winner: Player ${roundWinner}.`;
+
+    if (
+      typeof this.rounds === "number" &&
+      this.rounds > 0 &&
+      this.round >= this.rounds
+    ) {
+      this.gameStatus = "complete";
+      const [score1, score2] = [this.scores[p1] || 0, this.scores[p2] || 0];
+      this.winner = score1 > score2 ? p1 : score2 > score1 ? p2 : "draw";
+
+      message += ` Game over! ${
+        this.winner === "draw" ? "It's a draw!" : `Player ${this.winner} wins!`
+      }`;
+    } else {
+      this.nextRound?.();
+      message += ` Starting round ${this.round}!`;
+    }
 
     return {
-      gameStatus: this.state,
-      gameType: "rock-paper-scissors",
-      gameAction: "results",
-      winner,
-      loser,
-      choices: { [p1]: c1, [p2]: c2 },
-    };
-  }
-
-  getGameDetails() {
-    return {
-      ...super.getGameDetails(),
-      gameStatus: this.state,
+      gameAction: "roundCompleted",
+      lastRoundResult: this.roundResults.at(-1),
+      scores: this.scores,
+      winner: this.winner,
+      message,
+      ...this.getGameDetails?.(),
     };
   }
 }

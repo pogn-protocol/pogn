@@ -2,173 +2,115 @@ const TurnBasedGame = require("./turnBasedGame");
 
 class TicTacToe extends TurnBasedGame {
   constructor() {
-    console.log("[TicTacToe] constructor called");
-    super(["X", "O"]);
-    this.board = Array(9).fill(null);
-    console.log("[TicTacToe] Initial board:", this.board);
+    super(["X", "O"]); // Call the parent constructor with roles
+    this.board = Array(9).fill(null); // 3x3 board
+    this.players = new Map(); // filled in by firmware
+    this.currentTurn = null;
+    this.winner = null;
+    this.movesMade = 0;
+  }
+
+  init() {
+    console.log("[TicTacToe] init() called");
+
+    const roles = ["X", "O"];
+
+    if (typeof this.assignRoles === "function") {
+      console.log("[TicTacToe] assignRoles called.");
+      this.assignRoles(roles);
+
+      const xPlayerId = Object.keys(this.roles).find(
+        (id) => this.roles[id] === "X"
+      );
+
+      this.currentTurn = xPlayerId;
+
+      console.log(
+        "[TicTacToe] currentTurn (X always starts):",
+        this.currentTurn
+      );
+      console.log("[TicTacToe] game details:", this.getGameDetails());
+
+      return {
+        gameAction: "gameStarted",
+        playerId: this.currentTurn,
+        board: [...this.board],
+        currentTurn: this.currentTurn,
+        ...this.getGameDetails(),
+      };
+    }
+
+    return {};
+  }
+
+  checkWinner() {
+    const b = this.board;
+    const lines = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8], // rows
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8], // cols
+      [0, 4, 8],
+      [2, 4, 6], // diagonals
+    ];
+    for (let [a, bIdx, c] of lines) {
+      if (b[a] && b[a] === b[bIdx] && b[a] === b[c]) return b[a];
+    }
+    return null;
   }
 
   processAction(playerId, payload) {
-    console.log("[TicTacToe] processAction START", { playerId, payload });
     const { gameAction, index } = payload;
-    console.log("[TicTacToe] gameAction:", gameAction);
 
-    switch (gameAction) {
-      case "getRoles": {
-        console.log("[TicTacToe] getRoles triggered");
+    console.log("[TicTacToe] processAction called with:", payload);
+    console.log("[TicTacToe] index:", index);
+    console.log("[TicTacToe] currentTurn:", this.currentTurn);
+    console.log("[TicTacToe] players:", this.players);
+    console.log("[TicTacToe] roles:", this.roles);
+    console.log("[TicTacToe] board:", this.board);
+    console.log("[TicTacToe] movesMade:", this.movesMade);
+    console.log("[TicTacToe] winner:", this.winner);
+    console.log("[TicTacToe] rolesAssigned:", this.rolesAssigned);
+    console.log("[TicTacToe] playerId:", playerId);
 
-        // If roles are already assigned
-        if (Object.keys(this.roles).length === 2) {
-          console.log("[TicTacToe] Roles already assigned:", this.roles);
+    if (gameAction !== "makeMove")
+      return { type: "error", message: "Unknown action." };
 
-          if (!this.currentTurn) {
-            throw new Error(
-              "[TicTacToe] currentTurn is null or undefined after roles were assigned."
-            );
-          }
+    if (this.winner) return { message: "Game is over." };
+    if (this.currentTurn !== playerId) return { message: "Not your turn." };
 
-          const baseResponse = this.getRolesResponse(playerId);
-          const response = {
-            ...baseResponse,
-            currentTurn: this.currentTurn, // Inject it here
-            board: this.board, // ✅ Add this
-          };
+    const mark = this.roles[playerId];
+    if (this.board[index]) return { message: "Cell already taken." };
+    this.board[index] = mark;
+    this.movesMade += 1;
 
-          console.log(
-            "[TicTacToe] Returning response with currentTurn:",
-            response
-          );
-          return response;
-        }
-
-        // Assign roles if not already assigned
-        const roles = this.assignRoles();
-
-        if (!this.currentTurn) {
-          throw new Error(
-            "[TicTacToe] currentTurn is null or undefined after assigning roles."
-          );
-        }
-
-        console.log("[TicTacToe] Assigned roles:", roles);
-        console.log("[TicTacToe] Current turn:", this.currentTurn);
-
-        const baseResponse = this.getRolesResponse(playerId);
-        const response = {
-          ...baseResponse,
-          roles, // Return full roles
-          currentTurn: this.currentTurn, // Inject again
-          board: this.board,
-        };
-
-        console.log("[TicTacToe] Returning fresh assigned response:", response);
-        return response;
-      }
-
-      case "makeMove": {
-        console.log("[TicTacToe] makeMove triggered for index:", index);
-        const error = this.validateTurn(playerId);
-        if (error) {
-          console.warn("[TicTacToe] Turn validation failed:", error);
-          return error;
-        }
-
-        if (
-          !Number.isInteger(index) ||
-          index < 0 ||
-          index >= 9 ||
-          this.board[index] !== null
-        ) {
-          console.warn("[TicTacToe] Invalid move:", index, this.board[index]);
-          return { type: "error", message: "Invalid move." };
-        }
-
-        const mark = this.roles[playerId];
-        console.log(`[TicTacToe] Player ${playerId} is ${mark}`);
-        this.board[index] = mark;
-        this.movesMade++;
-        console.log("[TicTacToe] Board after move:", this.board);
-        console.log("[TicTacToe] Moves made:", this.movesMade);
-
-        if (this.checkWin(mark)) {
-          this.gameStatus = "complete";
-          this.winner = playerId;
-          const response = {
-            gameAction: "results",
-            winner: playerId,
-            board: this.board,
-            message: `${mark} wins!`,
-            gameStatus: this.gameStatus,
-          };
-          console.log("[TicTacToe] WIN:", response);
-          this.logAction?.(response);
-          return response;
-        }
-
-        if (this.movesMade === 9) {
-          this.gameStatus = "complete";
-          const response = {
-            gameAction: "results",
-            winner: null,
-            board: this.board,
-            message: "It's a draw.",
-            gameStatus: this.gameStatus,
-          };
-          console.log("[TicTacToe] DRAW:", response);
-          this.logAction?.(response);
-          return response;
-        }
-
-        this.switchTurn();
-        console.log("[TicTacToe] Next turn:", this.currentTurn);
-
-        const response = {
-          gameAction: "moveMade",
-          board: this.board,
-          ...this.getTurnState(),
-          message: `Player ${playerId} placed ${mark} at index ${index}.`,
-        };
-        console.log("[TicTacToe] Move completed:", response);
-        this.logAction?.(response);
-        return response;
-      }
-
-      default:
-        const response = {
-          type: "error",
-          message: `Unknown gameAction: ${gameAction}`,
-        };
-        console.warn("[TicTacToe] Unknown action:", response);
-        this.logAction?.(response);
-        return response;
+    const winnerMark = this.checkWinner();
+    if (winnerMark) {
+      const winnerId = Object.keys(this.roles).find(
+        (id) => this.roles[id] === winnerMark
+      );
+      this.winner = winnerId;
+    } else if (this.movesMade >= 9) {
+      this.winner = "draw";
+    } else {
+      console.log("[TicTacToe] Switching turn.");
+      this.switchTurn?.(); // ⬅️ Call the shared turn logic
     }
-  }
-
-  checkWin(mark) {
-    console.log("[TicTacToe] checkWin called for mark:", mark);
-    const b = this.board;
-    const winCombos = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ];
-    const result = winCombos.some((combo) => combo.every((i) => b[i] === mark));
-    console.log(`[TicTacToe] Win check result for ${mark}:`, result);
-    return result;
-  }
-
-  getGameDetails() {
-    const details = {
-      ...super.getGameDetails(),
-      board: this.board,
+    console.log("[TicTacToe] after switching turn:", this.currentTurn);
+    return {
+      playerId,
+      gameAction: "moveMade",
+      board: [...this.board],
+      currentTurn: this.currentTurn,
+      winner: this.winner,
+      message: this.winner
+        ? this.winner === "draw"
+          ? "It's a draw!"
+          : `Player ${this.winner} wins!`
+        : `Player ${playerId} made a move.`,
     };
-    console.log("[TicTacToe] getGameDetails:", details);
-    return details;
   }
 }
 
