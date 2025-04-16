@@ -90,11 +90,16 @@ const lobbyController = new LobbyController({
   gamePorts: pognConfigs.GAME_PORTS,
 });
 
-// 🧪 Create all lobbies defined in config
-console.log("📦 Bootstrapping Lobbies...");
-pognConfigs.LOBBY_IDS.forEach((lobbyId) => {
-  lobbyController.createLobby({ lobbyId });
-});
+(async () => {
+  console.log("📦 Bootstrapping Lobbies...");
+  await Promise.all(
+    pognConfigs.LOBBY_IDS.map((lobbyId) =>
+      lobbyController.createLobby({ lobbyId })
+    )
+  );
+
+  await lobbyController.testGames(); // safe now
+})();
 
 server.listen(PORT, () => {
   console.log(`🌐 HTTP+WS server listening on port ${PORT}`);

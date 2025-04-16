@@ -1,6 +1,8 @@
 const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
-const { verifyLobbyRelayMessageRecieved } = require("./verifications");
+const { validateLobbyRelayMessageRecieved } = require("./validations");
+const { checkLobbyRelayPermissions } = require("./permissions");
+const { relay } = require("../permissionConfigs");
 
 class LobbyRelay extends Relay {
   constructor({ id, ports, lobbyController, host }) {
@@ -14,6 +16,19 @@ class LobbyRelay extends Relay {
 
   async processMessage(ws, message) {
     console.log(`${this.relayId} processing message in lobby relay:`, message);
+    const permission = checkLobbyRelayPermissions(message);
+    if (!permission.allowed) {
+      console.error(`⛔ LobbyRelay permission denied:`, permission.reason);
+      return this.sendResponse(message.payload.playerId, {
+        relayId: this.relayId,
+        payload: {
+          type: "error",
+          action: "permissionDenied",
+          reason: permission.reason,
+          relayId: this.relayId,
+        },
+      });
+    }
 
     if (message?.payload?.type === "relayConnector") {
       console.log("LobbyRelay processing relayConnector message:", message);
@@ -54,7 +69,7 @@ class LobbyRelay extends Relay {
       return;
     }
 
-    const { valid, error } = verifyLobbyRelayMessageRecieved(message);
+    const { valid, error } = validateLobbyRelayMessageRecieved(message);
     if (!valid) {
       console.error(error);
       return this.sendResponse(ws, { payload: { type: "error", error } });
@@ -114,10 +129,11 @@ class LobbyRelay extends Relay {
     // console.log(`WebSocket map updated with key: ${socketKey}`);
     let response;
     if (!error) {
-      response =
-        action === "login" && payload.lobbyId !== "lobby3"
-          ? await this.lobbyController.testGames(payload.lobbyId)
-          : await this.lobbyController.processMessage(message);
+      // response =
+      //   action === "login" && payload.lobbyId !== "lobby3"
+      //     ? await this.lobbyController.testGames(payload.lobbyId)
+      //     : await this.lobbyController.processMessage(message);
+      response = await this.lobbyController.processMessage(message);
     } else {
       response = {
         type: "error",

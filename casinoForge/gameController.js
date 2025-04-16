@@ -2,6 +2,7 @@ const RockPaperScissors = require("./rps");
 const OddsAndEvens = require("./oddsAndEvens");
 const TicTacToe = require("./ticTacToe");
 const Game = require("./game");
+const { checkGameControllerPermissions } = require("./permissions");
 
 class gameController {
   constructor({ gamePorts = [], lobbyWsUrl, relayManager } = {}) {
@@ -29,6 +30,18 @@ class gameController {
     console.log("Processing game message:", message);
     const { payload } = message;
     const { type, action, playerId } = payload;
+
+    const permission = checkGameControllerPermissions(message);
+    if (!permission.allowed) {
+      console.warn("⛔ GameController permission denied:", permission.reason);
+      return {
+        type: "error",
+        payload: {
+          message: permission.reason,
+          action: "permissionDenied",
+        },
+      };
+    }
 
     if (type !== "game" || !this.messageHandlers[action]) {
       console.warn(`Unhandled message type or action: ${type}/${action}`);

@@ -1,6 +1,7 @@
 const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
-const { verifyGameRelayMessageRecieved } = require("./verifications");
+const { validateGameRelayMessageRecieved } = require("./validations");
+const { checkGameRelayPermissions } = require("./permissions");
 
 class GameRelay extends Relay {
   constructor({ id, ports, gameController, lobbyId, host }) {
@@ -24,6 +25,21 @@ class GameRelay extends Relay {
   }
 
   processMessage(ws, message) {
+    console.log("GameRelay processing message:", message);
+    const permission = checkGameRelayPermissions(message);
+    if (!permission.allowed) {
+      console.error(`⛔ GameRelay permission denied:`, permission.reason);
+      return this.sendResponse(message.payload.playerId, {
+        relayId: this.relayId,
+        payload: {
+          type: "error",
+          action: "permissionDenied",
+          reason: permission.reason,
+        },
+        uuid: uuidv4(),
+      });
+    }
+
     if (
       message?.payload?.playerId &&
       !this.webSocketMap.has(message.payload.playerId)
@@ -84,18 +100,19 @@ class GameRelay extends Relay {
     }
 
     // const { isValid, error: validationError } =
-    //   require("./verifications").verifyGameRelayMessageRecieved(
+    //   require("./verifications").validateGameRelayMessageRecieved(
     //     message,
     //     this.relayId,
     //     this.gameIds
     //   );
 
-    const { isValid, error: validationError } = verifyGameRelayMessageRecieved(
-      message,
-      this.relayId,
-      this.relayId,
-      this.gameIds
-    );
+    const { isValid, error: validationError } =
+      validateGameRelayMessageRecieved(
+        message,
+        this.relayId,
+        this.relayId,
+        this.gameIds
+      );
     console.log("GameRelay validation:", isValid, validationError);
 
     if (!isValid) {

@@ -1,5 +1,5 @@
-function verifyGameRelayMessageRecieved(message, relayId, knownGameIds) {
-  console.log("Verifying game relay message:", message);
+function validateGameRelayMessageRecieved(message, relayId, knownGameIds) {
+  console.log("validateing game relay message:", message);
   if (!message || typeof message !== "object") {
     return { isValid: false, error: "Invalid message object" };
   }
@@ -33,7 +33,7 @@ function verifyGameRelayMessageRecieved(message, relayId, knownGameIds) {
   return { isValid: true, error: null, message };
 }
 
-function verifyLobbyRelayMessageRecieved(message) {
+function validateLobbyRelayMessageRecieved(message) {
   if (!message || typeof message !== "object" || !message.payload) {
     return {
       valid: false,
@@ -56,6 +56,6 @@ function verifyLobbyRelayMessageRecieved(message) {
 }
 
 module.exports = {
-  verifyGameRelayMessageRecieved,
-  verifyLobbyRelayMessageRecieved,
+  validateGameRelayMessageRecieved,
+  validateLobbyRelayMessageRecieved,
 };
