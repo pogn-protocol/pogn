@@ -21,8 +21,9 @@ Repo: https://github.com/pogn-protocol/pognclient
 > A browser-based client for testing multiple lobbies and games using the POGN protocol.
 
 ---
+## 🧩 login with nos2x supported
 
-<img src="https://github.com/user-attachments/assets/7bcf128b-85e5-4b24-aaba-b3bce3261419" alt="POGN Client Screenshot" width="300"/>
+<img src="https://github.com/user-attachments/assets/fb25ee69-77d5-465e-a7cc-0e8cd201e0cb" alt="POGN Client Screenshot" width="300"/>
 <img src="https://github.com/user-attachments/assets/b203058e-ed29-4ce8-a9de-d8fb9959b4a3" alt="POGN Client Screenshot" width="300"/>
 <img src="https://github.com/user-attachments/assets/098bea77-6f53-403c-af44-60761eb142a6" alt="POGN Client Screenshot" width="300"/>
 
