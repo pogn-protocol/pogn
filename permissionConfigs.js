@@ -38,6 +38,7 @@ const PERMISSIONS = {
         "gameEnded",
         "createLobby",
         "createNewGame",
+        "gameInvite",
       ],
       maxLobbies: 4, // Max 4 total lobbies
       maxPlayers: 4, // Max 4 players in lobby
@@ -56,6 +57,7 @@ const PERMISSIONS = {
           "refreshLobby",
           "gameEnded",
           "createNewGame",
+          "gameInvite",
         ],
         maxPlayers: 4, // Max 4 players in lobby
         maxGames: 4, // Max 4 games in this lobby
@@ -75,6 +77,7 @@ const PERMISSIONS = {
           "gameEnded",
           "createLobby",
           "createNewGame",
+          "gameInvite",
         ],
         maxPlayers: 4, // Max 4 players in lobby
         maxGames: 4,

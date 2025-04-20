@@ -15,6 +15,8 @@ class Game {
     this.roundNumber = 1;
     this.maxRounds = null;
     this.currentTurn = null;
+    this.isPrivate = false; // Indicates if the game is private
+    this.allowedPlayers = []; // List of allowed players
   }
 
   removePlayer(playerId) {
@@ -33,6 +35,10 @@ class Game {
   // Add an action to the game log
   logAction(action) {
     this.gameLog.push(action);
+  }
+
+  getJoinedPlayerIds() {
+    return Array.from(this.players.keys());
   }
 
   getGameDetails() {

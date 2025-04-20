@@ -7,6 +7,8 @@ class RockPaperScissors extends BaseGame {
     this.scores = {};
     this.roundResults = [];
     this.winner = null;
+    this.maxPlayers = 2;
+    this.minPlayers = 2;
   }
 
   init() {

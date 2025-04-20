@@ -1,6 +1,7 @@
 const ENV = process.env.ENV || "development";
 const PERMISSIONS = require("./permissionConfigs");
-
+const INITGAMES_CONFIG = require("./initGamesConfigs");
+const INITGAMES = INITGAMES_CONFIG[ENV] || [];
 const CONFIGS = {
   development: {
     HOST: "localhost",
@@ -11,6 +12,7 @@ const CONFIGS = {
     GAME_PORTS: [8080, 9001, 9002, 9003],
     LOBBY_PORTS: [8080, 8081],
     PERMISSIONS,
+    INITGAMES,
   },
   production: {
     HOST: "pogn-a5fe730540b4.herokuapp.com",
@@ -21,7 +23,10 @@ const CONFIGS = {
     GAME_PORTS: [parseInt(process.env.PORT)],
     LOBBY_PORTS: [parseInt(process.env.PORT)],
     PERMISSIONS,
+    INITGAMES,
   },
 };
+
+console.log(" POGN Configs...", CONFIGS[ENV]);
 
 module.exports = CONFIGS[ENV];

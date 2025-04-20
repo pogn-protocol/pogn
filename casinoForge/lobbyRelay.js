@@ -134,6 +134,7 @@ class LobbyRelay extends Relay {
       //     ? await this.lobbyController.testGames(payload.lobbyId)
       //     : await this.lobbyController.processMessage(message);
       response = await this.lobbyController.processMessage(message);
+      console.log("Lobby relay response", response);
     } else {
       response = {
         type: "error",

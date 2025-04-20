@@ -142,6 +142,25 @@ class Relay {
       const parsedMessage = JSON.parse(message);
       console.log("Parsed message", parsedMessage);
       this.messages.push(parsedMessage); // Store the message for later use
+      if (
+        Array.isArray(parsedMessage) &&
+        parsedMessage[0] === "EVENT" &&
+        parsedMessage[1]
+      ) {
+        const event = parsedMessage[1];
+        console.log("📥 Nostr Event Received:", event);
+
+        if (
+          event.kind === 1 &&
+          event.tags?.some(
+            ([tag, value]) => tag === "t" && value === "pogn/playerId"
+          )
+        ) {
+          console.log("🎯 Got playerId update via Nostr relay:", event.content);
+        }
+
+        return; // done handling nostr-style
+      }
       if (parsedMessage?.payload?.type === "ping") {
         console.log(`${this.relayId} received ping from client:`, message);
         //get id from ws

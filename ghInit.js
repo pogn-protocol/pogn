@@ -40,7 +40,21 @@ if (pognConfigs.SHARED_PORT_MODE) {
       try {
         parsed = JSON.parse(rawMsg);
         console.log("sharedServer parsed message:", parsed);
-        relayId = parsed.relayId;
+        relayId = parsed?.relayId;
+        if (Array.isArray(parsed) && parsed[0] === "REQ") {
+          console.log("sharedServer REQ message:", parsed);
+          return;
+        }
+        if (Array.isArray(parsed) && parsed[0] === "EVENT") {
+          const event = parsed[1];
+          console.log("sharedServer EVENT message:", event);
+          const relayTag = event.tags?.find(([tag]) => tag === "relayId");
+          console.log("sharedServer relayTag:", relayTag);
+          relayId = relayTag?.[1]; // ✅ extract relayId from tag
+          console.log("Recived Nostr event:", event);
+          // return;
+        }
+
         console.log("sharedServer relayId:", relayId);
         if (!relayId) throw new Error("Missing relayId");
       } catch (err) {
@@ -90,6 +104,7 @@ const lobbyController = new LobbyController({
   gamePorts: pognConfigs.GAME_PORTS,
 });
 
+console.log("📦 Bootstrapping Lobbies...");
 (async () => {
   console.log("📦 Bootstrapping Lobbies...");
   await Promise.all(
@@ -98,7 +113,45 @@ const lobbyController = new LobbyController({
     )
   );
 
-  await lobbyController.testGames(); // safe now
+  // const initGames = [
+  //   {
+  //     gameType: "rock-paper-scissors",
+  //     gameId: "PrivateTestGame",
+  //     lobbyId: "lobby1",
+  //     isPrivate: true,
+  //     allowedPlayers: [
+  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
+  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
+  //     ],
+  //     autoJoin: [
+  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
+  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
+  //     ],
+  //     autoStart: false,
+  //   },
+  //   {
+  //     gameType: "odds-and-evens",
+  //     gameId: "secondGame",
+  //     lobbyId: "lobby1",
+  //     autoJoin: [
+  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
+  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
+  //     ],
+  //     autoStart: true,
+  //   },
+  //   {
+  //     gameType: "rock-paper-scissors",
+  //     gameId: "thirdGame",
+  //     lobbyId: "lobby2",
+  //     autoJoin: [
+  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
+  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
+  //     ],
+  //     autoStart: true,
+  //   },
+  // ];
+  console.log("📦 Bootstrapping Games...", pognConfigs.INITGAMES);
+  await lobbyController.initGames(pognConfigs.INITGAMES);
 })();
 
 server.listen(PORT, () => {
