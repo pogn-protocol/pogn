@@ -85,8 +85,6 @@ app.get("/", (req, res) => {
 
 //}
 
-// 🔧 Initialize Relay Manager with config-driven ports
-
 // 🎮 Init Game + Lobby controllers
 const gameController = new GameController({
   relayManager,
