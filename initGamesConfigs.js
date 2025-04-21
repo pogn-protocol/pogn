@@ -1,7 +1,7 @@
 module.exports = {
   development: (() => {
     const players = [
-      "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
+      "6393af1ca36d28601253da410311747c0048574cf18389240a3dbb7a28484722",
       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
     ];
 
@@ -25,14 +25,14 @@ module.exports = {
       {
         gameType: "odds-and-evens",
         gameId: "game3",
-        lobbyId: "lobby1",
+        lobbyId: "lobby2",
         autoJoin: players,
         autoStart: true,
       },
       {
         gameType: "tic-tac-toe",
         gameId: "game4",
-        lobbyId: "lobby1",
+        lobbyId: "lobby2",
         autoJoin: players,
         autoStart: true,
       },
@@ -41,7 +41,7 @@ module.exports = {
 
   production: (() => {
     const players = [
-      "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
+      "6393af1ca36d28601253da410311747c0048574cf18389240a3dbb7a28484722",
       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
     ];
     return [
@@ -64,14 +64,14 @@ module.exports = {
       {
         gameType: "odds-and-evens",
         gameId: "game3",
-        lobbyId: "lobby1",
+        lobbyId: "lobby2",
         autoJoin: players,
         autoStart: true,
       },
       {
         gameType: "tic-tac-toe",
         gameId: "game4",
-        lobbyId: "lobby1",
+        lobbyId: "lobby2",
         autoJoin: players,
         autoStart: true,
       },

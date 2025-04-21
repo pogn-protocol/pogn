@@ -83,28 +83,36 @@ class TicTacToe extends TurnBasedGame {
 
     const mark = this.roles[playerId];
     if (this.board[index]) return { message: "Cell already taken." };
+
     this.board[index] = mark;
     this.movesMade += 1;
 
     const winnerMark = this.checkWinner();
+    let gameComplete = false;
+
     if (winnerMark) {
       const winnerId = Object.keys(this.roles).find(
         (id) => this.roles[id] === winnerMark
       );
       this.winner = winnerId;
+      gameComplete = true;
     } else if (this.movesMade >= 9) {
       this.winner = "draw";
+      gameComplete = true;
     } else {
       console.log("[TicTacToe] Switching turn.");
-      this.switchTurn?.(); // ⬅️ Call the shared turn logic
+      this.switchTurn?.();
     }
+
     console.log("[TicTacToe] after switching turn:", this.currentTurn);
+
     return {
       playerId,
       gameAction: "moveMade",
       board: [...this.board],
       currentTurn: this.currentTurn,
       winner: this.winner,
+      gameStatus: gameComplete ? "complete" : undefined, // ✅ emit status when done
       message: this.winner
         ? this.winner === "draw"
           ? "It's a draw!"

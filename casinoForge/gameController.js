@@ -266,7 +266,7 @@ class gameController {
           type: "game",
           id: gameId,
           options: {
-            ports: this.gamePorts,
+            ports: ports || this.gamePorts,
             controller: this,
             lobbyId: lobbyId,
           },
@@ -289,13 +289,14 @@ class gameController {
 
     const players = game.players;
     console.log("players", players, "size", players.size);
+    console.log("instance", game.instance);
     if (game.players.size < game.instance?.minPlayers) {
       return {
         type: "error",
         payload: { message: "Not enough players to start the game." },
       };
     }
-
+    console.log("game.lobbyStatus", game.lobbyStatus);
     if (
       game.lobbyStatus !== "canStart" &&
       game.lobbyStatus !== "readyToStart"
@@ -305,7 +306,7 @@ class gameController {
         payload: { message: "Game is not ready to start." },
       };
     }
-
+    console.log("active games", this.activeGames);
     if (this.activeGames.has(game.gameId)) {
       console.warn(`Game ${game.gameId} is already active.`);
       return;
