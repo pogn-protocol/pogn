@@ -83,9 +83,6 @@ app.get("/", (req, res) => {
   res.send("Relay server is alive.");
 });
 
-//}
-
-// 🎮 Init Game + Lobby controllers
 const gameController = new GameController({
   relayManager,
   gamePorts: pognConfigs.GAME_PORTS,
