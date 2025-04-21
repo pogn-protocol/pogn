@@ -69,10 +69,7 @@ if (pognConfigs.SHARED_PORT_MODE) {
       }
       console.log(`🔗 Routing shared WebSocket to Relay`, relay);
 
-      // if (!ws._relayInitialized) {
-      //   relay.handleConnection(ws); // registers ws into webSocketMap
-      //   ws._relayInitialized = true;
-      // }
+
 
       relay.handleMessage(ws, rawMsg);
     });

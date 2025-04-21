@@ -41,7 +41,7 @@ module.exports = {
 
   production: (() => {
     const players = [
-      "6393af1ca36d28601253da410311747c0048574cf18389240a3dbb7a28484722",
+      "be7c4cf8b9db6950491f2de3ece4668a1beb93972082d021256146a2b4ae1348",
       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
     ];
     return [
