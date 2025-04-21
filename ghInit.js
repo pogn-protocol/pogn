@@ -79,9 +79,6 @@ if (pognConfigs.SHARED_PORT_MODE) {
   });
 }
 
-//if heroku, use the shared server
-//if (process.env.NODE_ENV === "production") {
-
 app.get("/", (req, res) => {
   res.send("Relay server is alive.");
 });
