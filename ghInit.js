@@ -74,7 +74,7 @@ if (pognConfigs.SHARED_PORT_MODE) {
       //   ws._relayInitialized = true;
       // }
 
-      relay.handleMessage(ws, rawMsg); // 👈 forward to correct relay
+      relay.handleMessage(ws, rawMsg);
     });
   });
 }
