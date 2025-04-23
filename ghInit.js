@@ -69,8 +69,6 @@ if (pognConfigs.SHARED_PORT_MODE) {
       }
       console.log(`🔗 Routing shared WebSocket to Relay`, relay);
 
-
-
       relay.handleMessage(ws, rawMsg);
     });
   });
@@ -102,43 +100,6 @@ console.log("📦 Bootstrapping Lobbies...");
     )
   );
 
-  // const initGames = [
-  //   {
-  //     gameType: "rock-paper-scissors",
-  //     gameId: "PrivateTestGame",
-  //     lobbyId: "lobby1",
-  //     isPrivate: true,
-  //     allowedPlayers: [
-  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
-  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
-  //     ],
-  //     autoJoin: [
-  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
-  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
-  //     ],
-  //     autoStart: false,
-  //   },
-  //   {
-  //     gameType: "odds-and-evens",
-  //     gameId: "secondGame",
-  //     lobbyId: "lobby1",
-  //     autoJoin: [
-  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
-  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
-  //     ],
-  //     autoStart: true,
-  //   },
-  //   {
-  //     gameType: "rock-paper-scissors",
-  //     gameId: "thirdGame",
-  //     lobbyId: "lobby2",
-  //     autoJoin: [
-  //       "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
-  //       "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
-  //     ],
-  //     autoStart: true,
-  //   },
-  // ];
   console.log("📦 Bootstrapping Games...", pognConfigs.INITGAMES);
   await lobbyController.initGames(pognConfigs.INITGAMES);
 })();

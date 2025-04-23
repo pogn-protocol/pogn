@@ -2,11 +2,9 @@ const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
 const { validateLobbyRelayMessageRecieved } = require("./validations");
 const { checkLobbyRelayPermissions } = require("./permissions");
-const { relay } = require("../permissionConfigs");
 
 class LobbyRelay extends Relay {
   constructor({ id, ports, lobbyController, host }) {
-    //  constructor({ type, id, ports, host = "localhost" }) {
     super({ type: "lobby", id, ports, host });
     this.lobbyController = lobbyController;
     this.relayConnections = new Map();

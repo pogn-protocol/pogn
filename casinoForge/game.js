@@ -12,9 +12,6 @@ class Game {
     this.gamePorts = [];
     this.lobbyId = null; // Reference to the lobby ID
     this.wsAddress;
-    this.roundNumber = 1;
-    this.maxRounds = null;
-    this.currentTurn = null;
     this.isPrivate = false; // Indicates if the game is private
     this.allowedPlayers = []; // List of allowed players
   }
