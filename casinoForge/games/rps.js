@@ -1,4 +1,4 @@
-const BaseGame = require("./baseGame");
+const BaseGame = require("../baseGame");
 
 class RockPaperScissors extends BaseGame {
   constructor() {

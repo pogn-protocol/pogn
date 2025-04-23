@@ -1,83 +1,128 @@
-const cusGames = require("./games/gamesIndex");
-const BaseController = require("./baseController");
+const customGames = require("./games/gamesIndex");
 const Game = require("./game");
 const { checkGameControllerPermissions } = require("./permissions");
-const { validateGameControllerResponse } = require("./validations");
 
-class GameController extends BaseController {
-  constructor({ gamePorts = [], lobbyWsUrl, relayManager, customGames }) {
-    super({ relayManager });
-    this.customGames = cusGames;
+class gameController {
+  constructor({ gamePorts = [], lobbyWsUrl, relayManager } = {}) {
+    if (gameController.instance) return gameController.instance;
+    gameController.instance = this;
+    this.customGames = customGames;
     this.activeGames = new Map();
     this.gamePorts = gamePorts;
-    this.lobbyWsUrl = lobbyWsUrl;
-    this.messages = [];
 
     this.messageHandlers = {
       gameAction: this.handleGameAction.bind(this),
       endGame: this.endGame.bind(this),
     };
+
+    this.lobbyWsUrl = lobbyWsUrl;
+    this.relayManager = relayManager;
+    this.messages = [];
   }
 
-  async processMessage(ws, message) {
-    return await super.processMessage(
-      message,
-      checkGameControllerPermissions,
-      (payload) => ({ ws, game: this.activeGames.get(payload.gameId) }),
-      validateGameControllerResponse // ✅ validate game structure here
-    );
+  processMessage(ws, message) {
+    console.log("Processing game message:", message);
+    const { payload } = message;
+    const { type, action, playerId } = payload;
+
+    const permission = checkGameControllerPermissions(message);
+    if (!permission.allowed) {
+      console.warn("⛔ GameController permission denied:", permission.reason);
+      return {
+        type: "error",
+        payload: {
+          message: permission.reason,
+          action: "permissionDenied",
+        },
+      };
+    }
+
+    if (type !== "game" || !this.messageHandlers[action]) {
+      console.warn(`Unhandled message type or action: ${type}/${action}`);
+      return {
+        type: "error",
+        payload: { message: `Unknown action: ${action}` },
+      };
+    }
+    let response = this.messageHandlers[action](ws, payload);
+    console.log("gameController response", response);
+    if (!response.payload?.playerId) {
+      response.payload.playerId = playerId;
+    }
+    return response;
   }
 
-  handleGameAction({ ws, game, gameId, playerId, gameAction }) {
-    console.log("GameController handleGameAction", {
-      gameId,
-      playerId,
-      gameAction,
-    });
+  handleGameAction(ws, payload) {
+    console.log("Processing game action:", payload);
+
+    const { gameId, playerId } = payload || {};
     if (!gameId || !playerId) {
-      return this.errorPayload(
-        "invalidPayload",
-        "Missing gameId or playerId",
-        payload
-      );
+      return {
+        type: "error",
+        payload: { message: "Invalid payload structure." },
+      };
     }
 
-    // game = this.activeGames.get(gameId);
+    const game = this.activeGames.get(gameId);
     if (!game) {
-      return this.errorPayload(
-        "gameNotFound",
-        `Game ${gameId} not found.`,
-        payload
-      );
+      return {
+        type: "error",
+        payload: { message: `Game ${gameId} not found.` },
+      };
     }
 
-    if (gameAction === "playerReady") {
+    if (payload.gameAction === "playerReady") {
+      console.log("[processGameMessage] Player ready:", playerId);
       const player = game.players.get(playerId);
       if (!player) {
-        return this.errorPayload(
-          "playerNotFound",
-          `Player ${playerId} not in game.`,
-          payload
-        );
+        console.log("[processGameMessage] Player not found:", playerId);
+        return {
+          [playerId]: {
+            payload: {
+              type: "error",
+              message: "Player not found in game.",
+              gameId: gameId,
+              playerId: playerId,
+            },
+          },
+        };
       }
 
       if (game.getGameDetails()?.gameStatus === "in-progress") {
-        return {};
+        console.warn(
+          "[processGameMessage] Game already in progress, ignoring player ready."
+        );
+        return {}; // do nothing
       }
 
       player.ready = true;
+
       const allReady = Array.from(game.players.values()).every(
         (p) => p.ready === true
       );
+      console.log("[processGameMessage] All players ready?", allReady);
 
       if (allReady && typeof game.instance.init === "function") {
+        console.log(
+          "[processGameMessage] All players are ready, initializing game."
+        );
         const initResult = game.instance.init();
-        return this.broadcastPayload("game", "gameAction", {
-          gameId,
-          playerId,
-          gameAction: "gameStarted",
-          ...initResult,
-        });
+        console.log(
+          "[processGameMessage] Game initialized initResult:",
+          initResult
+        );
+        return {
+          payload: {
+            type: "game",
+            action: "gameAction",
+            gameAction: "gameStarted",
+            // playerId: id,
+            gameId: gameId,
+            // youAre: id,
+            ...(initResult || {}),
+          },
+          broadcast: true,
+        };
       }
 
       return {
@@ -92,44 +137,70 @@ class GameController extends BaseController {
               val.ready,
             ])
           ),
-          playerId,
-          gameId,
+          gameId: gameId,
         },
       };
     }
 
+    if (!game) {
+      return {
+        payload: {
+          type: "error",
+          action: "gameError",
+          message: "Game not initialized.",
+          gameId: gameId,
+          playerId,
+        },
+      };
+    }
     if (typeof game.instance.processAction !== "function") {
-      return this.errorPayload(
-        "invalidGame",
-        "Game instance does not have processAction.",
-        payload
-      );
+      return {
+        type: "error",
+        payload: { message: "Game instance does not have processAction." },
+      };
     }
 
     let result;
     try {
       result = game.instance.processAction(playerId, payload);
-      game.logAction(result?.logEntry || "");
+      console.log("gameController processAction result", result);
+      game.logAction(result?.logEntry || ""); // Log if available
     } catch (error) {
       console.error("Error processing game action:", error);
-      return this.errorPayload("actionError", error.message, payload);
     }
-
-    return this.broadcastPayload("game", "gameAction", {
-      gameId,
-      playerId,
-      gameAction,
-      ...result,
-    });
+    return {
+      payload: {
+        type: "game",
+        action: "gameAction",
+        ...result,
+        gameId: game.gameId,
+      },
+      broadcast: true,
+    };
   }
 
   endGame(we, payload) {
     const { gameId, playerId } = payload;
-    const game = this.activeGames.get(gameId);
-    if (!game) return;
+    console.log(
+      "Player",
+      playerId,
+      "is ending game",
+      gameId,
+      "Payload",
+      payload
+    );
 
+    console.log(this.activeGames);
+    const game = this.activeGames.get(gameId);
+    if (!game) {
+      console.warn(`⚠️ Cannot end game ${gameId}: Not found.`);
+      return;
+    }
+
+    console.log("Ending game:", game);
     game.gameStatus = "ended";
     game.gameLog.push("Game ended.");
+    console.log("gameRelay", this.relayManager.relays.get(game.relayId));
     this.relayManager.relays.get(game.relayId).sendToLobbyRelay(game.lobbyId, {
       payload: {
         type: "lobby",
@@ -140,8 +211,13 @@ class GameController extends BaseController {
         gameLog: game.gameLog,
       },
     });
-
-    return this.broadcastPayload("game", "gameEnded", { gameId });
+    //this.activeGames.get(gameId).lobbyStatus = "ended";
+    this.activeGames.get(gameId).gameLog.push("Game ended.");
+    console.log("active games", this.activeGames);
+    return {
+      payload: { type: "game", action: "gameEnded", gameId },
+      broadcast: true,
+    };
   }
 
   broadcastToGamePlayers(relayId, message) {
@@ -241,22 +317,16 @@ class GameController extends BaseController {
     //   console.log("Initial game state after init():", initial);
     //   //game.initialState = initial;
     // }
-    // return {
-    //   payload: {
-    //     type: "game",
-    //     action: "gameAction",
-    //     ...result,
-    //     gameId: game.gameId,
-    //     game,
-    //   },
-    //   broadcast: true,
-    // };
-    return this.broadcastPayload("game", "gameAction", {
-      gameId: game.gameId,
-      playerId: game.playerId,
-      gameAction: "gameStarted",
-      ...result,
-    });
+    return {
+      payload: {
+        type: "game",
+        action: "gameAction",
+        ...result,
+        gameId: game.gameId,
+        game,
+      },
+      broadcast: true,
+    };
   }
 }
-module.exports = GameController;
+module.exports = gameController;

@@ -100,7 +100,6 @@ class Relay {
     console.error(`❌ ${this.type} Relay Server Error:`, error);
   }
 
-  /** 🔌 Setup Connection Handlers */
   setupWebSocketHandlers() {
     this.wss.on("connection", (ws) => {
       console.log(`🔌 New connection to ${this.type} Relay id ${this.id}`);
@@ -108,7 +107,6 @@ class Relay {
     });
   }
 
-  /** 🔄 Handle  Connection */
   handleConnection(ws) {
     console.log(`🔌 ${this.type} Relay: WebSocket connected ws: ${ws}`);
     const tempId = `temp-${Date.now()}-${Math.random()}`;
@@ -141,7 +139,7 @@ class Relay {
       }
       const parsedMessage = JSON.parse(message);
       console.log("Parsed message", parsedMessage);
-      this.messages.push(parsedMessage); // Store the message for later use
+      this.messages.push(parsedMessage);
       if (
         Array.isArray(parsedMessage) &&
         parsedMessage[0] === "EVENT" &&
@@ -159,7 +157,7 @@ class Relay {
           console.log("🎯 Got playerId update via Nostr relay:", event.content);
         }
 
-        return; // done handling nostr-style
+        return;
       }
       if (parsedMessage?.payload?.type === "ping") {
         console.log(`${this.relayId} received ping from client:`, message);
@@ -245,7 +243,7 @@ class Relay {
 
   broadcastResponse(response) {
     console.log(`📡 Broadcasting from ${this.type} Relay ID: ${this.id}`);
-    response.uuid = uuidv4(); // Assign unique identifier to messages
+    response.uuid = uuidv4();
     console.log("Response:", response);
 
     for (const [id, ws] of this.webSocketMap.entries()) {

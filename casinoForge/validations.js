@@ -1,5 +1,5 @@
 function validateGameRelayMessageRecieved(message, relayId, knownGameIds) {
-  console.log("validateing game relay message:", message);
+  console.log("validating game relay message recieved:", message);
   if (!message || typeof message !== "object") {
     return { isValid: false, error: "Invalid message object" };
   }
@@ -33,7 +33,25 @@ function validateGameRelayMessageRecieved(message, relayId, knownGameIds) {
   return { isValid: true, error: null, message };
 }
 
+function validateGameControllerResponse(response) {
+  console.log("validating game controller response:", response);
+  if (!response || typeof response !== "object") {
+    throw new Error("Invalid game payload: missing or incorrect structure.");
+  }
+  const payload = response?.payload;
+
+  if (!payload.action) {
+    throw new Error("Invalid game payload: missing action.");
+  }
+
+  if (!payload.gameId) {
+    throw new Error("Invalid game payload: missing gameId.");
+  }
+  return true;
+}
+
 function validateLobbyRelayMessageRecieved(message) {
+  console.log("validating lobby relay message Recieved:", message);
   if (!message || typeof message !== "object" || !message.payload) {
     return {
       valid: false,
@@ -55,7 +73,31 @@ function validateLobbyRelayMessageRecieved(message) {
   return { valid: true, error: null };
 }
 
+function validateLobbyControllerResponse(response) {
+  console.log("validating lobby controller response:", response);
+  if (!response || typeof response !== "object") {
+    throw new Error("Invalid lobby payload: missing or incorrect structure.");
+  }
+
+  if (!response.payload) {
+    throw new Error("Invalid lobby payload: missing payload.");
+  }
+  const payload = response?.payload;
+
+  if (!payload.action) {
+    throw new Error("Invalid lobby payload: missing action.");
+  }
+
+  if (!payload.lobbyId) {
+    throw new Error("Invalid lobby payload: missing lobbyId.");
+  }
+
+  return true;
+}
+
 module.exports = {
   validateGameRelayMessageRecieved,
+  validateGameControllerResponse,
   validateLobbyRelayMessageRecieved,
+  validateLobbyControllerResponse,
 };

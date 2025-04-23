@@ -1,4 +1,3 @@
-const BaseController = require("./baseController");
 const Lobby = require("./lobby");
 const Player = require("./player");
 const { checkLobbyControllerPermissions } = require("./permissions");
@@ -9,17 +8,15 @@ const {
   nip19,
 } = require("nostr-tools");
 const { useWebSocketImplementation } = require("nostr-tools/pool");
-useWebSocketImplementation(WebSocket);
-const { validateLobbyControllerResponse } = require("./validations");
 
-class LobbyController extends BaseController {
+// 👇 Required for Node.js
+useWebSocketImplementation(WebSocket);
+
+class LobbyController {
   constructor({ gameController, relayManager, lobbyPorts = [], lobbyWsUrl }) {
-    super({ relayManager });
     this.gameController = gameController;
+    this.relayManager = relayManager;
     this.lobbies = new Map();
-    this.ports = lobbyPorts;
-    this.lobbyWsUrl = lobbyWsUrl;
-    this.notePostGuards = new Map();
 
     this.messageHandlers = {
       login: (data) => this.joinLobby(data),
@@ -33,14 +30,82 @@ class LobbyController extends BaseController {
       gameInvite: (data) => this.gameInvite(data),
       postGameResult: (data) => this.postGameResult(data),
     };
+    this.messages = [];
+    this.ports = lobbyPorts;
+    this.lobbyWsUrl = lobbyWsUrl;
+    this.notePostGuards = new Map(); // memory-only guard
   }
+
   async processMessage(message) {
-    return await super.processMessage(
-      message,
-      (msg) => checkLobbyControllerPermissions(msg, this.lobbies),
-      (payload) => ({ lobby: this.lobbies.get(payload.lobbyId) }),
-      validateLobbyControllerResponse // ✅ passed in as 4th arg
-    );
+    try {
+      console.log("Processing lobby message:", message);
+      this.messages.push(message);
+      console.log(
+        "Preserved lobbyController.processedMessage message. Preserved messages",
+        this.messages
+      );
+
+      const { payload } = message;
+      const { lobbyId, action, playerId, gameId, gameType, params } =
+        payload || {};
+
+      const permission = checkLobbyControllerPermissions(message, this.lobbies);
+      if (!permission.allowed) {
+        console.warn(
+          "⛔ LobbyController permission denied:",
+          permission.reason
+        );
+        return {
+          payload: {
+            type: "error",
+            message: permission.reason,
+            action: "permissionDenied",
+            lobbyId,
+          },
+        };
+      }
+
+      const lobby = this.lobbies.get(lobbyId);
+      if (!lobby && action !== "createLobby") {
+        console.warn(`⚠️ Lobby ${lobbyId} not found.`);
+        return {
+          payload: { type: "error", message: `Lobby ${lobbyId} not found.` },
+        };
+      }
+
+      if (!this.messageHandlers[action]) {
+        console.warn(`⚠️ Unknown action: ${action}`);
+        return {
+          payload: { type: "error", message: `Unknown action: ${action}` },
+        };
+      }
+
+      console.log("lobby", lobby);
+      let response = await this.messageHandlers[action]({
+        lobby,
+        playerId,
+        gameId,
+        gameType,
+        lobbyId,
+        params,
+      });
+
+      console.log("LobbyController response", response);
+
+      // if (!response?.payload?.lobbyId) {
+      //   response.payload.lobbyId = lobbyId;
+      // }
+      // if (!response?.payload?.playerId) {
+      //   response.payload.playerId = playerId;
+      // }
+      return response;
+    } catch (error) {
+      console.error("Error processing message in LobbyController:", error);
+      return {
+        type: "error",
+        payload: { message: "Failed to process message." },
+      };
+    }
   }
 
   async postGameResult({ playerId, lobbyId, params }) {
@@ -98,6 +163,7 @@ class LobbyController extends BaseController {
 
       const pool = new SimplePool();
 
+      // Use Promise.any() and the correct pool.publish usage
       try {
         await Promise.any(pool.publish(relays, event));
         console.log("✅ Published to at least one relay");
@@ -114,6 +180,7 @@ class LobbyController extends BaseController {
           status: "success",
           message: "Game result posted to POGN Gamehub account on nostr.",
         },
+        //private: playerId,
       };
     } catch (err) {
       console.error("❌ Failed to post game result:", err.message);
@@ -141,6 +208,7 @@ class LobbyController extends BaseController {
       };
     }
     console.log("Game invite:", game);
+    //get joined player check if playerId
     return {
       payload: {
         type: "gameInvite",
@@ -152,6 +220,7 @@ class LobbyController extends BaseController {
         gameDetails: game.getGameDetails(),
         allowedPlayers: game.allowedPlayers,
       },
+      //  broadcast: true,
     };
   }
 
@@ -161,8 +230,18 @@ class LobbyController extends BaseController {
     const game = lobby.getGame(gameId);
     game.lobbyStatus = "ended";
     console.log("Game ended:", game);
+
     lobby.removeGame(gameId);
-    return this.refreshLobby({ lobby });
+    return {
+      payload: {
+        type: "lobby",
+        lobbyId: lobby.lobbyId,
+        action: "refreshLobby",
+        lobbyPlayers: lobby.getLobbyPlayers(),
+        lobbyGames: lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
   }
 
   startGame({ lobby, gameId }) {
@@ -175,6 +254,7 @@ class LobbyController extends BaseController {
       };
     }
 
+    //let gameStarted = this.gameController.startGame(game);
     game.lobbyStatus = "started";
     console.log("Game started:", game);
     this.gameController.activeGames.set(game.gameId, game);
@@ -184,7 +264,16 @@ class LobbyController extends BaseController {
     );
     let gameDetails = game.getGameDetails();
     console.log("Game started:", gameDetails);
-    return this.refreshLobby({ lobby });
+    return {
+      payload: {
+        type: "lobby",
+        action: "refreshLobby",
+        lobbyId: lobby.lobbyId,
+        lobbyPlayers: lobby.getLobbyPlayers(),
+        lobbyGames: lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
   }
 
   joinLobby({ lobby, playerId }) {
@@ -221,7 +310,17 @@ class LobbyController extends BaseController {
     console.log("Lobby Players", lobby.getLobbyPlayers());
     console.log("Lobby Games", lobby.getLobbyGames());
 
-    return this.refreshLobby({ lobby, playerId });
+    return {
+      payload: {
+        type: "lobby",
+        action: "refreshLobby",
+        lobbyPlayers: lobby.getLobbyPlayers(),
+        lobbyGames: lobby.getLobbyGames(),
+        lobbyId: lobby.lobbyId,
+        private: playerId,
+      },
+      broadcast: true,
+    };
   }
 
   joinLobbyPlayerToGame({ lobby, gameId, playerId }) {
@@ -429,13 +528,19 @@ class LobbyController extends BaseController {
     }
   }
 
-  refreshLobby({ lobby, playerId }) {
-    return this.broadcastPayload("lobby", "refreshLobby", {
-      lobbyId: lobby.lobbyId,
-      lobbyPlayers: lobby.getLobbyPlayers(),
-      lobbyGames: lobby.getLobbyGames(),
-      private: playerId || null,
-    });
+  refreshLobby({ lobby }) {
+    console.log("Refreshing lobby...");
+
+    return {
+      payload: {
+        type: "lobby",
+        action: "refreshLobby",
+        lobbyId: lobby.lobbyId,
+        lobbyPlayers: lobby.getLobbyPlayers(),
+        lobbyGames: lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
   }
 
   async createLobby({ lobbyId, ports }) {
@@ -481,25 +586,18 @@ class LobbyController extends BaseController {
 
     console.log("Lobby created:", newLobby);
     console.log(this.lobbies);
-    this.broadcastPayload("lobby", "newLobby", {
-      newRelayId: newLobbyRelay.id,
-      lobbyId: lobbyId,
-      lobbyAddress: newLobbyRelay.wsAddress,
-      lobbyPlayers: newLobby.getLobbyPlayers(),
-      lobbyGames: newLobby.getLobbyGames(),
-    });
-    // return {
-    //   relayId: newLobbyRelay.id,
-    //   payload: {
-    //     type: "lobby",
-    //     action: "newLobby",
-    //     lobbyId: lobbyId,
-    //     lobbyAddress: newLobbyRelay.wsAddress,
-    //     lobbyPlayers: this.lobbies.get(lobbyId).getLobbyPlayers(),
-    //     lobbyGames: this.lobbies.get(lobbyId).getLobbyGames(),
-    //   },
-    //   broadcast: true,
-    // };
+    return {
+      relayId: newLobbyRelay.id,
+      payload: {
+        type: "lobby",
+        action: "newLobby",
+        lobbyId: lobbyId,
+        lobbyAddress: newLobbyRelay.wsAddress,
+        lobbyPlayers: this.lobbies.get(lobbyId).getLobbyPlayers(),
+        lobbyGames: this.lobbies.get(lobbyId).getLobbyGames(),
+      },
+      broadcast: true,
+    };
   }
 
   async initGames(gameConfigs = []) {
@@ -526,6 +624,7 @@ class LobbyController extends BaseController {
 
         game.isPrivate = isPrivate;
         game.allowedPlayers = allowedPlayers;
+        //check if lobbyId exists if not create it
         if (!this.lobbies.has(lobbyId)) {
           console.log(`Creating lobby ${lobbyId} for game ${gameId}`);
           await this.createLobby({ lobbyId });
@@ -536,7 +635,9 @@ class LobbyController extends BaseController {
             `Failed to create lobby ${lobbyId} for game ${gameId}`
           );
         }
-        this.lobbies.get(lobbyId)?.addGame(game);
+        //  this.lobbies.get(lobbyId)?.games.set(game.gameId, game);
+        this.lobbies.get(lobbyId)?.addGame(game); // <- do this early, not after relay
+
         const relay = await this.gameController.createGameRelay(
           game.gameId,
           game.lobbyId
@@ -557,6 +658,7 @@ class LobbyController extends BaseController {
             });
           }
         }
+
         console.log("autostart", autoStart);
         if (autoStart) {
           console.log("Starting game automatically...");
@@ -576,6 +678,196 @@ class LobbyController extends BaseController {
     } catch (err) {
       console.error("❌ Error creating test games:", err.message);
     }
+  }
+
+  // async testGames() {
+  //   const players = [
+  //     "7385ee0c0287285560b3d6059741928dd40474afb6612ced5758663bd09d12eb",
+  //     "df08f70cb2f084d2fb787af232bbb18873e7d88919854669e4e691ead9baa4f4",
+  //   ];
+  //   console.log("Creating test games...");
+
+  //   let game1 = this.gameController.createGame(
+  //     "rock-paper-scissors",
+  //     true,
+  //     "lobby1",
+  //     "PrivateTestGame"
+  //   );
+
+  //   game1.isPrivate = true;
+  //   game1.allowedPlayers = players;
+
+  //   let game2 = this.gameController.createGame(
+  //     "odds-and-evens",
+  //     true,
+  //     "lobby1",
+  //     "secondGame"
+  //   );
+
+  //   let game3 = this.gameController.createGame(
+  //     "rock-paper-scissors",
+  //     true,
+  //     "lobby2",
+  //     "thirdGame"
+  //   );
+  //   let game4 = this.gameController.createGame(
+  //     "odds-and-evens",
+  //     true,
+  //     "lobby2",
+  //     "fourthGame"
+  //   );
+
+  //   this.lobbies.get("lobby1").games.set(game1.gameId, game1);
+  //   this.lobbies.get("lobby1").games.set(game2.gameId, game2);
+  //   this.lobbies.get("lobby2").games.set(game3.gameId, game3);
+  //   this.lobbies.get("lobby2").games.set(game4.gameId, game4);
+
+  //   console.log("Lobbies", this.lobbies);
+  //   console.log("Creating test game relays...");
+  //   try {
+  //     const gameRelay1 = await this.gameController.createGameRelay(
+  //       game1.gameId,
+  //       game1.lobbyId
+  //     );
+  //     const gameRelay2 = await this.gameController.createGameRelay(
+  //       game2.gameId,
+  //       game2.lobbyId
+  //     );
+
+  //     const gameRelay3 = await this.gameController.createGameRelay(
+  //       game3.gameId,
+  //       game3.lobbyId
+  //     );
+  //     const gameRelay4 = await this.gameController.createGameRelay(
+  //       game4.gameId,
+  //       game4.lobbyId
+  //     );
+
+  //     if (!gameRelay1 || !gameRelay2) {
+  //       throw new Error("One or both game relays failed to initialize.");
+  //     }
+
+  //     console.log(
+  //       "Game relays created:",
+  //       gameRelay1,
+  //       gameRelay2,
+  //       gameRelay3,
+  //       gameRelay4
+  //     );
+  //     console.log("Joining players to games...");
+
+  //     // this.joinLobbyPlayerToGame({
+  //     //   lobby: this.lobbies.get("lobby1"),
+  //     //   gameId: game1.gameId,
+  //     //   playerId: players[0],
+  //     // });
+  //     // this.joinLobbyPlayerToGame({
+  //     //   lobby: this.lobbies.get("lobby1"),
+  //     //   gameId: game1.gameId,
+  //     //   playerId: players[1],
+  //     // });
+  //     this.joinLobbyPlayerToGame({
+  //       lobby: this.lobbies.get("lobby1"),
+  //       gameId: game2.gameId,
+  //       playerId: players[0],
+  //     });
+  //     this.joinLobbyPlayerToGame({
+  //       lobby: this.lobbies.get("lobby1"),
+  //       gameId: game2.gameId,
+  //       playerId: players[1],
+  //     });
+  //     this.joinLobbyPlayerToGame({
+  //       lobby: this.lobbies.get("lobby2"),
+  //       gameId: game3.gameId,
+  //       playerId: players[0],
+  //     });
+  //     this.joinLobbyPlayerToGame({
+  //       lobby: this.lobbies.get("lobby2"),
+  //       gameId: game3.gameId,
+  //       playerId: players[1],
+  //     });
+  //     this.joinLobbyPlayerToGame({
+  //       lobby: this.lobbies.get("lobby2"),
+  //       gameId: game4.gameId,
+  //       playerId: players[0],
+  //     });
+  //     this.joinLobbyPlayerToGame({
+  //       lobby: this.lobbies.get("lobby2"),
+  //       gameId: game4.gameId,
+  //       playerId: players[1],
+  //     });
+  //     console.log("Players joined to games:", game1, game2, game3, game4);
+  //     console.log("Starting games...");
+
+  //     // game1.lobbyStatus = "readyToStart";
+  //     game2.lobbyStatus = "readyToStart";
+  //     game3.lobbyStatus = "readyToStart";
+  //     game4.lobbyStatus = "readyToStart";
+
+  //     game1.wsAddress = gameRelay1.wsAddress;
+  //     game2.wsAddress = gameRelay2.wsAddress;
+  //     game3.wsAddress = gameRelay3.wsAddress;
+  //     game4.wsAddress = gameRelay4.wsAddress;
+
+  //     game1.relayId = gameRelay1.id;
+  //     game2.relayId = gameRelay2.id;
+  //     game3.relayId = gameRelay3.id;
+  //     game4.relayId = gameRelay4.id;
+
+  //     console.log("game1", game1);
+  //     console.log("game2", game2);
+  //     console.log("game3", game3);
+  //     console.log("game4", game4);
+
+  //     console.log("Adding games to lobbies...");
+
+  //     this.lobbies.get("lobby1").addGame(game1);
+  //     this.lobbies.get("lobby1").addGame(game2);
+  //     this.lobbies.get("lobby2").addGame(game3);
+  //     this.lobbies.get("lobby2").addGame(game4);
+
+  //     //this.lobbies.set("lobby1", this.lobbies.get("lobby1"));
+  //     //this.lobbies.set("lobby2", this.lobbies.get("lobby2"));
+  //     console.log("Lobbies:", Array.from(this.lobbies.entries()));
+  //     console.log("Test games created:", game1, game2, game3, game4);
+  //     //this.gameController.startGame(game1);
+  //     //game1.lobbyStatus = "started";
+  //     this.gameController.startGame(game2);
+  //     game2.lobbyStatus = "started";
+  //     this.gameController.startGame(game3);
+  //     game3.lobbyStatus = "started";
+  //     this.gameController.startGame(game4);
+  //     game4.lobbyStatus = "started";
+
+  //     console.log("Finished init Lobbies and games", this.lobbies);
+
+  //     // return {
+  //     //   payload: {
+  //     //     type: "lobby",
+  //     //     action: "refreshLobby",
+  //     //     lobbyId: lobby.lobbyId,
+  //     //     lobbyPlayers: lobby.getLobbyPlayers(),
+  //     //     lobbyGames: lobby.getLobbyGames(),
+  //     //   },
+  //     //   broadcast: true,
+  //     // };
+  //   } catch (error) {
+  //     console.error("❌ Error creating test games:", error.message);
+  //   }
+  // }
+
+  // Helper function to generate a standardized lobby response
+
+  generateLobbyResponse(lobby) {
+    return {
+      payload: {
+        type: "lobby",
+        action: "refreshLobby",
+        lobbyPlayers: lobby.getLobbyPlayers(),
+        lobbyGames: lobby.getLobbyGames(),
+      },
+      broadcast: true,
+    };
   }
 }
 

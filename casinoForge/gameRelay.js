@@ -6,7 +6,6 @@ const { checkGameRelayPermissions } = require("./permissions");
 class GameRelay extends Relay {
   constructor({ id, ports, gameController, lobbyId, host }) {
     console.log("Initializing GameRelay...", id, ports);
-    //  constructor({type, id, ports, host = "localhost"}) {
     super({ type: "game", id, ports, host });
     this.gameController = gameController;
     this.ports = ports;
@@ -24,7 +23,7 @@ class GameRelay extends Relay {
     // }, 30000);
   }
 
-  processMessage(ws, message) {
+  async processMessage(ws, message) {
     console.log("GameRelay processing message:", message);
     const permission = checkGameRelayPermissions(message);
     if (!permission.allowed) {
@@ -49,7 +48,6 @@ class GameRelay extends Relay {
       );
       this.webSocketMap.set(message.payload.playerId, ws);
 
-      // Optional: clean up temp IDs
       for (const [key, socket] of this.webSocketMap.entries()) {
         if (socket === ws && key.startsWith("temp-")) {
           this.webSocketMap.delete(key);
@@ -68,7 +66,6 @@ class GameRelay extends Relay {
         payload: {
           type: "relayConnector",
           action: "gameToLobbyRelayTest",
-          // gameId: message?.payload?.gameId,
           lobbyId: message?.payload?.lobbyId,
           relayId: this.relayId,
         },
@@ -96,15 +93,7 @@ class GameRelay extends Relay {
         );
         return;
       }
-      // response.error = `Game relay ${this.relayId} received message for different relay:`;
     }
-
-    // const { isValid, error: validationError } =
-    //   require("./verifications").validateGameRelayMessageRecieved(
-    //     message,
-    //     this.relayId,
-    //     this.gameIds
-    //   );
 
     const { isValid, error: validationError } =
       validateGameRelayMessageRecieved(
@@ -133,7 +122,8 @@ class GameRelay extends Relay {
     try {
       let response;
       if (!error) {
-        response = this.gameController.processMessage(ws, message);
+        response = await this.gameController.processMessage(ws, message);
+        console.log("GameRelay response", response);
       } else {
         response = {
           type: "error",
@@ -142,19 +132,17 @@ class GameRelay extends Relay {
       }
       response.relayId = this.relayId;
       response.uuid = uuidv4();
-      console.log("GameRelay response:", response);
+      console.log("Serialized GameRelay response:", response);
       const privateResponse = structuredClone(response);
       console.log("response shallow copy:", privateResponse);
       delete response.payload.private;
 
-      //remove private from response
       if (response?.broadcast) {
         this.broadcastResponse(response);
       } else {
         this.sendResponse(response?.payload?.playerId, response);
       }
       if (privateResponse.payload?.private) {
-        //deepcopy
         console.log("GameRelay private response:", privateResponse);
         this.sendResponse(privateResponse.payload?.playerId, privateResponse);
       }

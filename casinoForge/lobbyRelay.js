@@ -96,17 +96,6 @@ class LobbyRelay extends Relay {
 
     if (existingSocket && existingSocket !== ws) {
       console.log(`Player ${playerId} reconnected. Replacing old WebSocket.`);
-      // existingSocket.send(
-      //   JSON.stringify({
-      //     payload: {
-      //       type: "lobby",
-      //       action: "disconnected",
-      //       playerId,
-      //       lobbyId: payload.lobbyId,
-      //       message: "You have been disconnected due to a new connection.",
-      //     },
-      //   })
-      // );
       existingSocket.close();
       this.webSocketMap.delete(playerId);
     }
@@ -117,20 +106,11 @@ class LobbyRelay extends Relay {
 
     if (oldId) {
       console.log(`🔄 Updating WebSocket ID from ${oldId} to ${playerId}`);
-      this.webSocketMap.delete(oldId); // Remove the old ID
+      this.webSocketMap.delete(oldId);
     }
-
     this.webSocketMap.set(playerId, ws);
-    // console.log(`🔄 Updating WebSocket ID to ${this.relayId}::${playerId}`);
-    // const socketKey = `${this.relayId}::${playerId}`;
-    // this.webSocketMap.set(socketKey, ws);
-    // console.log(`WebSocket map updated with key: ${socketKey}`);
     let response;
     if (!error) {
-      // response =
-      //   action === "login" && payload.lobbyId !== "lobby3"
-      //     ? await this.lobbyController.testGames(payload.lobbyId)
-      //     : await this.lobbyController.processMessage(message);
       response = await this.lobbyController.processMessage(message);
       console.log("Lobby relay response", response);
     } else {
@@ -142,7 +122,7 @@ class LobbyRelay extends Relay {
     if (!response.relayId) {
       response.relayId = this.relayId;
     }
-    response.uuid = uuidv4(); // Assign unique identifier to messages
+    response.uuid = uuidv4();
     console.log("Lobby response", response);
 
     if (response) {
