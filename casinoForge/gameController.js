@@ -31,7 +31,7 @@ class GameController extends BaseController {
     );
   }
 
-  handleGameAction({ ws, game, gameId, playerId, gameAction, ...payload }) {
+  handleGameAction({ ws, game, gameId, playerId, gameAction, payload }) {
     console.log("GameController handleGameAction", {
       gameId,
       playerId,
@@ -42,21 +42,58 @@ class GameController extends BaseController {
       { gameId, playerId, gameAction, ...payload },
       game
     );
-    if (!validation.valid)
+
+    if (!validation.valid) {
       return this.errorPayload(
         validation.error.type,
         validation.error.message,
         validation.error.payload
       );
+    }
+
     if (validation.skip) return {};
 
     if (validation.readyCheck) {
       const player = game.players.get(playerId);
+      if (!player) {
+        return this.errorPayload(
+          "playerNotFound",
+          `Player ${playerId} not found in game.`,
+          payload
+        );
+      }
+
+      // Ignore if already ready
+      if (player.ready) {
+        return {
+          payload: {
+            type: "game",
+            action: "gameAction",
+            gameAction: "playerReady",
+            message: "Already marked as ready.",
+            readyStates: Object.fromEntries(
+              Array.from(game.players.entries()).map(([id, val]) => [
+                id,
+                val.ready,
+              ])
+            ),
+            playerId,
+            gameId,
+          },
+        };
+      }
+
       player.ready = true;
+
       const allReady = Array.from(game.players.values()).every((p) => p.ready);
 
-      if (allReady && typeof game.instance.init === "function") {
+      if (
+        allReady &&
+        typeof game.instance.init === "function" &&
+        game.gameStatus !== "in-progress"
+      ) {
         const initResult = game.instance.init();
+        game.gameStatus = "in-progress";
         return this.broadcastPayload("game", "gameAction", {
           gameId,
           playerId,
@@ -99,6 +136,75 @@ class GameController extends BaseController {
       ...result,
     });
   }
+
+  // handleGameAction({ ws, game, gameId, playerId, gameAction, ...payload }) {
+  //   console.log("GameController handleGameAction", {
+  //     gameId,
+  //     playerId,
+  //     gameAction,
+  //   });
+
+  //   const validation = validateGameAction(
+  //     { gameId, playerId, gameAction, ...payload },
+  //     game
+  //   );
+  //   if (!validation.valid)
+  //     return this.errorPayload(
+  //       validation.error.type,
+  //       validation.error.message,
+  //       validation.error.payload
+  //     );
+  //   if (validation.skip) return {};
+
+  //   if (validation.readyCheck) {
+  //     const player = game.players.get(playerId);
+  //     player.ready = true;
+  //     const allReady = Array.from(game.players.values()).every((p) => p.ready);
+
+  //     if (allReady && typeof game.instance.init === "function") {
+  //       const initResult = game.instance.init();
+  //       return this.broadcastPayload("game", "gameAction", {
+  //         gameId,
+  //         playerId,
+  //         gameAction: "gameStarted",
+  //         ...initResult,
+  //       });
+  //     }
+
+  //     return {
+  //       payload: {
+  //         type: "game",
+  //         action: "gameAction",
+  //         gameAction: "playerReady",
+  //         message: "You are now ready. Waiting for other players.",
+  //         readyStates: Object.fromEntries(
+  //           Array.from(game.players.entries()).map(([id, val]) => [
+  //             id,
+  //             val.ready,
+  //           ])
+  //         ),
+  //         playerId,
+  //         gameId,
+  //       },
+  //     };
+  //   }
+
+  //   let result;
+  //   try {
+  //     result = game.instance.processAction(playerId, payload);
+  //     game.logAction(result?.logEntry || "");
+  //   } catch (error) {
+  //     console.error("Error processing game action:", error);
+  //     return this.errorPayload("actionError", error.message, payload);
+  //   }
+
+  //   return this.broadcastPayload("game", "gameAction", {
+  //     gameId,
+  //     playerId,
+  //     gameAction,
+  //     ...result,
+  //   });
+  // }
 
   endGame(we, payload) {
     const { gameId, playerId } = payload;

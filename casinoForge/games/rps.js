@@ -28,6 +28,7 @@ class RockPaperScissors extends BaseGame {
   }
 
   processAction(playerId, payload) {
+    console.log("payload", payload);
     const { gameAction } = payload;
     const valid = ["rock", "paper", "scissors"];
 

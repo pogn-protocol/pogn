@@ -41,7 +41,7 @@ class BaseController {
       let result;
 
       try {
-        result = await handler({ ...payload, ...context });
+        result = await handler({ ...payload, ...context, payload });
 
         // ✅ Validate outgoing response if validator is provided
         if (validateResponse && typeof validateResponse === "function") {
