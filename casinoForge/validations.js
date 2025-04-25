@@ -167,13 +167,13 @@ function validateLobbyControllerAction(action, payload = {}, context = {}) {
           payload,
         };
       }
-    
+
       const lobby = lobbies.get(lobbyId);
       if (!lobby) {
         return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
       }
-    
-      const alreadyExists = lobby.players.some(p => p.playerId === playerId);
+
+      const alreadyExists = lobby.players.has(playerId);
       if (alreadyExists) {
         return {
           valid: false,
@@ -181,10 +181,9 @@ function validateLobbyControllerAction(action, payload = {}, context = {}) {
           payload,
         };
       }
-    
+
       return { valid: true, enrichedPayload: { lobby, playerId } };
     }
-    
 
     case "refreshLobby": {
       const { lobbyId } = payload;
@@ -258,6 +257,7 @@ function validateLobbyControllerAction(action, payload = {}, context = {}) {
     }
 
     case "joinGame": {
+      console.log("validating joinGame action:", payload);
       const { lobbyId, gameId, playerId } = payload;
       const lobby = lobbies.get(lobbyId);
       if (!lobby)

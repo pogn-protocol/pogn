@@ -11,7 +11,10 @@ const {
 } = require("nostr-tools");
 const { useWebSocketImplementation } = require("nostr-tools/pool");
 useWebSocketImplementation(WebSocket);
-const { validateLobbyControllerResponse, validateLobbyControllerAction} = require("./validations");
+const {
+  validateLobbyControllerResponse,
+  validateLobbyControllerAction,
+} = require("./validations");
 
 class LobbyController extends BaseController {
   constructor({ gameController, relayManager, lobbyPorts = [], lobbyWsUrl }) {
@@ -37,7 +40,9 @@ class LobbyController extends BaseController {
   }
 
   async processMessage(message) {
-    const { action, payload } = message;
+    const { payload } = message;
+    const action = payload.action; // Use action from message or payload
+    // The action is in message.action but your validation expects it in payload.action
     const validation = validateLobbyControllerAction(action, payload, {
       lobbies: this.lobbies,
     });
@@ -57,13 +62,42 @@ class LobbyController extends BaseController {
 
     const enrichedPayload = { ...payload, ...validation.enrichedPayload };
 
+    // Pass the complete message structure, not just pieces
     return await super.processMessage(
-      { ...message, payload: enrichedPayload },
+      { action, payload: enrichedPayload },
       (msg) => checkLobbyControllerPermissions(msg, this.lobbies),
-      (payload) => ({ lobby: this.lobbies.get(payload.lobbyId) }),
+      () => ({}),
       validateLobbyControllerResponse
     );
   }
+  // async processMessage(message) {
+  //   const { action, payload } = message;
+  //   const validation = validateLobbyControllerAction(action, payload, {
+  //     lobbies: this.lobbies,
+  //   });
+
+  //   if (!validation.valid) {
+  //     return {
+  //       payload: {
+  //         type: "lobby",
+  //         action: `${action}Failed`,
+  //         message: validation.reason,
+  //         lobbyId: payload.lobbyId,
+  //         playerId: payload.playerId,
+  //       },
+  //       private: payload.playerId,
+  //     };
+  //   }
+
+  //   const enrichedPayload = { ...payload, ...validation.enrichedPayload };
+
+  //   return await super.processMessage(
+  //     { ...message, payload: enrichedPayload },
+  //     (msg) => checkLobbyControllerPermissions(msg, this.lobbies),
+  //     () => ({}),
+  //     validateLobbyControllerResponse
+  //   );
+  // }
 
   startGame({ lobby, game }) {
     console.log("Starting game:", game.gameId);
@@ -82,12 +116,20 @@ class LobbyController extends BaseController {
   }
 
   joinLobby({ lobby, playerId }) {
+    console.log("Joining lobby:", lobby, playerId);
     const player = new Player({ playerId, inLobby: true });
-    lobby.players.push(player);
+    lobby.players.set(playerId, player);
     return this.refreshLobby({ lobby, playerId });
   }
 
   joinLobbyPlayerToGame({ lobby, game, playerId, newLobbyStatus }) {
+    console.log(
+      "Joining player to game:",
+      lobby,
+      game,
+      playerId,
+      newLobbyStatus
+    );
     game.players.set(playerId, { playerId });
     if (newLobbyStatus) game.lobbyStatus = newLobbyStatus;
     return this.refreshLobby({ lobby });

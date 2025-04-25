@@ -12,8 +12,7 @@ class BaseController {
     validateResponse = null
   ) {
     try {
-      const { payload } = message;
-      const { action } = payload || {};
+      const { action, payload } = message; // Extract action and payload
 
       if (typeof checkPermissions === "function") {
         const permission = checkPermissions(message);
@@ -41,9 +40,11 @@ class BaseController {
       let result;
 
       try {
-        result = await handler({ ...payload, ...context, payload });
+        console.log("🔍 Enriching payload with context:", context);
+        console.log("payload:", payload);
+        const enrichedPayload = { ...payload, ...context };
+        result = await handler(enrichedPayload);
 
-        // ✅ Validate outgoing response if validator is provided
         if (validateResponse && typeof validateResponse === "function") {
           validateResponse(result);
         }

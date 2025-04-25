@@ -23,13 +23,28 @@ class GameController extends BaseController {
   }
 
   async processMessage(ws, message) {
+    const { payload } = message;
+    const action = payload.action;
+
     return await super.processMessage(
-      message,
+      { action, payload },
       checkGameControllerPermissions,
-      (payload) => ({ ws, game: this.activeGames.get(payload.gameId) }),
+      (payload) => ({
+        ws,
+        game: this.activeGames.get(payload.gameId),
+      }),
       validateGameControllerResponse
     );
   }
+
+  // async processMessage(ws, message) {
+  //   return await super.processMessage(
+  //     message,
+  //     checkGameControllerPermissions,
+  //     (payload) => ({ ws, game: this.activeGames.get(payload.gameId) }),
+  //     validateGameControllerResponse
+  //   );
+  // }
 
   handleGameAction({ ws, game, gameId, playerId, gameAction, payload }) {
     console.log("GameController handleGameAction", {

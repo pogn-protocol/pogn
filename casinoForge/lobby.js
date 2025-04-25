@@ -1,6 +1,6 @@
 class Lobby {
   constructor({ lobbyId }) {
-    this.players = [];
+    this.players = new Map();
     this.games = new Map();
     this.lobbyId = lobbyId || "default";
   }
@@ -31,13 +31,20 @@ class Lobby {
   }
 
   getLobbyPlayers() {
-    console.log("Lobby players...", this.players);
-    const playersArray = this.players
+    const playersArray = Array.from(this.players.values())
       .filter((p) => p.inLobby)
       .map((p) => p.playerId);
-    console.log("Returning lobby players array...", playersArray);
     return playersArray;
   }
+
+  // getLobbyPlayers() {
+  //   console.log("Lobby players...", this.players);
+  //   const playersArray = this.players
+  //     .filter((p) => p.inLobby)
+  //     .map((p) => p.playerId);
+  //   console.log("Returning lobby players array...", playersArray);
+  //   return playersArray;
+  // }
 
   addGame(game) {
     this.games.set(game.gameId, game);
