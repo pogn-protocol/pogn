@@ -158,6 +158,88 @@ function validateLobbyControllerAction(action, payload = {}, context = {}) {
   const { lobbies } = context;
 
   switch (action) {
+    case "login": {
+      const { lobbyId, playerId } = payload;
+      if (!lobbyId || !playerId) {
+        return {
+          valid: false,
+          reason: "Missing lobbyId or playerId.",
+          payload,
+        };
+      }
+    
+      const lobby = lobbies.get(lobbyId);
+      if (!lobby) {
+        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
+      }
+    
+      const alreadyExists = lobby.players.some(p => p.playerId === playerId);
+      if (alreadyExists) {
+        return {
+          valid: false,
+          reason: `Player ${playerId} is already in lobby ${lobbyId}.`,
+          payload,
+        };
+      }
+    
+      return { valid: true, enrichedPayload: { lobby, playerId } };
+    }
+    
+
+    case "refreshLobby": {
+      const { lobbyId } = payload;
+      if (!lobbyId) {
+        return { valid: false, reason: "Missing lobbyId.", payload };
+      }
+      const lobby = lobbies.get(lobbyId);
+      if (!lobby) {
+        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
+      }
+      return {
+        valid: true,
+        enrichedPayload: { lobby, playerId: payload.playerId },
+      };
+    }
+
+    case "gameEnded": {
+      const { lobbyId, gameId } = payload;
+      if (!lobbyId || !gameId) {
+        return {
+          valid: false,
+          reason: "Missing lobbyId or gameId.",
+          payload,
+        };
+      }
+      const lobby = lobbies.get(lobbyId);
+      if (!lobby) {
+        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
+      }
+      const game = lobby.getGame(gameId);
+      if (!game) {
+        return {
+          valid: false,
+          reason: `Game ${gameId} not found in lobby.`,
+          payload,
+        };
+      }
+      return { valid: true, enrichedPayload: { lobby, gameId, game } };
+    }
+
+    case "createLobby": {
+      const { lobbyId } = payload;
+      if (!lobbyId) {
+        return { valid: false, reason: "Missing lobbyId.", payload };
+      }
+      if (lobbies.has(lobbyId)) {
+        return {
+          valid: false,
+          reason: `Lobby ${lobbyId} already exists.`,
+          payload,
+        };
+      }
+      return { valid: true, enrichedPayload: {} };
+    }
+
     case "startGame": {
       const { lobbyId, gameId } = payload;
       const lobby = lobbies.get(lobbyId);
