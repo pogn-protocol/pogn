@@ -16,25 +16,20 @@ class GameController extends BaseController {
     this.lobbyWsUrl = lobbyWsUrl;
     this.messages = [];
 
-    this.messageHandlers = {
+    this.actionHandlers = {
       gameAction: this.handleGameAction.bind(this),
       endGame: this.endGame.bind(this),
     };
   }
 
-  async processMessage(ws, message) {
-    const { payload } = message;
-    const action = payload.action;
-
-    return await super.processMessage(
-      { action, payload },
+  async processMessage(payload) {
+    return await super.processMessage(payload, [
+      validateGameAction,
       checkGameControllerPermissions,
-      (payload) => ({
-        ws,
-        game: this.activeGames.get(payload.gameId),
-      }),
-      validateGameControllerResponse
-    );
+      (p) => ({ game: this.activeGames.get(p.gameId) }),
+      (p) => this.actionHandlers[p.action]?.(p),
+      validateGameControllerResponse,
+    ]);
   }
 
   // async processMessage(ws, message) {

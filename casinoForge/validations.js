@@ -1,351 +1,153 @@
 function validateGameRelayMessageRecieved(message, relayId, knownGameIds) {
-  console.log("validating game relay message recieved:", message);
-  if (!message || typeof message !== "object") {
-    return { isValid: false, error: "Invalid message object" };
-  }
-
-  const payload = message.payload;
-  if (!payload) return { isValid: false, error: "No payload in message" };
+  if (!message || typeof message !== "object")
+    return { error: "Invalid message object" };
+  const { payload } = message;
+  if (!payload) return { error: "No payload in message" };
 
   const { type, action, gameId, playerId } = payload;
-
-  if (!type || type !== "game")
-    return { isValid: false, error: "Type not set to 'game'" };
-  if (!action)
-    return { isValid: false, error: "No action in payload", message };
-  if (!gameId)
-    return { isValid: false, error: "No gameId in payload", message };
-  if (!playerId)
-    return { isValid: false, error: "No playerId in payload", message };
+  if (type !== "game") return { error: "Type must be 'game'" };
+  if (!action) return { error: "Missing action" };
+  if (!gameId) return { error: "Missing gameId" };
+  if (!playerId) return { error: "Missing playerId" };
 
   if (
     message.relayId &&
     message.relayId !== relayId &&
     !Array.isArray(knownGameIds)
   ) {
-    return {
-      isValid: false,
-      error: `Game relay ${relayId} received message for different relay: ${message.relayId}`,
-      message,
-    };
+    return { error: `Message sent to wrong relay: ${message.relayId}` };
   }
 
-  return { isValid: true, error: null, message };
+  return {};
 }
 
 function validateGameControllerResponse(response) {
-  console.log("validating game controller response:", response);
-  if (!response || typeof response !== "object") {
-    throw new Error("Invalid game payload: missing or incorrect structure.");
-  }
-  const payload = response?.payload;
-
-  if (!payload.action) {
-    throw new Error("Invalid game payload: missing action.");
-  }
-
-  if (!payload.gameId) {
-    throw new Error("Invalid game payload: missing gameId.");
-  }
-  return true;
+  if (!response || typeof response !== "object")
+    return { error: "Missing response object" };
+  const payload = response.payload;
+  if (!payload?.action) return { error: "Missing action in response" };
+  if (!payload?.gameId) return { error: "Missing gameId in response" };
+  return {};
 }
 
-function validateGameAction(payload, game) {
-  const { gameId, playerId, gameAction } = payload;
-
-  if (!gameId || !playerId) {
-    return {
-      valid: false,
-      error: {
-        type: "invalidPayload",
-        message: "Missing gameId or playerId",
-        payload,
-      },
-    };
-  }
-
-  if (!game) {
-    return {
-      valid: false,
-      error: {
-        type: "gameNotFound",
-        message: `Game ${gameId} not found.`,
-        payload,
-      },
-    };
-  }
+function validateGameAction(payload) {
+  const { gameId, playerId, gameAction, game } = payload;
+  if (!gameId || !playerId) return { error: "Missing gameId or playerId" };
+  if (!game) return { error: `Game ${gameId} not found` };
 
   if (gameAction === "playerReady") {
     const player = game.players.get(playerId);
-    if (!player) {
-      return {
-        valid: false,
-        error: {
-          type: "playerNotFound",
-          message: `Player ${playerId} not in game.`,
-          payload,
-        },
-      };
-    }
-
-    if (game.getGameDetails()?.gameStatus === "in-progress") {
-      return { valid: true, skip: true };
-    }
-
-    return { valid: true, readyCheck: true };
+    if (!player) return { error: `Player ${playerId} not in game` };
+    if (game.getGameDetails()?.gameStatus === "in-progress")
+      return { exit: true };
   }
 
   if (typeof game.instance.processAction !== "function") {
-    return {
-      valid: false,
-      error: {
-        type: "invalidGame",
-        message: "Game instance does not have processAction.",
-        payload,
-      },
-    };
+    return { error: "Game missing processAction method" };
   }
 
-  return { valid: true };
+  return {};
 }
 
 function validateLobbyRelayMessageRecieved(message) {
-  console.log("validating lobby relay message Recieved:", message);
-  if (!message || typeof message !== "object" || !message.payload) {
-    return {
-      valid: false,
-      error: "Invalid message structure or missing payload",
-      message,
-    };
-  }
-
+  if (!message?.payload) return { error: "Missing payload in message" };
   const { type, action, lobbyId, playerId } = message.payload;
-  if (type !== "lobby")
-    return { valid: false, error: "Type is not 'lobby'", message };
-  if (!action)
-    return { valid: false, error: "Missing action in payload", message };
-  if (!lobbyId)
-    return { valid: false, error: "Missing lobbyId in payload", message };
-  if (!playerId)
-    return { valid: false, error: "Missing playerId in payload", message };
 
-  return { valid: true, error: null };
+  if (type !== "lobby") return { error: "Payload type must be 'lobby'" };
+  if (!action) return { error: "Missing action" };
+  if (!lobbyId) return { error: "Missing lobbyId" };
+  if (!playerId) return { error: "Missing playerId" };
+
+  return {};
 }
 
 function validateLobbyControllerResponse(response) {
-  console.log("validating lobby controller response:", response);
-  if (!response || typeof response !== "object") {
-    throw new Error("Invalid lobby payload: missing or incorrect structure.");
-  }
-
-  if (!response.payload) {
-    throw new Error("Invalid lobby payload: missing payload.");
-  }
-  const payload = response?.payload;
-
-  if (!payload.action) {
-    throw new Error("Invalid lobby payload: missing action.");
-  }
-
-  if (!payload.lobbyId) {
-    throw new Error("Invalid lobby payload: missing lobbyId.");
-  }
-
-  return true;
+  if (!response || typeof response !== "object")
+    return { error: "Missing response object" };
+  const payload = response.payload;
+  if (!payload?.action) return { error: "Missing action in response" };
+  if (!payload?.lobbyId) return { error: "Missing lobbyId in response" };
+  return {};
 }
 
-function validateLobbyControllerAction(action, payload = {}, context = {}) {
+function validateLobbyControllerAction(payload, context = {}) {
+  const { action, lobbyId, playerId, gameId, gameType } = payload;
   const { lobbies } = context;
+  const lobby = lobbies?.get(lobbyId);
 
   switch (action) {
-    case "login": {
-      const { lobbyId, playerId } = payload;
-      if (!lobbyId || !playerId) {
-        return {
-          valid: false,
-          reason: "Missing lobbyId or playerId.",
-          payload,
-        };
-      }
+    case "login":
+      if (!lobbyId || !playerId)
+        return { error: "Missing lobbyId or playerId" };
+      if (!lobby) return { error: `Lobby ${lobbyId} not found` };
+      if (lobby.players.has(playerId))
+        return { error: "Player already in lobby" };
+      return { lobby };
 
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby) {
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-      }
+    case "joinGame": {
+      if (!lobby) return { error: `Lobby ${lobbyId} not found` };
+      const game = lobby.getGame(gameId);
+      if (!game) return { error: "Game not found" };
+      if (game.players.has(playerId))
+        return { error: "Player already in game" };
+      if (game.players.size >= game.instance.maxPlayers)
+        return { error: "Game is full" };
+      if (game.isPrivate && !game.allowedPlayers.includes(playerId))
+        return { error: "Not invited to private game" };
 
-      const alreadyExists = lobby.players.has(playerId);
-      if (alreadyExists) {
-        return {
-          valid: false,
-          reason: `Player ${playerId} is already in lobby ${lobbyId}.`,
-          payload,
-        };
-      }
+      let newLobbyStatus = null;
+      const size = game.players.size + 1;
+      if (size >= game.instance.maxPlayers) newLobbyStatus = "readyToStart";
+      else if (size >= game.instance.minPlayers) newLobbyStatus = "canStart";
 
-      return { valid: true, enrichedPayload: { lobby, playerId } };
+      return { lobby, game, newLobbyStatus };
     }
 
-    case "refreshLobby": {
-      const { lobbyId } = payload;
-      if (!lobbyId) {
-        return { valid: false, reason: "Missing lobbyId.", payload };
-      }
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby) {
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-      }
-      return {
-        valid: true,
-        enrichedPayload: { lobby, playerId: payload.playerId },
-      };
-    }
+    case "refreshLobby":
+      if (!lobbyId) return { error: "Missing lobbyId" };
+      if (!lobby) return { error: `Lobby ${lobbyId} not found` };
+      return { lobby, playerId };
+
+    case "createLobby":
+      if (!lobbyId) return { error: "Missing lobbyId" };
+      if (lobbies.has(lobbyId))
+        return { error: `Lobby ${lobbyId} already exists` };
+      return {};
+
+    case "createGame":
+      if (!lobby) return { error: `Lobby ${lobbyId} not found` };
+      if (!gameType) return { error: "Missing gameType" };
+      if (!playerId) return { error: "Missing playerId" };
+      return { lobby };
 
     case "gameEnded": {
-      const { lobbyId, gameId } = payload;
-      if (!lobbyId || !gameId) {
-        return {
-          valid: false,
-          reason: "Missing lobbyId or gameId.",
-          payload,
-        };
-      }
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby) {
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-      }
+      if (!lobby || !gameId) return { error: "Missing lobby or gameId" };
       const game = lobby.getGame(gameId);
-      if (!game) {
-        return {
-          valid: false,
-          reason: `Game ${gameId} not found in lobby.`,
-          payload,
-        };
-      }
-      return { valid: true, enrichedPayload: { lobby, gameId, game } };
-    }
-
-    case "createLobby": {
-      const { lobbyId } = payload;
-      if (!lobbyId) {
-        return { valid: false, reason: "Missing lobbyId.", payload };
-      }
-      if (lobbies.has(lobbyId)) {
-        return {
-          valid: false,
-          reason: `Lobby ${lobbyId} already exists.`,
-          payload,
-        };
-      }
-      return { valid: true, enrichedPayload: {} };
+      if (!game) return { error: "Game not found" };
+      return { lobby, gameId, game };
     }
 
     case "startGame": {
-      const { lobbyId, gameId } = payload;
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby)
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-
+      if (!lobby || !gameId) return { error: "Missing lobby or gameId" };
       const game = lobby.getGame(gameId);
-      if (!game)
-        return {
-          valid: false,
-          reason: `Game with ID ${gameId} not found in lobby.`,
-          payload,
-        };
-
-      return { valid: true, enrichedPayload: { lobby, game } };
+      if (!game) return { error: "Game not found" };
+      return { lobby, game };
     }
 
-    case "joinGame": {
-      console.log("validating joinGame action:", payload);
-      const { lobbyId, gameId, playerId } = payload;
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby)
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-
-      const game = lobby.getGame(gameId);
-      if (!game)
-        return { valid: false, reason: `Game ${gameId} not found.`, payload };
-
-      if (game.players.has(playerId)) {
-        return {
-          valid: false,
-          reason: `Player ${playerId} already in the game.`,
-          payload,
-        };
-      }
-
-      if (game.players.size >= game.instance.maxPlayers) {
-        return {
-          valid: false,
-          reason: `Game is full (max ${game.instance.maxPlayers}).`,
-          payload,
-        };
-      }
-
-      if (game.isPrivate && !game.allowedPlayers.includes(playerId)) {
-        return {
-          valid: false,
-          reason: `PRIVATE GAME: Player ${playerId} is not invited.`,
-          payload,
-        };
-      }
-
-      let newStatus = null;
-      if (game.players.size + 1 >= game.instance.maxPlayers) {
-        newStatus = "readyToStart";
-      } else if (game.players.size + 1 >= game.instance.minPlayers) {
-        newStatus = "canStart";
-      }
-
-      return {
-        valid: true,
-        enrichedPayload: { lobby, game, newLobbyStatus: newStatus },
-      };
-    }
+    case "postGameResult":
+      if (!lobby) return { error: "Lobby not found" };
+      if (!playerId) return { error: "Missing playerId" };
+      return { lobby };
 
     case "gameInvite": {
-      const { lobbyId, gameId } = payload;
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby)
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-
+      if (!lobby) return { error: "Lobby not found" };
       const game = lobby.getGame(gameId);
-      if (!game)
-        return { valid: false, reason: `Game ${gameId} not found.`, payload };
-
-      return { valid: true, enrichedPayload: { lobby, game } };
-    }
-
-    case "createGame": {
-      const { lobbyId, gameType, playerId } = payload;
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby)
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-      if (!gameType)
-        return { valid: false, reason: `Missing gameType.`, payload };
-      if (!playerId)
-        return { valid: false, reason: `Missing playerId.`, payload };
-
-      return { valid: true, enrichedPayload: { lobby } };
-    }
-
-    case "postGameResult": {
-      const { lobbyId, playerId } = payload;
-      const lobby = lobbies.get(lobbyId);
-      if (!lobby)
-        return { valid: false, reason: `Lobby ${lobbyId} not found.`, payload };
-      if (!playerId)
-        return { valid: false, reason: `Missing playerId.`, payload };
-
-      return { valid: true, enrichedPayload: { lobby } };
+      if (!game) return { error: "Game not found" };
+      return { lobby, game };
     }
 
     default:
-      return {
-        valid: true,
-        enrichedPayload: { lobby: lobbies.get(payload.lobbyId) || null },
-      };
+      return { lobby: lobby || null };
   }
 }
 

@@ -1,71 +1,36 @@
-// baseController.js
 class BaseController {
   constructor({ relayManager } = {}) {
     this.relayManager = relayManager;
-    this.messageHandlers = {}; // Override in subclass
   }
 
-  async processMessage(
-    message,
-    checkPermissions,
-    enrichContext = () => ({}),
-    validateResponse = null
-  ) {
-    try {
-      const { action, payload } = message; // Extract action and payload
+  async processMessage(payload, steps = []) {
+    let current = { ...payload };
 
-      if (typeof checkPermissions === "function") {
-        const permission = checkPermissions(message);
-        if (!permission.allowed) {
-          console.warn("⛔ Permission denied:", permission.reason);
-          return this.errorPayload(
-            "permissionDenied",
-            permission.reason,
-            payload
-          );
-        }
-      }
-
-      const handler = this.messageHandlers[action];
-      if (!handler) {
-        console.warn(`⚠️ Unknown action: ${action}`);
-        return this.errorPayload(
-          "unknownAction",
-          `Unknown action: ${action}`,
-          payload
-        );
-      }
-
-      const context = enrichContext(payload);
-      let result;
+    for (const fn of steps) {
+      if (typeof fn !== "function") continue;
 
       try {
-        console.log("🔍 Enriching payload with context:", context);
-        console.log("payload:", payload);
-        const enrichedPayload = { ...payload, ...context };
-        result = await handler(enrichedPayload);
+        const result = await fn(current);
 
-        if (validateResponse && typeof validateResponse === "function") {
-          validateResponse(result);
+        // 🛑 If the result has `.error`, stop and return error payload
+        if (result?.error) {
+          return this.errorPayload("hookError", result.error, current);
+        }
+
+        // ✅ Merge any context provided
+        if (result && typeof result === "object") {
+          current = { ...current, ...result };
         }
       } catch (err) {
-        console.error("❌ Error inside handler:", err);
-        result = this.errorPayload(
-          "handlerError",
-          err.message || "Unknown error",
-          payload
+        return this.errorPayload(
+          "hookException",
+          err.message || "Error during processing",
+          current
         );
       }
-
-      return result;
-    } catch (err) {
-      console.error("❌ Controller Error:", err);
-      return this.errorPayload(
-        "internalError",
-        "Failed to process message",
-        message.payload
-      );
     }
+
+    return current;
   }
 
   errorPayload(action, message, extra = {}) {

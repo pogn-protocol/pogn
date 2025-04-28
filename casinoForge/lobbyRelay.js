@@ -14,126 +14,230 @@ class LobbyRelay extends Relay {
 
   async processMessage(ws, message) {
     console.log(`${this.relayId} processing message in lobby relay:`, message);
+
+    // Step 1: Permissions check
     const permission = checkLobbyRelayPermissions(message);
-    if (!permission.allowed) {
-      console.error(`⛔ LobbyRelay permission denied:`, permission.reason);
-      return this.sendResponse(message.payload.playerId, {
+    if (permission?.error) {
+      return this.sendResponse(message?.payload?.playerId, {
         relayId: this.relayId,
         payload: {
           type: "error",
           action: "permissionDenied",
-          reason: permission.reason,
+          message: permission.error,
           relayId: this.relayId,
         },
       });
     }
 
+    // Step 2: relayConnector message short-circuit
     if (message?.payload?.type === "relayConnector") {
       console.log("LobbyRelay processing relayConnector message:", message);
+      const incomingRelayId = message.payload.relayId;
       const oldId = [...this.webSocketMap.keys()].find(
         (key) => this.webSocketMap.get(key) === ws
       );
 
       if (oldId) {
         console.log(
-          `🔄 Updating WebSocket ID from ${oldId} to ${message?.payload?.relayId}`
+          `🔄 Updating WebSocket ID from ${oldId} to ${incomingRelayId}`
         );
-        this.webSocketMap.delete(oldId); // Remove the old ID
+        this.webSocketMap.delete(oldId);
       }
 
-      this.webSocketMap.set(message?.payload?.relayId, ws);
-      // ✅ Prevent self-registration
-      const incomingRelayId = message?.payload?.relayId;
+      this.webSocketMap.set(incomingRelayId, ws);
 
       if (incomingRelayId !== this.relayId) {
-        console.log(
-          `Lobby relay ${this.relayId} received relayConnector message from ${incomingRelayId}`
-        );
+        console.log(`📡 Linked game relay ${incomingRelayId}`);
         this.gameConnections.push(incomingRelayId);
       } else {
-        console.log(
-          `Lobby relay ${this.relayId} received its own relayConnector message. Ignoring.`
-        );
+        console.log("🔁 Ignored self-connection.");
       }
-      //   this.gameConnections.push(message?.payload?.relayId);
       return;
     }
 
+    // Step 3: test message short-circuit
     if (message?.payload?.type === "test") {
       console.log(
-        `Lobby relay {$this.relayId} processing test message:`,
+        `✅ Lobby relay ${this.relayId} received test message:`,
         message
       );
       return;
     }
 
-    const { valid, error } = validateLobbyRelayMessageRecieved(message);
-    if (!valid) {
-      console.error(error);
-      return this.sendResponse(ws, { payload: { type: "error", error } });
+    // Step 4: Validation
+    const validation = validateLobbyRelayMessageRecieved(message);
+    if (validation?.error) {
+      console.warn("❌ Message failed relay validation:", validation.error);
+      return this.sendResponse(ws, {
+        payload: {
+          type: "error",
+          action: "relayValidationFailed",
+          message: validation.error,
+        },
+      });
     }
 
-    const { payload } = message;
-    const { action, lobbyId, playerId } = payload;
-
-    if (this.gameConnections.some((id) => id === message?.relayId)) {
-      console.warn("Lobby relay processing message from game relay:", message);
+    // Step 5: Protect from mismatched relay messages
+    if (this.gameConnections.includes(message?.relayId)) {
+      console.warn("⚠️ Ignoring message from connected game relay.");
       return;
     }
 
-    console.log(`Processing message in lobby relay ${this.relayId}:`, message);
-    if (message?.relayId !== this.relayId && message?.relayId) {
-      console.log("Game connections", this.gameConnections);
-      console.error(
-        `Lobby relay ${this.relayId} received message for ${message.relayId} relay:`,
-        message
+    if (message?.relayId && message?.relayId !== this.relayId) {
+      console.warn(
+        `⚠️ Relay ID mismatch: expected ${this.relayId} but got ${message.relayId}`
       );
       return;
     }
 
-    console.log("Processing lobby message:", { action, payload });
-    const existingSocket = this.webSocketMap.get(playerId);
-
-    if (existingSocket && existingSocket !== ws) {
-      console.log(`Player ${playerId} reconnected. Replacing old WebSocket.`);
-      existingSocket.close();
-      this.webSocketMap.delete(playerId);
-    }
-
+    // Step 6: Track player socket connection
+    const { playerId } = message.payload;
     const oldId = [...this.webSocketMap.keys()].find(
       (key) => this.webSocketMap.get(key) === ws
     );
-
-    if (oldId) {
-      console.log(`🔄 Updating WebSocket ID from ${oldId} to ${playerId}`);
+    if (oldId && oldId !== playerId) {
+      console.log(`🛠 Replacing old socket for player ${playerId}`);
       this.webSocketMap.delete(oldId);
+      const existingSocket = this.webSocketMap.get(playerId);
+      if (existingSocket && existingSocket !== ws) existingSocket.close();
     }
     this.webSocketMap.set(playerId, ws);
-    let response;
-    if (!error) {
-      response = await this.lobbyController.processMessage(message);
-      console.log("Lobby relay response", response);
-    } else {
-      response = {
-        type: "error",
-        payload: { error },
-      };
-    }
-    if (!response.relayId) {
-      response.relayId = this.relayId;
-    }
-    response.uuid = uuidv4();
-    console.log("Lobby response", response);
 
-    if (response) {
-      console.log("Sending lobby response to player:", playerId);
-      this.sendResponse(playerId, response);
-      if (response.broadcast) {
-        console.log("Broadcasting lobby response to all players.");
-        this.broadcastResponse(response);
-      }
+    // Step 7: Send to controller
+    const response = await this.lobbyController.processMessage(message.payload);
+    if (!response) return;
+
+    response.relayId ??= this.relayId;
+    response.uuid = uuidv4();
+
+    this.sendResponse(playerId, response);
+    if (response.broadcast) {
+      this.broadcastResponse(response);
     }
   }
+
+  // async processMessage(ws, message) {
+  //   console.log(`${this.relayId} processing message in lobby relay:`, message);
+  //   const permission = checkLobbyRelayPermissions(message);
+  //   if (!permission.allowed) {
+  //     console.error(`⛔ LobbyRelay permission denied:`, permission.reason);
+  //     return this.sendResponse(message.payload.playerId, {
+  //       relayId: this.relayId,
+  //       payload: {
+  //         type: "error",
+  //         action: "permissionDenied",
+  //         reason: permission.reason,
+  //         relayId: this.relayId,
+  //       },
+  //     });
+  //   }
+
+  //   if (message?.payload?.type === "relayConnector") {
+  //     console.log("LobbyRelay processing relayConnector message:", message);
+  //     const oldId = [...this.webSocketMap.keys()].find(
+  //       (key) => this.webSocketMap.get(key) === ws
+  //     );
+
+  //     if (oldId) {
+  //       console.log(
+  //         `🔄 Updating WebSocket ID from ${oldId} to ${message?.payload?.relayId}`
+  //       );
+  //       this.webSocketMap.delete(oldId); // Remove the old ID
+  //     }
+
+  //     this.webSocketMap.set(message?.payload?.relayId, ws);
+  //     // ✅ Prevent self-registration
+  //     const incomingRelayId = message?.payload?.relayId;
+
+  //     if (incomingRelayId !== this.relayId) {
+  //       console.log(
+  //         `Lobby relay ${this.relayId} received relayConnector message from ${incomingRelayId}`
+  //       );
+  //       this.gameConnections.push(incomingRelayId);
+  //     } else {
+  //       console.log(
+  //         `Lobby relay ${this.relayId} received its own relayConnector message. Ignoring.`
+  //       );
+  //     }
+  //     //   this.gameConnections.push(message?.payload?.relayId);
+  //     return;
+  //   }
+
+  //   if (message?.payload?.type === "test") {
+  //     console.log(
+  //       `Lobby relay {$this.relayId} processing test message:`,
+  //       message
+  //     );
+  //     return;
+  //   }
+
+  //   const { valid, error } = validateLobbyRelayMessageRecieved(message);
+  //   if (!valid) {
+  //     console.error(error);
+  //     return this.sendResponse(ws, { payload: { type: "error", error } });
+  //   }
+
+  //   const { payload } = message;
+  //   const { action, lobbyId, playerId } = payload;
+
+  //   if (this.gameConnections.some((id) => id === message?.relayId)) {
+  //     console.warn("Lobby relay processing message from game relay:", message);
+  //     return;
+  //   }
+
+  //   console.log(`Processing message in lobby relay ${this.relayId}:`, message);
+  //   if (message?.relayId !== this.relayId && message?.relayId) {
+  //     console.log("Game connections", this.gameConnections);
+  //     console.error(
+  //       `Lobby relay ${this.relayId} received message for ${message.relayId} relay:`,
+  //       message
+  //     );
+  //     return;
+  //   }
+
+  //   console.log("Processing lobby message:", { action, payload });
+  //   const existingSocket = this.webSocketMap.get(playerId);
+
+  //   if (existingSocket && existingSocket !== ws) {
+  //     console.log(`Player ${playerId} reconnected. Replacing old WebSocket.`);
+  //     existingSocket.close();
+  //     this.webSocketMap.delete(playerId);
+  //   }
+
+  //   const oldId = [...this.webSocketMap.keys()].find(
+  //     (key) => this.webSocketMap.get(key) === ws
+  //   );
+
+  //   if (oldId) {
+  //     console.log(`🔄 Updating WebSocket ID from ${oldId} to ${playerId}`);
+  //     this.webSocketMap.delete(oldId);
+  //   }
+  //   this.webSocketMap.set(playerId, ws);
+  //   let response;
+  //   if (!error) {
+  //     response = await this.lobbyController.processMessage(message);
+  //     console.log("Lobby relay response", response);
+  //   } else {
+  //     response = {
+  //       type: "error",
+  //       payload: { error },
+  //     };
+  //   }
+  //   if (!response.relayId) {
+  //     response.relayId = this.relayId;
+  //   }
+  //   response.uuid = uuidv4();
+  //   console.log("Lobby response", response);
+
+  //   if (response) {
+  //     console.log("Sending lobby response to player:", playerId);
+  //     this.sendResponse(playerId, response);
+  //     if (response.broadcast) {
+  //       console.log("Broadcasting lobby response to all players.");
+  //       this.broadcastResponse(response);
+  //     }
+  //   }
+  // }
 }
 
 module.exports = LobbyRelay;

@@ -25,7 +25,7 @@ class LobbyController extends BaseController {
     this.lobbyWsUrl = lobbyWsUrl;
     this.notePostGuards = new Map();
 
-    this.messageHandlers = {
+    this.actionHandlers = {
       login: (data) => this.joinLobby(data),
       createNewGame: (data) => this.createGame(data),
       joinGame: (data) => this.joinLobbyPlayerToGame(data),
@@ -39,37 +39,47 @@ class LobbyController extends BaseController {
     };
   }
 
-  async processMessage(message) {
-    const { payload } = message;
-    const action = payload.action; // Use action from message or payload
-    // The action is in message.action but your validation expects it in payload.action
-    const validation = validateLobbyControllerAction(action, payload, {
-      lobbies: this.lobbies,
-    });
-
-    if (!validation.valid) {
-      return {
-        payload: {
-          type: "lobby",
-          action: `${action}Failed`,
-          message: validation.reason,
-          lobbyId: payload.lobbyId,
-          playerId: payload.playerId,
-        },
-        private: payload.playerId,
-      };
-    }
-
-    const enrichedPayload = { ...payload, ...validation.enrichedPayload };
-
-    // Pass the complete message structure, not just pieces
-    return await super.processMessage(
-      { action, payload: enrichedPayload },
-      (msg) => checkLobbyControllerPermissions(msg, this.lobbies),
-      () => ({}),
-      validateLobbyControllerResponse
-    );
+  async processMessage(payload) {
+    return await super.processMessage(payload, [
+      validateLobbyControllerAction,
+      checkLobbyControllerPermissions,
+      (p) => ({ lobby: this.lobbies.get(p.lobbyId) }),
+      (p) => this.actionHandlers[p.action]?.(p) || { error: "Unknown action" },
+      validateLobbyControllerResponse,
+    ]);
   }
+
+  // async processMessage(message) {
+  //   const { payload } = message;
+  //   const action = payload.action; // Use action from message or payload
+  //   // The action is in message.action but your validation expects it in payload.action
+  //   const validation = validateLobbyControllerAction(action, payload, {
+  //     lobbies: this.lobbies,
+  //   });
+
+  //   if (!validation.valid) {
+  //     return {
+  //       payload: {
+  //         type: "lobby",
+  //         action: `${action}Failed`,
+  //         message: validation.reason,
+  //         lobbyId: payload.lobbyId,
+  //         playerId: payload.playerId,
+  //       },
+  //       private: payload.playerId,
+  //     };
+  //   }
+
+  //   const enrichedPayload = { ...payload, ...validation.enrichedPayload };
+
+  //   // Pass the complete message structure, not just pieces
+  //   return await super.processMessage(
+  //     { action, payload: enrichedPayload },
+  //     (msg) => checkLobbyControllerPermissions(msg, this.lobbies),
+  //     () => ({}),
+  //     validateLobbyControllerResponse
+  //   );
+  // }
   // async processMessage(message) {
   //   const { action, payload } = message;
   //   const validation = validateLobbyControllerAction(action, payload, {
