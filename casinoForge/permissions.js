@@ -1,6 +1,7 @@
 const { PERMISSIONS } = require("../pognConfigs");
 
 function checkLobbyRelayPermissions(payload) {
+  console.log("Checking lobby relay permissions", payload);
   const { playerId, action, lobbyId } = payload;
   const rules =
     PERMISSIONS.lobby.lobbies[lobbyId] || PERMISSIONS.lobby.general || {};

@@ -18,7 +18,7 @@ const {
 
 class LobbyController extends BaseController {
   constructor({ gameController, relayManager, lobbyPorts = [], lobbyWsUrl }) {
-    super({ relayManager });
+    super({ type: "lobby", relayManager });
     this.gameController = gameController;
     this.lobbies = new Map();
     this.ports = lobbyPorts;
@@ -40,14 +40,30 @@ class LobbyController extends BaseController {
   }
 
   async processMessage(payload) {
-    return await super.processMessage(payload, [
+    return await super.processMessage({ ...payload, lobbies: this.lobbies }, [
       validateLobbyControllerAction,
       checkLobbyControllerPermissions,
       (p) => ({ lobby: this.lobbies.get(p.lobbyId) }),
-      (p) => this.actionHandlers[p.action]?.(p) || { error: "Unknown action" },
+      (p) =>
+        this.actionHandlers[p.action]?.(p) ??
+        this.errorPayload("unknownAction", "Unknown action", p),
       validateLobbyControllerResponse,
     ]);
   }
+
+  // async processMessage(payload) {
+  //   //  copy the lobby
+  //   const lobbyId = payload.lobbyId;
+  //   const lobby = this.lobbies.get(lobbyId);
+
+  //   return await super.processMessage(payload, [
+  //     validateLobbyControllerAction,
+  //     checkLobbyControllerPermissions,
+  //     (p) => ({ lobby: this.lobbies.get(p.lobbyId) }),
+  //     (p) => this.actionHandlers[p.action]?.(p) || { error: "Unknown action" },
+  //     validateLobbyControllerResponse,
+  //   ]);
+  // }
 
   // async processMessage(message) {
   //   const { payload } = message;

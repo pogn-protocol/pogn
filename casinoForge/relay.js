@@ -256,17 +256,55 @@ class Relay {
     }
   }
 
-  sendResponse(id, message) {
-    console.log(`📡 ${this.type} Relay id ${this.id} sending to ${id}:`);
-    console.log("Message:", message);
-    console.log("WebSocket Map:", this.webSocketMap);
-    const ws = this.webSocketMap.get(id);
+  sendResponse(idOrWs, message) {
+    let ws = null;
+    let id = null;
+
+    if (typeof idOrWs === "string") {
+      id = idOrWs;
+      ws = this.webSocketMap.get(id);
+    } else {
+      ws = idOrWs;
+      // Inline reverse lookup without a helper
+      for (const [storedId, socket] of this.webSocketMap.entries()) {
+        if (socket === ws) {
+          id = storedId;
+          break;
+        }
+      }
+    }
+
     if (!ws || ws.readyState !== ws.OPEN) {
-      console.warn(`⚠️ WebSocket not found or not open for ${id}`);
+      console.warn(`⚠️ WebSocket not found or not open for ${id ?? "unknown"}`);
       return;
     }
+
+    console.log(`📡 ${this.type} Relay sending to ${id ?? "unknown"}:`);
+    console.log("Message:", message);
+
     ws.send(JSON.stringify(message));
   }
+
+  // sendResponse(idOrWs, message) {
+  //   let ws = null;
+
+  //   if (typeof idOrWs === "string") {
+  //     ws = this.webSocketMap.get(idOrWs);
+  //   } else {
+  //     ws = idOrWs; // Assume it's already a WebSocket
+  //     idOrWs = this.findIdBySocket(ws);
+  //   }
+
+  //   if (!ws || ws.readyState !== ws.OPEN) {
+  //     console.warn(`⚠️ WebSocket not found or not open for ${idOrWs}`);
+  //     return;
+  //   }
+
+  //   console.log(`📡 ${this.type} Relay sending to ${idOrWs}:`);
+  //   console.log("Message:", message);
+
+  //   ws.send(JSON.stringify(message));
+  // }
 
   shutdown() {
     console.log(`🛑 Shutting down ${this.type} Relay ${this.id}...`);

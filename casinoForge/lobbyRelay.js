@@ -16,17 +16,25 @@ class LobbyRelay extends Relay {
     console.log(`${this.relayId} processing message in lobby relay:`, message);
 
     // Step 1: Permissions check
-    const permission = checkLobbyRelayPermissions(message);
-    if (permission?.error) {
-      return this.sendResponse(message?.payload?.playerId, {
-        relayId: this.relayId,
-        payload: {
-          type: "error",
-          action: "permissionDenied",
-          message: permission.error,
+    try {
+      const permission = checkLobbyRelayPermissions(message?.payload);
+      if (permission?.error) {
+        console.warn(
+          `Permission denied for player ${message?.payload?.playerId}:`,
+          permission.error
+        );
+        return this.sendResponse(ws, {
           relayId: this.relayId,
-        },
-      });
+          payload: {
+            type: "error",
+            action: "permissionDenied",
+            message: permission.error,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      return;
     }
 
     // Step 2: relayConnector message short-circuit
@@ -104,15 +112,27 @@ class LobbyRelay extends Relay {
     this.webSocketMap.set(playerId, ws);
 
     // Step 7: Send to controller
-    const response = await this.lobbyController.processMessage(message.payload);
-    if (!response) return;
+    try {
+      const response = await this.lobbyController.processMessage(
+        message.payload
+      );
+      console.log("Lobby relay response", response);
 
-    response.relayId ??= this.relayId;
-    response.uuid = uuidv4();
+      if (!response) return;
 
-    this.sendResponse(playerId, response);
-    if (response.broadcast) {
-      this.broadcastResponse(response);
+      response.relayId ??= this.relayId;
+      response.uuid = uuidv4();
+
+      this.sendResponse(playerId, response);
+      if (response.broadcast) {
+        this.broadcastResponse(response);
+      }
+    } catch {
+      console.error(
+        "Lobby Relay: Error processing message in lobbyController:",
+        error
+      );
+      return;
     }
   }
 

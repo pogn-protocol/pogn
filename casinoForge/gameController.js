@@ -9,12 +9,11 @@ const {
 
 class GameController extends BaseController {
   constructor({ gamePorts = [], lobbyWsUrl, relayManager, customGames }) {
-    super({ relayManager });
+    super({ type: "game", relayManager });
     this.customGames = cusGames;
     this.activeGames = new Map();
     this.gamePorts = gamePorts;
     this.lobbyWsUrl = lobbyWsUrl;
-    this.messages = [];
 
     this.actionHandlers = {
       gameAction: this.handleGameAction.bind(this),

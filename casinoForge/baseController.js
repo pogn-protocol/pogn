@@ -1,6 +1,8 @@
 class BaseController {
-  constructor({ relayManager } = {}) {
-    this.relayManager = relayManager;
+  constructor({ type, relayManager }) {
+    this.relayManager = relayManager || null;
+    this.type = type || null;
+    this.messages = [];
   }
 
   async processMessage(payload, steps = []) {
@@ -47,7 +49,7 @@ class BaseController {
   broadcastPayload(type, action, data = {}) {
     return {
       payload: {
-        type,
+        type: this.type || type,
         action,
         ...data,
       },

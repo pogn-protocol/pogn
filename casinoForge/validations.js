@@ -70,10 +70,14 @@ function validateLobbyControllerResponse(response) {
   return {};
 }
 
-function validateLobbyControllerAction(payload, context = {}) {
-  const { action, lobbyId, playerId, gameId, gameType } = payload;
-  const { lobbies } = context;
-  const lobby = lobbies?.get(lobbyId);
+function validateLobbyControllerAction(payload) {
+  console.log("Validating lobby controller action", payload);
+  const { action, playerId, gameId, gameType, lobbyId, lobbies } = payload;
+  let lobby;
+  if (lobbyId) {
+    lobby = lobbies.get(lobbyId);
+    console.log(`${lobbyId} found lobby`, lobby);
+  }
 
   switch (action) {
     case "login":
