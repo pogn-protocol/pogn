@@ -40,6 +40,7 @@ class LobbyController extends BaseController {
   }
 
   async processMessage(payload) {
+    console.log("LobbyController processMessage", payload);
     return await super.processMessage({ ...payload, lobbies: this.lobbies }, [
       validateLobbyControllerAction,
       checkLobbyControllerPermissions,
@@ -50,81 +51,6 @@ class LobbyController extends BaseController {
       validateLobbyControllerResponse,
     ]);
   }
-
-  // async processMessage(payload) {
-  //   //  copy the lobby
-  //   const lobbyId = payload.lobbyId;
-  //   const lobby = this.lobbies.get(lobbyId);
-
-  //   return await super.processMessage(payload, [
-  //     validateLobbyControllerAction,
-  //     checkLobbyControllerPermissions,
-  //     (p) => ({ lobby: this.lobbies.get(p.lobbyId) }),
-  //     (p) => this.actionHandlers[p.action]?.(p) || { error: "Unknown action" },
-  //     validateLobbyControllerResponse,
-  //   ]);
-  // }
-
-  // async processMessage(message) {
-  //   const { payload } = message;
-  //   const action = payload.action; // Use action from message or payload
-  //   // The action is in message.action but your validation expects it in payload.action
-  //   const validation = validateLobbyControllerAction(action, payload, {
-  //     lobbies: this.lobbies,
-  //   });
-
-  //   if (!validation.valid) {
-  //     return {
-  //       payload: {
-  //         type: "lobby",
-  //         action: `${action}Failed`,
-  //         message: validation.reason,
-  //         lobbyId: payload.lobbyId,
-  //         playerId: payload.playerId,
-  //       },
-  //       private: payload.playerId,
-  //     };
-  //   }
-
-  //   const enrichedPayload = { ...payload, ...validation.enrichedPayload };
-
-  //   // Pass the complete message structure, not just pieces
-  //   return await super.processMessage(
-  //     { action, payload: enrichedPayload },
-  //     (msg) => checkLobbyControllerPermissions(msg, this.lobbies),
-  //     () => ({}),
-  //     validateLobbyControllerResponse
-  //   );
-  // }
-  // async processMessage(message) {
-  //   const { action, payload } = message;
-  //   const validation = validateLobbyControllerAction(action, payload, {
-  //     lobbies: this.lobbies,
-  //   });
-
-  //   if (!validation.valid) {
-  //     return {
-  //       payload: {
-  //         type: "lobby",
-  //         action: `${action}Failed`,
-  //         message: validation.reason,
-  //         lobbyId: payload.lobbyId,
-  //         playerId: payload.playerId,
-  //       },
-  //       private: payload.playerId,
-  //     };
-  //   }
-
-  //   const enrichedPayload = { ...payload, ...validation.enrichedPayload };
-
-  //   return await super.processMessage(
-  //     { ...message, payload: enrichedPayload },
-  //     (msg) => checkLobbyControllerPermissions(msg, this.lobbies),
-  //     () => ({}),
-  //     validateLobbyControllerResponse
-  //   );
-  // }
-
   startGame({ lobby, game }) {
     console.log("Starting game:", game.gameId);
     game.lobbyStatus = "started";
@@ -143,8 +69,9 @@ class LobbyController extends BaseController {
 
   joinLobby({ lobby, playerId }) {
     console.log("Joining lobby:", lobby, playerId);
-    const player = new Player({ playerId, inLobby: true });
-    lobby.players.set(playerId, player);
+    if (!lobby.players.has(playerId)) {
+      lobby.players.set(playerId, new Player({ playerId, inLobby: true }));
+    }
     return this.refreshLobby({ lobby, playerId });
   }
 
@@ -284,12 +211,16 @@ class LobbyController extends BaseController {
   }
 
   refreshLobby({ lobby, playerId }) {
-    return this.broadcastPayload("lobby", "refreshLobby", {
+    return {
+      // return this.steralizePayload("lobby", "refreshLobby", {
+      action: "refreshLobby",
+      type: "lobby",
       lobbyId: lobby.lobbyId,
       lobbyPlayers: lobby.getLobbyPlayers(),
       lobbyGames: lobby.getLobbyGames(),
       private: playerId || null,
-    });
+      // });
+    };
   }
 
   async createLobby({ lobbyId }) {
@@ -301,13 +232,15 @@ class LobbyController extends BaseController {
     newLobby.wsAddress = newLobbyRelay.wsAddress;
     newLobby.relayId = newLobbyRelay.id;
     this.lobbies.set(lobbyId, newLobby);
-    return this.broadcastPayload("lobby", "newLobby", {
+    //  return this.steralizePayload("lobby", "newLobby", {
+    return {
       newRelayId: newLobbyRelay.id,
       lobbyId,
       lobbyAddress: newLobbyRelay.wsAddress,
       lobbyPlayers: newLobby.getLobbyPlayers(),
       lobbyGames: newLobby.getLobbyGames(),
-    });
+      //   });
+    };
   }
 
   async initGames(gameConfigs = []) {

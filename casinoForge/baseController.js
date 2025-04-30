@@ -6,6 +6,7 @@ class BaseController {
   }
 
   async processMessage(payload, steps = []) {
+    console.log(`Processing message in Base controller:`, payload);
     let current = { ...payload };
 
     for (const fn of steps) {
@@ -31,8 +32,13 @@ class BaseController {
         );
       }
     }
-
-    return current;
+    console.log("Final payload after processing:", current);
+    // return current;
+    return this.steralizePayload(
+      current.type || this.type,
+      current.action,
+      current
+    );
   }
 
   errorPayload(action, message, extra = {}) {
@@ -46,7 +52,8 @@ class BaseController {
     };
   }
 
-  broadcastPayload(type, action, data = {}) {
+  steralizePayload(type, action, data = {}) {
+    console.log("Steralizing payload", type, action, data);
     return {
       payload: {
         type: this.type || type,

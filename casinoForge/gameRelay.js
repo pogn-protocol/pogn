@@ -95,28 +95,31 @@ class GameRelay extends Relay {
       }
     }
 
-    // Step 6: Validate message structure
-    const validation = validateGameRelayMessageRecieved(
-      message,
-      this.relayId,
-      this.gameIds
-    );
-    if (validation?.error) {
-      return this.sendResponse(playerId || message?.relayId, {
-        relayId: this.relayId,
-        uuid: uuidv4(),
-        payload: {
-          type: "error",
-          action: "relayValidationFailed",
-          message: validation.error,
-        },
-      });
+    try {
+      const validation = validateGameRelayMessageRecieved(
+        message?.payload,
+        this.relayId,
+        this.gameIds
+      );
+      if (validation?.error) {
+        return this.sendResponse(playerId || message?.relayId, {
+          relayId: this.relayId,
+          uuid: uuidv4(),
+          payload: {
+            type: "error",
+            action: "relayValidationFailed",
+            message: validation.error,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error validating message:", error);
+      return;
     }
 
     // Step 7: Forward to GameController
     try {
       const response = await this.gameController.processMessage(
-        ws,
         message.payload
       );
       if (!response) return;
@@ -138,15 +141,15 @@ class GameRelay extends Relay {
       }
     } catch (err) {
       console.error("❌ GameRelay controller processing error:", err);
-      this.sendResponse(playerId, {
-        relayId: this.relayId,
-        uuid: uuidv4(),
-        payload: {
-          type: "error",
-          action: "controllerFailure",
-          message: err.message || "Unknown error",
-        },
-      });
+      // this.sendResponse(playerId, {
+      //   relayId: this.relayId,
+      //   uuid: uuidv4(),
+      //   payload: {
+      //     type: "error",
+      //     action: "controllerFailure",
+      //     message: err.message || "Unknown error",
+      //   },
+      // });
     }
   }
 

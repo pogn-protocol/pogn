@@ -102,6 +102,7 @@ function checkGameRelayPermissions(payload) {
 }
 
 function checkGameControllerPermissions(payload) {
+  console.log("Checking game controller permissions", payload);
   const { playerId, action, gameId } = payload;
   const rules =
     PERMISSIONS.game.games[gameId] || PERMISSIONS.game.general || {};

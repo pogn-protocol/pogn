@@ -22,11 +22,16 @@ class GameController extends BaseController {
   }
 
   async processMessage(payload) {
-    return await super.processMessage(payload, [
+    console.log("GameController processMessage", payload);
+    const game = this.activeGames.get(payload.gameId);
+
+    return await super.processMessage({ ...payload, game }, [
       validateGameAction,
       checkGameControllerPermissions,
       (p) => ({ game: this.activeGames.get(p.gameId) }),
-      (p) => this.actionHandlers[p.action]?.(p),
+      (p) =>
+        this.actionHandlers[p.action]?.(p) ??
+        this.errorPayload("unknownAction", "Unknown action", p),
       validateGameControllerResponse,
     ]);
   }
@@ -40,27 +45,41 @@ class GameController extends BaseController {
   //   );
   // }
 
-  handleGameAction({ ws, game, gameId, playerId, gameAction, payload }) {
-    console.log("GameController handleGameAction", {
+  handleGameAction({ game, gameId, playerId, gameAction }) {
+    console.log("GameController handleGameAction params", {
+      game,
       gameId,
       playerId,
       gameAction,
     });
 
-    const validation = validateGameAction(
-      { gameId, playerId, gameAction, ...payload },
-      game
-    );
+    let validation;
+    try {
+      validation = validateGameAction({ gameId, playerId, gameAction, game });
+    } catch (error) {
+      console.error("Error validating game action:", error);
+      return this.errorPayload("validationError", error.message, { gameId });
+    }
 
-    if (!validation.valid) {
+    console.log("GameController handleGameAction validation", validation);
+
+    if (validation.error) {
+      console.warn(
+        `Game action validation failed: ${validation.error.message}`,
+        validation.error
+      );
       return this.errorPayload(
-        validation.error.type,
+        "invalidGameActionPayload",
         validation.error.message,
-        validation.error.payload
+        {
+          gameId,
+          playerId,
+          gameAction,
+        }
       );
     }
 
-    if (validation.skip) return {};
+    if (validation.skip) return {}; // Already ready
 
     if (validation.readyCheck) {
       const player = game.players.get(playerId);
@@ -68,28 +87,8 @@ class GameController extends BaseController {
         return this.errorPayload(
           "playerNotFound",
           `Player ${playerId} not found in game.`,
-          payload
+          { gameId }
         );
-      }
-
-      // Ignore if already ready
-      if (player.ready) {
-        return {
-          payload: {
-            type: "game",
-            action: "gameAction",
-            gameAction: "playerReady",
-            message: "Already marked as ready.",
-            readyStates: Object.fromEntries(
-              Array.from(game.players.entries()).map(([id, val]) => [
-                id,
-                val.ready,
-              ])
-            ),
-            playerId,
-            gameId,
-          },
-        };
       }
 
       player.ready = true;
@@ -103,48 +102,171 @@ class GameController extends BaseController {
       ) {
         const initResult = game.instance.init();
         game.gameStatus = "in-progress";
-        return this.broadcastPayload("game", "gameAction", {
+
+        return {
+          action: "gameAction",
+          type: "game",
+          gameAction: "gameStarted",
           gameId,
           playerId,
-          gameAction: "gameStarted",
           ...initResult,
-        });
+        };
       }
 
       return {
-        payload: {
-          type: "game",
-          action: "gameAction",
-          gameAction: "playerReady",
-          message: "You are now ready. Waiting for other players.",
-          readyStates: Object.fromEntries(
-            Array.from(game.players.entries()).map(([id, val]) => [
-              id,
-              val.ready,
-            ])
-          ),
-          playerId,
-          gameId,
-        },
+        type: "game",
+        action: "gameAction",
+        gameAction: "playerReady",
+        message: "You are now ready. Waiting for other players.",
+        readyStates: Object.fromEntries(
+          Array.from(game.players.entries()).map(([id, val]) => [id, val.ready])
+        ),
+        playerId,
+        gameId,
       };
     }
 
+    // Default game action processing
     let result;
     try {
-      result = game.instance.processAction(playerId, payload);
+      result = game.instance.processAction(playerId, { gameAction });
       game.logAction(result?.logEntry || "");
     } catch (error) {
       console.error("Error processing game action:", error);
-      return this.errorPayload("actionError", error.message, payload);
+      return this.errorPayload(
+        "gameActionError",
+        "Something went wrong during action execution.",
+        { gameId, playerId }
+      );
     }
 
-    return this.broadcastPayload("game", "gameAction", {
+    return {
+      action: "gameAction",
+      type: "game",
       gameId,
       playerId,
       gameAction,
       ...result,
-    });
+    };
   }
+
+  // handleGameAction({ game, gameId, playerId, gameAction }) {
+  //   console.log(
+  //     "GameController handleGameAction params",
+  //     game,
+  //     gameId,
+  //     playerId,
+  //     gameAction
+  //   );
+
+  //   let validation;
+  //   try {
+  //     validation = validateGameAction({
+  //       gameId,
+  //       playerId,
+  //       gameAction,
+  //       game,
+  //     });
+  //   } catch (error) {
+  //     console.error("Error validating game action:", error);
+  //     return;
+  //   }
+
+  //   console.log("GameController handleGameAction validation", validation);
+  //   if (validation.error) {
+  //     return this.errorPayload({ message: validation.error.message });
+  //   }
+
+  //   if (validation.skip) return {};
+
+  //   if (validation.readyCheck) {
+  //     const player = game.players.get(playerId);
+  //     if (!player) {
+  //       return this.errorPayload(
+  //         "playerNotFound",
+  //         `Player ${playerId} not found in game.`,
+  //         gameId
+  //       );
+  //     }
+
+  //     // Ignore if already ready
+  //     if (player.ready) {
+  //       //  return {
+  //       //    payload: {
+  //       return {
+  //         type: "game",
+  //         action: "gameAction",
+  //         gameAction: "playerReady",
+  //         message: "Already marked as ready.",
+  //         readyStates: Object.fromEntries(
+  //           Array.from(game.players.entries()).map(([id, val]) => [
+  //             id,
+  //             val.ready,
+  //           ])
+  //         ),
+  //         playerId,
+  //         gameId,
+  //         //    },
+  //       };
+  //     }
+
+  //     player.ready = true;
+
+  //     const allReady = Array.from(game.players.values()).every((p) => p.ready);
+
+  //     if (
+  //       allReady &&
+  //       typeof game.instance.init === "function" &&
+  //       game.gameStatus !== "in-progress"
+  //     ) {
+  //       const initResult = game.instance.init();
+  //       game.gameStatus = "in-progress";
+  //       return {
+  //         action: "gameAction",
+  //         type: "game",
+  //         gameId,
+  //         playerId,
+  //         gameAction: "gameStarted",
+  //         ...initResult,
+  //       };
+  //     }
+
+  //     return {
+  //       // payload: {
+  //       type: "game",
+  //       action: "gameAction",
+  //       gameAction: "playerReady",
+  //       message: "You are now ready. Waiting for other players.",
+  //       readyStates: Object.fromEntries(
+  //         Array.from(game.players.entries()).map(([id, val]) => [id, val.ready])
+  //       ),
+  //       playerId,
+  //       gameId,
+  //       // },
+  //     };
+  //   }
+
+  //   let result;
+  //   try {
+  //     result = game.instance.processAction(playerId, gameAction);
+  //     game.logAction(result?.logEntry || "");
+  //   } catch (error) {
+  //     console.error("Error processing game action:", error);
+  //     return this.errorPayload(
+  //       "gameAction Error",
+  //       "Something went wrong with the gameController"
+  //     );
+  //   }
+
+  //   return {
+  //     action: "gameAction",
+  //     type: "game",
+  //     gameId,
+  //     playerId,
+  //     gameAction,
+  //     ...result,
+  //   };
+  // }
 
   // handleGameAction({ ws, game, gameId, playerId, gameAction, ...payload }) {
   //   console.log("GameController handleGameAction", {
@@ -233,7 +355,15 @@ class GameController extends BaseController {
       },
     });
 
-    return this.broadcastPayload("game", "gameEnded", { gameId });
+    return {
+      type: "game",
+      action: "gameAction",
+      gameAction: "gameEnded",
+      gameId: gameId,
+      playerId: playerId,
+      gameLog: game.gameLog,
+      game,
+    };
   }
 
   createGame(gameType, createRelay, lobbyId, gameId) {
@@ -319,12 +449,14 @@ class GameController extends BaseController {
     console.log("Game started.", game);
     let result;
 
-    return this.broadcastPayload("game", "gameAction", {
+    return {
+      type: "game",
+      action: "gameAction",
       gameId: game.gameId,
       playerId: game.playerId,
       gameAction: "gameStarted",
       ...result,
-    });
+    };
   }
 }
 module.exports = GameController;

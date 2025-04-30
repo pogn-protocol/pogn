@@ -1,10 +1,8 @@
 function validateGameRelayMessageRecieved(message, relayId, knownGameIds) {
+  console.log("Validating game relay message recieved", message);
   if (!message || typeof message !== "object")
     return { error: "Invalid message object" };
-  const { payload } = message;
-  if (!payload) return { error: "No payload in message" };
-
-  const { type, action, gameId, playerId } = payload;
+  const { type, action, gameId, playerId } = message;
   if (type !== "game") return { error: "Type must be 'game'" };
   if (!action) return { error: "Missing action" };
   if (!gameId) return { error: "Missing gameId" };
@@ -21,35 +19,47 @@ function validateGameRelayMessageRecieved(message, relayId, knownGameIds) {
   return {};
 }
 
-function validateGameControllerResponse(response) {
-  if (!response || typeof response !== "object")
+function validateGameControllerResponse(payload) {
+  console.log("Validating game controller response", payload);
+  if (!payload || typeof payload !== "object")
     return { error: "Missing response object" };
-  const payload = response.payload;
-  if (!payload?.action) return { error: "Missing action in response" };
-  if (!payload?.gameId) return { error: "Missing gameId in response" };
+  if (!payload?.action)
+    return { error: "gameController Error: Missing action in response" };
+  if (!payload?.gameId)
+    return { error: "gameController Error: Missing gameId in response" };
   return {};
 }
 
 function validateGameAction(payload) {
+  console.log("Validating game action", payload);
   const { gameId, playerId, gameAction, game } = payload;
-  if (!gameId || !playerId) return { error: "Missing gameId or playerId" };
-  if (!game) return { error: `Game ${gameId} not found` };
+
+  if (!gameId || !playerId) {
+    return { error: { message: "Missing gameId or playerId" } };
+  }
+
+  if (!game) {
+    return { error: { message: `Game ${gameId} not found` } };
+  }
 
   if (gameAction === "playerReady") {
     const player = game.players.get(playerId);
-    if (!player) return { error: `Player ${playerId} not in game` };
-    if (game.getGameDetails()?.gameStatus === "in-progress")
-      return { exit: true };
+    if (!player) {
+      return { error: { message: `Player ${playerId} not in game` } };
+    }
+
+    if (player.ready) {
+      return { skip: true }; // already ready, skip processing
+    }
+
+    return { readyCheck: true }; // continue to ready logic
   }
 
-  if (typeof game.instance.processAction !== "function") {
-    return { error: "Game missing processAction method" };
-  }
-
-  return {};
+  return {}; // valid for all other actions
 }
 
 function validateLobbyRelayMessageRecieved(message) {
+  console.log("Validating lobby relay message recieved", message);
   if (!message?.payload) return { error: "Missing payload in message" };
   const { type, action, lobbyId, playerId } = message.payload;
 
@@ -62,11 +72,12 @@ function validateLobbyRelayMessageRecieved(message) {
 }
 
 function validateLobbyControllerResponse(response) {
+  console.log("Validating lobby controller response", response);
   if (!response || typeof response !== "object")
     return { error: "Missing response object" };
-  const payload = response.payload;
-  if (!payload?.action) return { error: "Missing action in response" };
-  if (!payload?.lobbyId) return { error: "Missing lobbyId in response" };
+
+  if (!response?.action) return { error: "Missing action in response" };
+  if (!response?.lobbyId) return { error: "Missing lobbyId in response" };
   return {};
 }
 
@@ -81,14 +92,16 @@ function validateLobbyControllerAction(payload) {
 
   switch (action) {
     case "login":
+      console.log("Validating lobby login", payload);
       if (!lobbyId || !playerId)
         return { error: "Missing lobbyId or playerId" };
       if (!lobby) return { error: `Lobby ${lobbyId} not found` };
-      if (lobby.players.has(playerId))
-        return { error: "Player already in lobby" };
+      // if (lobby.players.has(playerId))
+      //return { error: "Player already in lobby" };
       return { lobby };
 
     case "joinGame": {
+      console.log("Validating lobby join game", payload);
       if (!lobby) return { error: `Lobby ${lobbyId} not found` };
       const game = lobby.getGame(gameId);
       if (!game) return { error: "Game not found" };
@@ -108,23 +121,27 @@ function validateLobbyControllerAction(payload) {
     }
 
     case "refreshLobby":
+      console.log("Validating lobby refresh", payload);
       if (!lobbyId) return { error: "Missing lobbyId" };
       if (!lobby) return { error: `Lobby ${lobbyId} not found` };
       return { lobby, playerId };
 
     case "createLobby":
+      console.log("Validating lobby creation", payload);
       if (!lobbyId) return { error: "Missing lobbyId" };
       if (lobbies.has(lobbyId))
         return { error: `Lobby ${lobbyId} already exists` };
       return {};
 
     case "createGame":
+      console.log("Validating lobby create game", payload);
       if (!lobby) return { error: `Lobby ${lobbyId} not found` };
       if (!gameType) return { error: "Missing gameType" };
       if (!playerId) return { error: "Missing playerId" };
       return { lobby };
 
     case "gameEnded": {
+      console.log("Validating lobby game ended", payload);
       if (!lobby || !gameId) return { error: "Missing lobby or gameId" };
       const game = lobby.getGame(gameId);
       if (!game) return { error: "Game not found" };
@@ -132,6 +149,7 @@ function validateLobbyControllerAction(payload) {
     }
 
     case "startGame": {
+      console.log("Validating lobby start game", payload);
       if (!lobby || !gameId) return { error: "Missing lobby or gameId" };
       const game = lobby.getGame(gameId);
       if (!game) return { error: "Game not found" };
@@ -139,11 +157,13 @@ function validateLobbyControllerAction(payload) {
     }
 
     case "postGameResult":
+      console.log("Validating lobby post game result", payload);
       if (!lobby) return { error: "Lobby not found" };
       if (!playerId) return { error: "Missing playerId" };
       return { lobby };
 
     case "gameInvite": {
+      console.log("Validating lobby game invite", payload);
       if (!lobby) return { error: "Lobby not found" };
       const game = lobby.getGame(gameId);
       if (!game) return { error: "Game not found" };
