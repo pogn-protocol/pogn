@@ -76,8 +76,14 @@ function validateLobbyControllerResponse(response) {
   if (!response || typeof response !== "object")
     return { error: "Missing response object" };
 
-  if (!response?.action) return { error: "Missing action in response" };
-  if (!response?.lobbyId) return { error: "Missing lobbyId in response" };
+  if (!response?.action)
+    return {
+      error: "The gameController had a problem. Missing action in response",
+    };
+  if (!response?.lobbyId)
+    return {
+      error: "The gameController had a problem. Missing lobbyId in response",
+    };
   return {};
 }
 

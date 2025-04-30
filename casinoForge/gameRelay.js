@@ -122,6 +122,7 @@ class GameRelay extends Relay {
       const response = await this.gameController.processMessage(
         message.payload
       );
+      console.log("GameRelay response:", response);
       if (!response) return;
 
       response.relayId ??= this.relayId;

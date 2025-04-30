@@ -31,8 +31,7 @@ class GameController extends BaseController {
       (p) => ({ game: this.activeGames.get(p.gameId) }),
       (p) =>
         this.actionHandlers[p.action]?.(p) ??
-        this.errorPayload("unknownAction", "Unknown action", p),
-      validateGameControllerResponse,
+        this.errorPayload("Unknown action", p),
     ]);
   }
 
@@ -58,7 +57,7 @@ class GameController extends BaseController {
       validation = validateGameAction({ gameId, playerId, gameAction, game });
     } catch (error) {
       console.error("Error validating game action:", error);
-      return this.errorPayload("validationError", error.message, { gameId });
+      return this.errorPayload(error.message, { gameId });
     }
 
     console.log("GameController handleGameAction validation", validation);
@@ -68,27 +67,27 @@ class GameController extends BaseController {
         `Game action validation failed: ${validation.error.message}`,
         validation.error
       );
-      return this.errorPayload(
-        "invalidGameActionPayload",
-        validation.error.message,
-        {
-          gameId,
-          playerId,
-          gameAction,
-        }
-      );
+      return this.errorPayload(validation.error.message, {
+        gameId,
+        playerId,
+        gameAction,
+      });
     }
 
-    if (validation.skip) return {}; // Already ready
+    if (validation.skip) return;
+    this.errorPayload("Player already ready.", {
+      gameId,
+      playerId,
+      gameAction,
+    });
 
     if (validation.readyCheck) {
+      console.log(".readyCheck");
       const player = game.players.get(playerId);
       if (!player) {
-        return this.errorPayload(
-          "playerNotFound",
-          `Player ${playerId} not found in game.`,
-          { gameId }
-        );
+        return this.errorPayload(`Player ${playerId} not found in game.`, {
+          gameId,
+        });
       }
 
       player.ready = true;
@@ -102,20 +101,16 @@ class GameController extends BaseController {
       ) {
         const initResult = game.instance.init();
         game.gameStatus = "in-progress";
-
-        return {
-          action: "gameAction",
-          type: "game",
+        console.log("Game started.", game);
+        return this.steralizePayload("game", "gameAction", {
           gameAction: "gameStarted",
           gameId,
           playerId,
           ...initResult,
-        };
+        });
       }
-
-      return {
-        type: "game",
-        action: "gameAction",
+      console.log("Player ready", playerId, game.players);
+      return this.steralizePayload("game", "gameAction", {
         gameAction: "playerReady",
         message: "You are now ready. Waiting for other players.",
         readyStates: Object.fromEntries(
@@ -123,31 +118,37 @@ class GameController extends BaseController {
         ),
         playerId,
         gameId,
-      };
+      });
     }
 
     // Default game action processing
     let result;
     try {
+      console.log("Processing game action", gameAction);
       result = game.instance.processAction(playerId, { gameAction });
+      console.log("Game action result", result);
       game.logAction(result?.logEntry || "");
+      let validResult = validateGameControllerResponse(result);
+      if (validResult.error) {
+        console.warn(
+          `Game action processing validation failed: ${validResult.error}`,
+          validResult.error
+        );
+        return this.errorPayload(validResult.error, {
+          gameId,
+          playerId,
+          gameAction,
+        });
+      }
     } catch (error) {
       console.error("Error processing game action:", error);
       return this.errorPayload(
-        "gameActionError",
         "Something went wrong during action execution.",
         { gameId, playerId }
       );
     }
-
-    return {
-      action: "gameAction",
-      type: "game",
-      gameId,
-      playerId,
-      gameAction,
-      ...result,
-    };
+    console.log("Game action result after validation", result);
+    return this.steralizePayload("game", "gameAction", result);
   }
 
   // handleGameAction({ game, gameId, playerId, gameAction }) {
@@ -356,7 +357,6 @@ class GameController extends BaseController {
     });
 
     return {
-      type: "game",
       action: "gameAction",
       gameAction: "gameEnded",
       gameId: gameId,
@@ -450,7 +450,6 @@ class GameController extends BaseController {
     let result;
 
     return {
-      type: "game",
       action: "gameAction",
       gameId: game.gameId,
       playerId: game.playerId,

@@ -8,16 +8,23 @@ class BaseController {
   async processMessage(payload, steps = []) {
     console.log(`Processing message in Base controller:`, payload);
     let current = { ...payload };
-
+    let breaker = false;
     for (const fn of steps) {
       if (typeof fn !== "function") continue;
+      if (breaker) break;
 
       try {
         const result = await fn(current);
-
+        console.log("Result after step:", result);
         // 🛑 If the result has `.error`, stop and return error payload
         if (result?.error) {
-          return this.errorPayload("hookError", result.error, current);
+          console.error(
+            "Error in processing, breaking loop:",
+            result.error,
+            current
+          );
+          breaker = true;
+          return this.errorPayload(result.error, current);
         }
 
         // ✅ Merge any context provided
@@ -26,27 +33,26 @@ class BaseController {
         }
       } catch (err) {
         return this.errorPayload(
-          "hookException",
           err.message || "Error during processing",
           current
         );
       }
     }
     console.log("Final payload after processing:", current);
-    // return current;
-    return this.steralizePayload(
-      current.type || this.type,
-      current.action,
-      current
-    );
+    return current;
+    // return this.steralizePayload(
+    //   current.type || this.type,
+    //   current.action,
+    //   current
+    // );
   }
 
-  errorPayload(action, message, extra = {}) {
+  errorPayload(errorMessage, extra = {}) {
+    console.log("Creating error payload", errorMessage, extra);
     return {
       payload: {
         type: "error",
-        action,
-        message,
+        errorMessage,
         ...extra,
       },
     };

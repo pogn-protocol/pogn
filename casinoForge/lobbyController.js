@@ -41,15 +41,29 @@ class LobbyController extends BaseController {
 
   async processMessage(payload) {
     console.log("LobbyController processMessage", payload);
-    return await super.processMessage({ ...payload, lobbies: this.lobbies }, [
-      validateLobbyControllerAction,
-      checkLobbyControllerPermissions,
-      (p) => ({ lobby: this.lobbies.get(p.lobbyId) }),
-      (p) =>
-        this.actionHandlers[p.action]?.(p) ??
-        this.errorPayload("unknownAction", "Unknown action", p),
-      validateLobbyControllerResponse,
-    ]);
+    let result = await super.processMessage(
+      { ...payload, lobbies: this.lobbies },
+      [
+        validateLobbyControllerAction,
+        checkLobbyControllerPermissions,
+        (p) => ({ lobby: this.lobbies.get(p.lobbyId) }),
+        (p) =>
+          this.actionHandlers[p.action]?.(p) ??
+          this.errorPayload("Unknown action", p),
+      ]
+    );
+    console.log("Result after processing:", result);
+    let validResult = validateLobbyControllerResponse(result);
+    console.log("Validating result:", validResult);
+    if (validResult.error) {
+      console.error("Validation error:", validResult.error, result.payload);
+      return this.errorPayload(validResult.error, result.payload);
+    }
+    return this.steralizePayload(
+      result?.type || "lobby",
+      result?.action,
+      result
+    );
   }
   startGame({ lobby, game }) {
     console.log("Starting game:", game.gameId);
@@ -146,13 +160,10 @@ class LobbyController extends BaseController {
 
     if (lastPost && now - lastPost < 5000) {
       return {
-        payload: {
-          type: "lobby",
-          action: "postGameResultError",
-          message: "You're posting too fast. Please wait a moment.",
-          lobbyId,
-          playerId,
-        },
+        action: "postGameResultError",
+        message: "You're posting too fast. Please wait a moment.",
+        lobbyId,
+        playerId,
       };
     }
 
@@ -189,22 +200,17 @@ class LobbyController extends BaseController {
       pool.publish(relays, event);
 
       return {
-        payload: {
-          type: "lobby",
-          action: "postGameResultConfirmed",
-          playerId,
-          status: "success",
-          message: "Game result posted to POGN Gamehub account on nostr.",
-        },
+        action: "postGameResultConfirmed",
+        playerId,
+        status: "success",
+        message: "Game result posted to POGN Gamehub account on nostr.",
       };
     } catch (err) {
       return {
-        payload: {
-          type: "error",
-          action: "postGameResultFailed",
-          message: err.message,
-          playerId,
-        },
+        type: "error",
+        action: "postGameResultFailed",
+        message: err.message,
+        playerId,
         private: playerId,
       };
     }
@@ -214,7 +220,6 @@ class LobbyController extends BaseController {
     return {
       // return this.steralizePayload("lobby", "refreshLobby", {
       action: "refreshLobby",
-      type: "lobby",
       lobbyId: lobby.lobbyId,
       lobbyPlayers: lobby.getLobbyPlayers(),
       lobbyGames: lobby.getLobbyGames(),

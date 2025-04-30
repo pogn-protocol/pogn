@@ -127,7 +127,7 @@ class LobbyRelay extends Relay {
       if (response.broadcast) {
         this.broadcastResponse(response);
       }
-    } catch {
+    } catch (error) {
       console.error(
         "Lobby Relay: Error processing message in lobbyController:",
         error
