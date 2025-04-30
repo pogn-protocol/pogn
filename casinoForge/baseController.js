@@ -18,13 +18,10 @@ class BaseController {
         console.log("Result after step:", result);
         // 🛑 If the result has `.error`, stop and return error payload
         if (result?.error) {
-          console.error(
-            "Error in processing, breaking loop:",
-            result.error,
-            current
-          );
+          console.warn(result.error, current);
           breaker = true;
-          return this.errorPayload(result.error, current);
+          //return this.errorPayload(result.error, current);
+          current = { ...current, ...result };
         }
 
         // ✅ Merge any context provided
@@ -32,10 +29,16 @@ class BaseController {
           current = { ...current, ...result };
         }
       } catch (err) {
-        return this.errorPayload(
-          err.message || "Error during processing",
-          current
-        );
+        // return this.errorPayload(
+        //   err.message || "Error during processing",
+        //   current
+        // );
+        console.error("Error caught in processing step:", err, current);
+        breaker = true;
+        current = {
+          ...current,
+          error: err.message || "Error during processing",
+        };
       }
     }
     console.log("Final payload after processing:", current);

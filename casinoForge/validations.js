@@ -75,27 +75,20 @@ function validateLobbyControllerResponse(response) {
   console.log("Validating lobby controller response", response);
   if (!response || typeof response !== "object")
     return { error: "Missing response object" };
-
   if (!response?.action)
     return {
-      error: "The gameController had a problem. Missing action in response",
+      error: "The lobbyController had a problem. Missing action in response",
     };
   if (!response?.lobbyId)
     return {
-      error: "The gameController had a problem. Missing lobbyId in response",
+      error: "The lobbyController had a problem. Missing lobbyId in response",
     };
   return {};
 }
 
 function validateLobbyControllerAction(payload) {
   console.log("Validating lobby controller action", payload);
-  const { action, playerId, gameId, gameType, lobbyId, lobbies } = payload;
-  let lobby;
-  if (lobbyId) {
-    lobby = lobbies.get(lobbyId);
-    console.log(`${lobbyId} found lobby`, lobby);
-  }
-
+  const { action, playerId, gameId, gameType, lobbyId, lobby } = payload;
   switch (action) {
     case "login":
       console.log("Validating lobby login", payload);
@@ -139,11 +132,17 @@ function validateLobbyControllerAction(payload) {
         return { error: `Lobby ${lobbyId} already exists` };
       return {};
 
-    case "createGame":
+    case "createNewGame":
       console.log("Validating lobby create game", payload);
       if (!lobby) return { error: `Lobby ${lobbyId} not found` };
       if (!gameType) return { error: "Missing gameType" };
       if (!playerId) return { error: "Missing playerId" };
+      console.log("lobby.games", lobby.games);
+      console.log("is Map?", lobby.games instanceof Map);
+      console.log("gameId", gameId);
+      console.log("has game", lobby.games.has(gameId));
+      if (lobby.games.has(gameId))
+        return { error: `Game ${gameId} already exists` };
       return { lobby };
 
     case "gameEnded": {

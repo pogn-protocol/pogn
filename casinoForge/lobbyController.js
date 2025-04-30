@@ -42,17 +42,22 @@ class LobbyController extends BaseController {
   async processMessage(payload) {
     console.log("LobbyController processMessage", payload);
     let result = await super.processMessage(
-      { ...payload, lobbies: this.lobbies },
+      {
+        ...payload,
+        lobby: this.lobbies.get(payload.lobbyId),
+      },
       [
         validateLobbyControllerAction,
         checkLobbyControllerPermissions,
         (p) => ({ lobby: this.lobbies.get(p.lobbyId) }),
-        (p) =>
-          this.actionHandlers[p.action]?.(p) ??
-          this.errorPayload("Unknown action", p),
+        (p) => this.actionHandlers[p.action]?.(p),
       ]
     );
     console.log("Result after processing:", result);
+    if (result.error) {
+      console.warn("Validation error:", result.error, payload);
+      return this.errorPayload(result.error, payload);
+    }
     let validResult = validateLobbyControllerResponse(result);
     console.log("Validating result:", validResult);
     if (validResult.error) {
