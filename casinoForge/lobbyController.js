@@ -72,21 +72,15 @@ class LobbyController extends BaseController {
     );
   }
 
-  gameConfigs({ gameTypes, lobbyId }) {
-    console.log("Getting game configs for types:", gameTypes);
-    const response = {};
-    for (const type of gameTypes || []) {
-      const GameClass = this.gameController.customGames[type];
-      console.log("GameClass:", GameClass);
-      if (GameClass && typeof GameClass.getConfig === "function") {
-        response[type] = GameClass.maxPlayers;
-      }
-    }
-    console.log("Game configs response:", response);
+  gameConfigs({ gameTypes = [], lobbyId }) {
+    console.log("Fetching game configs for types:", gameTypes, lobbyId);
+    const configs = this.gameController.getGameConfigs(gameTypes);
+    console.log("Game configs:", configs);
     return {
       action: "gameConfigs",
-      gameConfigs: response,
+      gameConfigs: configs,
       private: true,
+      checker: "conker noodles",
       lobbyId,
     };
   }

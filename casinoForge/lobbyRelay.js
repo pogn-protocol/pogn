@@ -122,10 +122,33 @@ class LobbyRelay extends Relay {
 
       response.relayId ??= this.relayId;
       response.uuid = uuidv4();
+      console.log("Lobby response with uuid", response);
+      console.log("Lobby response with uuid", response);
+      if (response.payload?.private) {
+        console.log(
+          "Lobby relay sending private response to player:",
+          response.payload.private
+        );
 
-      this.sendResponse(playerId, response);
+        // Use JSON parse/stringify for deep cloning instead of structuredClone
+        const privateResponse = JSON.parse(JSON.stringify(response));
+        this.sendResponse(playerId, privateResponse);
+      }
+
+      // Clone and sanitize public broadcast copy if needed
       if (response.broadcast) {
-        this.broadcastResponse(response);
+        console.log("Lobby relay broadcasting response to all players.");
+
+        // Use JSON parse/stringify for deep cloning
+        const publicResponse = JSON.parse(JSON.stringify(response));
+        delete publicResponse.payload.private;
+        this.broadcastResponse(publicResponse);
+      }
+
+      // Only send non-broadcast response back to the requesting player if not private
+      if (!response.broadcast && !response.payload?.private) {
+        console.log("Lobby relay sending response to player:", playerId);
+        this.sendResponse(playerId, response);
       }
     } catch (error) {
       console.error(

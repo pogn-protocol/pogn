@@ -146,6 +146,27 @@ class GameController extends BaseController {
     return this.steralizePayload("game", "gameAction", result);
   }
 
+  getGameConfigs(gameTypes = []) {
+    console.log("Fetching game configs for types:", gameTypes);
+    const result = {};
+    for (const type of gameTypes) {
+      try {
+        const instance = new this.customGames[type]();
+        console.log("Game instance", instance);
+        result[type] = {
+          maxPlayers: instance.maxPlayers,
+          minPlayers: instance.minPlayers,
+        };
+        console.log("Game config", result[type]);
+      } catch (e) {
+        console.warn(`⚠️ Could not instantiate game type "${type}"`);
+        result[type] = null;
+      }
+    }
+    console.log("gameController Game configs response:", result);
+    return result;
+  }
+
   // handleGameAction({ game, gameId, playerId, gameAction }) {
   //   console.log(
   //     "GameController handleGameAction params",

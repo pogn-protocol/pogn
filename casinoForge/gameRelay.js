@@ -128,18 +128,42 @@ class GameRelay extends Relay {
       response.relayId ??= this.relayId;
       response.uuid = uuidv4();
 
-      const privateResponse = structuredClone(response);
-      delete response.payload.private;
+      if (response.payload?.private) {
+        console.log(
+          "GameRelay sending private response to:",
+          response.payload.private
+        );
+        // Using JSON parse/stringify for deep cloning
+        const privateResponse = JSON.parse(JSON.stringify(response));
+        this.sendResponse(playerId, privateResponse);
+      }
 
+      // Broadcast to all connected players, after sanitizing
       if (response.broadcast) {
-        this.broadcastResponse(response);
-      } else {
-        this.sendResponse(response.payload?.playerId, response);
+        console.log("GameRelay broadcasting response to all players.");
+        // Using JSON parse/stringify for deep cloning
+        const publicResponse = JSON.parse(JSON.stringify(response));
+        delete publicResponse.payload.private;
+        this.broadcastResponse(publicResponse);
       }
 
-      if (privateResponse.payload?.private) {
-        this.sendResponse(privateResponse.payload.playerId, privateResponse);
+      // Only send to sender if it's not a broadcast or private-only
+      if (!response.broadcast && !response.payload?.private) {
+        console.log("GameRelay sending direct response to:", playerId);
+        this.sendResponse(playerId, response);
       }
+      // if (response.payload.private) {
+      //   console.log("gameRelay private response to player:", playerId);
+      //   const privateResponse = structuredClone(response);
+      //   delete response.payload.private;
+      //   this.sendResponse(privateResponse.payload.playerId, privateResponse);
+      // }
+      // if (!response.broadcast) {
+      //   this.sendResponse(playerId, response);
+      // }
+      // if (response.broadcast) {
+      //   this.broadcastResponse(response);
+      // }
     } catch (err) {
       console.error("❌ GameRelay controller processing error:", err);
       // this.sendResponse(playerId, {
