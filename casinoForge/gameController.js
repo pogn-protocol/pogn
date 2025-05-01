@@ -35,16 +35,6 @@ class GameController extends BaseController {
     ]);
   }
 
-  // async processMessage(ws, message) {
-  //   return await super.processMessage(
-  //     message,
-  //     checkGameControllerPermissions,
-  //     (payload) => ({ ws, game: this.activeGames.get(payload.gameId) }),
-  //     validateGameControllerResponse
-  //   );
-  // }
-
-  // handleGameAction({ game, gameId, playerId, gameAction, gameActionParams }) {
   handleGameAction(payload) {
     console.log("GameController handleGameAction", payload);
     const { game, gameId, playerId, gameAction, gameActionParams } = payload;

@@ -36,6 +36,7 @@ class LobbyController extends BaseController {
       createLobby: (data) => this.createLobby(data),
       gameInvite: (data) => this.gameInvite(data),
       postGameResult: (data) => this.postGameResult(data),
+      gameConfigs: (data) => this.gameConfigs(data),
     };
   }
 
@@ -70,6 +71,26 @@ class LobbyController extends BaseController {
       result
     );
   }
+
+  gameConfigs({ gameTypes, lobbyId }) {
+    console.log("Getting game configs for types:", gameTypes);
+    const response = {};
+    for (const type of gameTypes || []) {
+      const GameClass = this.gameController.customGames[type];
+      console.log("GameClass:", GameClass);
+      if (GameClass && typeof GameClass.getConfig === "function") {
+        response[type] = GameClass.maxPlayers;
+      }
+    }
+    console.log("Game configs response:", response);
+    return {
+      action: "gameConfigs",
+      gameConfigs: response,
+      private: true,
+      lobbyId,
+    };
+  }
+
   startGame({ lobby, game }) {
     console.log("Starting game:", game.gameId);
     game.lobbyStatus = "started";

@@ -88,8 +88,15 @@ function validateLobbyControllerResponse(response) {
 
 function validateLobbyControllerAction(payload) {
   console.log("Validating lobby controller action", payload);
-  const { action, playerId, gameId, gameType, lobbyId, lobby } = payload;
+  const { action, playerId, gameId, gameType, lobbyId, lobby, gameTypes } =
+    payload;
   switch (action) {
+    case "gameConfigs":
+      console.log("Validating lobby game configs", payload);
+      if (!gameTypes) return { error: "Missing gameTypes" };
+      if (!Array.isArray(gameTypes))
+        return { error: "gameTypes must be an array" };
+
     case "login":
       console.log("Validating lobby login", payload);
       if (!lobbyId || !playerId)
