@@ -8,6 +8,8 @@ class TicTacToe extends TurnBasedGame {
     this.currentTurn = null;
     this.winner = null;
     this.movesMade = 0;
+    this.maxPlayers = 2; // max players
+    this.minPlayers = 2; // min players
   }
 
   init() {

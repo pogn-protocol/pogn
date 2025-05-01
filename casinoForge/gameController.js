@@ -44,13 +44,10 @@ class GameController extends BaseController {
   //   );
   // }
 
-  handleGameAction({ game, gameId, playerId, gameAction }) {
-    console.log("GameController handleGameAction params", {
-      game,
-      gameId,
-      playerId,
-      gameAction,
-    });
+  // handleGameAction({ game, gameId, playerId, gameAction, gameActionParams }) {
+  handleGameAction(payload) {
+    console.log("GameController handleGameAction", payload);
+    const { game, gameId, playerId, gameAction, gameActionParams } = payload;
 
     let validation;
     try {
@@ -89,9 +86,8 @@ class GameController extends BaseController {
           gameId,
         });
       }
-
       player.ready = true;
-
+      console.log("game players", game.players);
       const allReady = Array.from(game.players.values()).every((p) => p.ready);
 
       if (
@@ -99,6 +95,7 @@ class GameController extends BaseController {
         typeof game.instance.init === "function" &&
         game.gameStatus !== "in-progress"
       ) {
+        game.instance.players = new Map(game.players);
         const initResult = game.instance.init();
         game.gameStatus = "in-progress";
         console.log("Game started.", game);
@@ -125,9 +122,17 @@ class GameController extends BaseController {
     let result;
     try {
       console.log("Processing game action", gameAction);
-      result = game.instance.processAction(playerId, { gameAction });
+      result = game.instance.processAction(playerId, {
+        gameAction,
+        ...gameActionParams,
+      });
       console.log("Game action result", result);
       game.logAction(result?.logEntry || "");
+      if (!result?.action) {
+        result.action = "gameAction";
+      }
+      result.gameId = gameId;
+      result.playerId = playerId;
       let validResult = validateGameControllerResponse(result);
       if (validResult.error) {
         console.warn(

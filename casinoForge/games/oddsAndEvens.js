@@ -23,7 +23,7 @@ class OddsAndEvens extends BaseGame {
   }
 
   init() {
-    console.log("[OddsAndEvens] init() called");
+    console.log("[OddsAndEvens] init() called with this.players", this.players);
     this.roles = this.assignRoles(["odds", "evens"]);
     // this.currentTurn = Object.keys(this.roles)[0];
     Object.keys(this.roles).forEach((playerId) => {

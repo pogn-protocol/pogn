@@ -17,6 +17,7 @@ class BaseGame {
   }
 
   assignRolesShuffled(roleList) {
+    console.log(this.players, "players in assignRolesShuffled");
     const playerIds = Array.from(this.players.keys());
     const shuffled = [...playerIds].sort(() => Math.random() - 0.5);
     shuffled.forEach((id, i) => {
