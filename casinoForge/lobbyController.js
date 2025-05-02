@@ -1,4 +1,3 @@
-// Updated LobbyController integrating validateLobbyControllerAction + restoring all methods
 const BaseController = require("./baseController");
 const Lobby = require("./lobby");
 const Player = require("./player");
@@ -241,13 +240,11 @@ class LobbyController extends BaseController {
 
   refreshLobby({ lobby, playerId }) {
     return {
-      // return this.steralizePayload("lobby", "refreshLobby", {
       action: "refreshLobby",
       lobbyId: lobby.lobbyId,
       lobbyPlayers: lobby.getLobbyPlayers(),
       lobbyGames: lobby.getLobbyGames(),
       private: playerId || null,
-      // });
     };
   }
 
@@ -260,14 +257,12 @@ class LobbyController extends BaseController {
     newLobby.wsAddress = newLobbyRelay.wsAddress;
     newLobby.relayId = newLobbyRelay.id;
     this.lobbies.set(lobbyId, newLobby);
-    //  return this.steralizePayload("lobby", "newLobby", {
     return {
       newRelayId: newLobbyRelay.id,
       lobbyId,
       lobbyAddress: newLobbyRelay.wsAddress,
       lobbyPlayers: newLobby.getLobbyPlayers(),
       lobbyGames: newLobby.getLobbyGames(),
-      //   });
     };
   }
 

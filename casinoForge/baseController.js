@@ -17,25 +17,12 @@ class BaseController {
         const result = await fn(payload);
         console.log("Result after step:", result);
         current = result;
-        // 🛑 If the result has `.error`, stop and return error payload
         if (result?.error) {
           console.warn(result.error, current);
           breaker = true;
-          //return this.errorPayload(result.error, current);
-          //  current = { ...current, ...result };
-
           return;
         }
-
-        // ✅ Merge any context provided
-        // if (result && typeof result === "object") {
-        //   current = { ...current, ...result };
-        // }
       } catch (err) {
-        // return this.errorPayload(
-        //   err.message || "Error during processing",
-        //   current
-        // );
         console.error("Error caught in processing step:", err, current);
         breaker = true;
         current = {
@@ -46,11 +33,6 @@ class BaseController {
     }
     console.log("Final payload after processing:", current);
     return current;
-    // return this.steralizePayload(
-    //   current.type || this.type,
-    //   current.action,
-    //   current
-    // );
   }
 
   errorPayload(errorMessage, extra = {}) {

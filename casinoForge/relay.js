@@ -161,23 +161,11 @@ class Relay {
       }
       if (parsedMessage?.payload?.type === "ping") {
         console.log(`${this.relayId} received ping from client:`, message);
-        //get id from ws
         const pingerId = [...this.webSocketMap.keys()].find(
           (key) => this.webSocketMap.get(key) === ws
         );
-        // const   relayId = parsedMessage?.relayId;
         console.log(`🔗 Sending pong to ${pingerId}`);
-        // ws.send(
-        //   JSON.stringify({
-        //     relayId: this.relayId,
-        //     uuid: parsedMessage.uuid,
-        //     payload: {
-        //       type: "pong",
-        //       action: "pong",
-        //       message: "Ping received",
-        //     },
-        //   })
-        // );
+
         let pongMessage = {
           relayId: this.relayId,
           uuid: uuidv4(),
@@ -191,21 +179,7 @@ class Relay {
         console.log("pongMessage", pongMessage);
         console.log("ws", ws);
         ws.send(JSON.stringify(pongMessage));
-        //this.sendResponse(relayId, pongMessage);
-
-        // this.sendResponse(ws, pongMessage);
         return;
-
-        // this.sendResponse(id, {
-        //   relayId: this.relayId,
-        //   uuid: message.uuid,
-        //   payload: {
-        //     type: "pong",
-        //     action: "pong",
-        //     message: "Ping received",
-        //   },
-        // });
-        // return;
       }
       console.log(`${this.id} relay messages`, this.messages);
       if (parsedMessage?.uuid) {
@@ -284,27 +258,6 @@ class Relay {
 
     ws.send(JSON.stringify(message));
   }
-
-  // sendResponse(idOrWs, message) {
-  //   let ws = null;
-
-  //   if (typeof idOrWs === "string") {
-  //     ws = this.webSocketMap.get(idOrWs);
-  //   } else {
-  //     ws = idOrWs; // Assume it's already a WebSocket
-  //     idOrWs = this.findIdBySocket(ws);
-  //   }
-
-  //   if (!ws || ws.readyState !== ws.OPEN) {
-  //     console.warn(`⚠️ WebSocket not found or not open for ${idOrWs}`);
-  //     return;
-  //   }
-
-  //   console.log(`📡 ${this.type} Relay sending to ${idOrWs}:`);
-  //   console.log("Message:", message);
-
-  //   ws.send(JSON.stringify(message));
-  // }
 
   shutdown() {
     console.log(`🛑 Shutting down ${this.type} Relay ${this.id}...`);
