@@ -255,7 +255,7 @@ class LobbyController extends BaseController {
     };
   }
 
-  async createLobby({ lobbyId }) {
+  async createLobby({ lobbyId, playerId }) {
     const newLobby = new Lobby({ lobbyId });
     const [newLobbyRelay] = await this.relayManager.createRelays([
       { type: "lobby", id: lobbyId, options: { controller: this } },
@@ -264,12 +264,16 @@ class LobbyController extends BaseController {
     newLobby.wsAddress = newLobbyRelay.wsAddress;
     newLobby.relayId = newLobbyRelay.id;
     this.lobbies.set(lobbyId, newLobby);
+    console.log("New lobby created:", newLobby);
     return {
+      action: "newLobby",
+      lobbyId: newLobby.lobbyId,
       newRelayId: newLobbyRelay.id,
       lobbyId,
       lobbyAddress: newLobbyRelay.wsAddress,
       lobbyPlayers: newLobby.getLobbyPlayers(),
       lobbyGames: newLobby.getLobbyGames(),
+      playerId,
     };
   }
 
