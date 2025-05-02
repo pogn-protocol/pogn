@@ -26,6 +26,7 @@ function checkLobbyRelayPermissions(payload) {
 }
 
 function checkLobbyControllerPermissions(payload, lobbiesMap = new Map()) {
+  console.log("Checking lobby controller permissions", payload);
   const { playerId, action, lobbyId } = payload;
   const rules =
     PERMISSIONS.lobby.lobbies[lobbyId] || PERMISSIONS.lobby.general || {};

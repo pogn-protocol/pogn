@@ -156,19 +156,26 @@ class LobbyController extends BaseController {
     return this.refreshLobby({ lobby });
   }
 
-  gameInvite({ lobby, game }) {
-    return {
-      payload: {
-        type: "gameInvite",
+  gameInvite({ lobby, gameId }) {
+    const game = lobby.getGame(gameId);
+    if (!game) {
+      return {
+        action: "gameInviteError",
+        message: "Game not found.",
+        lobbyId: lobby.lobbyId,
+        gameId,
+      };
+    } else {
+      return {
         action: "inviteVerified",
+        lobbyId: lobby?.lobbyId,
         gameId: game.gameId,
         gameType: game.instance.gameType,
-        gameName: game.instance.gameName,
         players: game.getJoinedPlayerIds(),
         gameDetails: game.getGameDetails(),
         allowedPlayers: game.allowedPlayers,
-      },
-    };
+      };
+    }
   }
 
   async postGameResult({ playerId, lobbyId, params }) {

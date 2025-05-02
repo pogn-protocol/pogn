@@ -110,6 +110,7 @@ function validateLobbyControllerAction(payload) {
       console.log("Validating lobby join game", payload);
       if (!lobby) return { error: `Lobby ${lobbyId} not found` };
       const game = lobby.getGame(gameId);
+      console.log("game", game);
       if (!game) return { error: "Game not found" };
       if (game.players.has(playerId))
         return { error: "Player already in game" };
@@ -120,11 +121,36 @@ function validateLobbyControllerAction(payload) {
 
       let newLobbyStatus = null;
       const size = game.players.size + 1;
-      if (size >= game.instance.maxPlayers) newLobbyStatus = "readyToStart";
-      else if (size >= game.instance.minPlayers) newLobbyStatus = "canStart";
+      console.log("size", size);
+      console.log(
+        "game.instance.maxPlayers",
+        game.instance.maxPlayers,
+        "game.instance.minPlayers",
+        game.instance.minPlayers
+      );
+      if (size >= game.instance.minPlayers) newLobbyStatus = "canStart";
+      if (size === game.instance.maxPlayers) newLobbyStatus = "readyToStart";
 
+      console.log("newLobbyStatus", newLobbyStatus);
       return { lobby, game, newLobbyStatus };
     }
+    // case "joinLobbyPlayerToGame":
+    //   const newLobbyStatus = null;
+    //   console.log("Validating lobby join player to game", payload);
+    //   if (!lobby) return { error: `Lobby ${lobbyId} not found` };
+    //   const game = lobby.getGame(gameId);
+    //   if (!game) return { error: "Game not found" };
+    //   if (game.players.has(playerId))
+    //     return { error: "Player already in game" };
+    //   if (game.players.size >= game.instance.maxPlayers)
+    //     return { error: "Game is full" };
+    //   if (game.isPrivate && !game.allowedPlayers.includes(playerId))
+    //     return { error: "Not invited to private game" };
+    //   if (game.players.size === game.instance.maxPlayers)
+    //     newLobbyStatus = "readyToStart";
+    //   if (game.players.size === game.instance.minPlayers)
+    //     newLobbyStatus = "canStart";
+    //   return { lobby, game, playerId, newLobbyStatus };
 
     case "refreshLobby":
       console.log("Validating lobby refresh", payload);
