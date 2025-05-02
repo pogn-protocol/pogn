@@ -172,7 +172,7 @@ class LobbyController extends BaseController {
     };
   }
 
-  postGameResult({ playerId, lobbyId, params }) {
+  async postGameResult({ playerId, lobbyId, params }) {
     const { gameSummary, profile } = params || {};
     const key = `${playerId}-${lobbyId}`;
     const now = Date.now();
@@ -217,21 +217,24 @@ class LobbyController extends BaseController {
       ];
 
       const pool = new SimplePool();
-      pool.publish(relays, event);
+      await Promise.any(pool.publish(relays, event));
 
       return {
         action: "postGameResultConfirmed",
         playerId,
         status: "success",
         message: "Game result posted to POGN Gamehub account on nostr.",
+        lobbyId,
       };
     } catch (err) {
+      console.log("Error posting game result:", err);
       return {
         type: "error",
         action: "postGameResultFailed",
         message: err.message,
         playerId,
         private: playerId,
+        lobbyId,
       };
     }
   }

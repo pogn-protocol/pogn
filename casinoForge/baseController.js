@@ -7,27 +7,30 @@ class BaseController {
 
   async processMessage(payload, steps = []) {
     console.log(`Processing message in Base controller:`, payload);
-    let current = { ...payload };
+    let current;
     let breaker = false;
     for (const fn of steps) {
       if (typeof fn !== "function") continue;
       if (breaker) break;
 
       try {
-        const result = await fn(current);
+        const result = await fn(payload);
         console.log("Result after step:", result);
+        current = result;
         // 🛑 If the result has `.error`, stop and return error payload
         if (result?.error) {
           console.warn(result.error, current);
           breaker = true;
           //return this.errorPayload(result.error, current);
-          current = { ...current, ...result };
+          //  current = { ...current, ...result };
+
+          return;
         }
 
         // ✅ Merge any context provided
-        if (result && typeof result === "object") {
-          current = { ...current, ...result };
-        }
+        // if (result && typeof result === "object") {
+        //   current = { ...current, ...result };
+        // }
       } catch (err) {
         // return this.errorPayload(
         //   err.message || "Error during processing",
