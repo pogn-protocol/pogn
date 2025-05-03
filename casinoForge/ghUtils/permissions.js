@@ -1,4 +1,4 @@
-const { PERMISSIONS } = require("../../configs/pognConfigs");
+const { PERMISSIONS } = require("../configs/pognConfigs");
 
 function checkLobbyRelayPermissions(payload) {
   console.log("Checking lobby relay permissions", payload);
