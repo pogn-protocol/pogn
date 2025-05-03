@@ -2,9 +2,9 @@ const { Server } = require("ws");
 const express = require("express");
 const pognConfigs = require("./pognConfigs");
 
-const RelayManager = require("./casinoForge/relayManager");
-const GameController = require("./casinoForge/gameController");
-const LobbyController = require("./casinoForge/lobbyController");
+const RelayManager = require("./casinoForge/relay/relayManager");
+const GameController = require("./casinoForge/controllers/gameController");
+const LobbyController = require("./casinoForge/controllers/lobbyController");
 const http = require("http");
 
 // 🟢 Start dummy Express server for Heroku web dyno

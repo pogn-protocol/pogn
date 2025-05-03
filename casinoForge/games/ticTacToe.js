@@ -1,4 +1,4 @@
-const TurnBasedGame = require("../turnBasedGame");
+const TurnBasedGame = require("../gameClasses/turnBasedGame");
 
 class TicTacToe extends TurnBasedGame {
   constructor() {
