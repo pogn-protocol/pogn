@@ -1,6 +1,6 @@
 const { Server } = require("ws");
 const express = require("express");
-const pognConfigs = require("./pognConfigs");
+const pognConfigs = require("./configs/pognConfigs");
 
 const RelayManager = require("./casinoForge/relay/relayManager");
 const GameController = require("./casinoForge/controllers/gameController");
