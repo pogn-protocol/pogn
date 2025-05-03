@@ -1,3 +1,5 @@
+Note: Still scaffolding using the Casino Forge folder before actually filling the pogn folder with working code.  Refactoring and breaking changes etc. for now.
+
 # Poker and Other Games on Nostr
 
 (note: the demo only does oddsAndEvens and rockPaperScissors atm)
