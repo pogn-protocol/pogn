@@ -1,7 +1,9 @@
 const BaseController = require("./baseController");
-const Lobby = require("../lobby");
-const Player = require("../player");
-const { checkLobbyControllerPermissions } = require("../ghUtils/permissions");
+const Lobby = require("../gameHubClasses/lobby");
+const Player = require("../gameHubClasses/player");
+const {
+  checkLobbyControllerPermissions,
+} = require("../gamehubUtils/permissions");
 const {
   SimplePool,
   getPublicKey,
@@ -13,7 +15,7 @@ useWebSocketImplementation(WebSocket);
 const {
   validateLobbyControllerResponse,
   validateLobbyControllerAction,
-} = require("../ghUtils/validations");
+} = require("../gamehubUtils/validations");
 
 class LobbyController extends BaseController {
   constructor({ gameController, relayManager, lobbyPorts = [], lobbyWsUrl }) {

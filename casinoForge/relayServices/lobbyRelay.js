@@ -1,7 +1,9 @@
 const Relay = require("./relay");
 const { v4: uuidv4 } = require("uuid");
-const { validateLobbyRelayMessageRecieved } = require("../ghUtils/validations");
-const { checkLobbyRelayPermissions } = require("../ghUtils/permissions");
+const {
+  validateLobbyRelayMessageRecieved,
+} = require("../gamehubUtils/validations");
+const { checkLobbyRelayPermissions } = require("../gamehubUtils/permissions");
 
 class LobbyRelay extends Relay {
   constructor({ id, ports, lobbyController, host }) {

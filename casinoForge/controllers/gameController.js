@@ -1,11 +1,13 @@
 const cusGames = require("../games/gamesIndex");
 const BaseController = require("./baseController");
-const Game = require("../game");
-const { checkGameControllerPermissions } = require("../ghUtils/permissions");
+const Game = require("../gameHubClasses/game");
+const {
+  checkGameControllerPermissions,
+} = require("../gamehubUtils/permissions");
 const {
   validateGameControllerResponse,
   validateGameAction,
-} = require("../ghUtils/validations");
+} = require("../gamehubUtils/validations");
 
 class GameController extends BaseController {
   constructor({ gamePorts = [], lobbyWsUrl, relayManager, customGames }) {
