@@ -3,7 +3,7 @@ dotenv.config();
 
 const ENV = process.env.ENV || "development";
 console.log(`🚀 Starting POGN in ${ENV} mode...`);
-const PERMISSIONS = require("./permissionConfigs");
+const PERMISSIONS = require("./casinoForge/ghUtils/permissionConfigs");
 const INITGAMES_CONFIG = require("./initGamesConfigs");
 const INITGAMES = INITGAMES_CONFIG[ENV] || [];
 const CONFIGS = {
