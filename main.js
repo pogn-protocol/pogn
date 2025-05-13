@@ -69,6 +69,11 @@ if (pognConfigs.SHARED_PORT_MODE) {
       }
       console.log(`🔗 Routing shared WebSocket to Relay`, relay);
 
+      if (![...relay.webSocketMap.values()].includes(ws)) {
+        console.log("🛠 Adding new socket to relay webSocketMap", ws);
+        relay.handleConnection(ws);
+      }
+
       relay.handleMessage(ws, rawMsg);
     });
   });

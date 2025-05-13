@@ -81,7 +81,6 @@ class LobbyController extends BaseController {
       action: "gameConfigs",
       gameConfigs: configs,
       private: true,
-      checker: "conker noodles",
       lobbyId,
     };
   }
