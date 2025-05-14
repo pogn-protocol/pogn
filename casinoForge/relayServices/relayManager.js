@@ -3,6 +3,9 @@ global.WebSocket = WebSocket;
 const LobbyRelay = require("./lobbyRelay");
 const GameRelay = require("./gameRelay");
 const RelayConnector = require("./relayConnector");
+const Relay = require("./relay");
+const ChatRelay = require("./chatRelay");
+const DisplayGameRelay = require("./displayGameRelay");
 
 class RelayManager {
   constructor({
@@ -63,6 +66,28 @@ class RelayManager {
       );
 
       switch (type) {
+        case "chat":
+          const ChatRelay = require("./chatRelay");
+          relay = new ChatRelay({
+            id,
+            ports,
+            host: options.host || this.host,
+          });
+
+          await relay.init(this.sharedPortMode ? this.sharedServer : null);
+          break;
+
+        case "displayGame": {
+          const DisplayGameRelay = require("./displayGameRelay");
+          relay = new DisplayGameRelay({
+            id,
+            ports,
+            host: options.host || this.host,
+          });
+
+          await relay.init(this.sharedPortMode ? this.sharedServer : null);
+          break;
+        }
         case "lobby":
           //  constructor({ id, ports, lobbyController, host }) {
           // relay = new LobbyRelay(

@@ -14,8 +14,6 @@ class Relay {
     this.messages = []; // Store messages for later use
     // this.sharedServer = sharedServer;
     //this.consoleTest(Date.now(), 15000); // Broadcast every 5 seconds
-    this.playerMap = new Map(); // playerId → WebSocket
-    this.seatMap = new Map(); // playerId → seatIndex
   }
 
   consoleTest(start, duration) {
@@ -125,6 +123,20 @@ class Relay {
 
     ws.on("close", () => {
       console.log(`🛑 ${this.type} Relay WebSocket closed`);
+      for (const [playerId, socket] of this.chatMap.entries()) {
+        if (socket === ws) {
+          this.chatMap.delete(playerId);
+          const leaveMessage = {
+            payload: {
+              type: "chat",
+              playerId: "system",
+              text: `${playerId.slice(0, 6)} left chat.`,
+            },
+          };
+          this.broadcastResponse(leaveMessage);
+          break;
+        }
+      }
       this.removeSocket(ws);
     });
   }
@@ -201,120 +213,6 @@ class Relay {
         console.log("pongMessage", pongMessage);
         console.log("ws", ws);
         ws.send(JSON.stringify(pongMessage));
-        return;
-      }
-      if (parsedMessage?.payload?.type === "chat") {
-        console.log("💬 Chat message received:", parsedMessage.payload);
-
-        // Broadcast to everyone in this relay
-        this.broadcastResponse(parsedMessage);
-        return;
-      }
-      if (parsedMessage?.payload?.type === "displayGame") {
-        const { action, playerId, seatIndex, amount } = parsedMessage.payload;
-
-        if (action === "sit" && playerId && typeof seatIndex === "number") {
-          this.playerMap.set(playerId, ws);
-          this.seatMap.set(playerId, seatIndex);
-
-          // 🧹 Remove any previous or temp keys pointing to same socket
-          for (const [key, socket] of this.webSocketMap.entries()) {
-            if (socket === ws && key !== playerId) {
-              this.webSocketMap.delete(key); // drop temp
-            }
-            if (key === playerId && socket !== ws) {
-              socket.close(); // kick older one
-              this.webSocketMap.delete(key);
-            }
-          }
-
-          this.webSocketMap.set(playerId, ws); // final correct binding
-        }
-
-        if (action === "leave" && playerId) {
-          this.playerMap.delete(playerId);
-          this.seatMap.delete(playerId);
-          console.log(`👋 Player ${playerId} left table.`);
-        }
-
-        // Ensure bots are seated if there's room
-        const MAX_SEATS = 6;
-        const bot1Id = "pokerBot";
-        const bot2Id = "pokerBot2";
-
-        const currentSeats = new Set(this.seatMap.values());
-        const occupied = new Set(this.seatMap.keys());
-
-        if (!occupied.has(bot1Id)) {
-          for (let i = 0; i < MAX_SEATS; i++) {
-            if (!currentSeats.has(i)) {
-              this.seatMap.set(bot1Id, i);
-              this.playerMap.set(bot1Id, null);
-              break;
-            }
-          }
-        }
-
-        if (!occupied.has(bot2Id)) {
-          for (let i = 0; i < MAX_SEATS; i++) {
-            if (!currentSeats.has(i)) {
-              this.seatMap.set(bot2Id, i);
-              this.playerMap.set(bot2Id, null);
-              break;
-            }
-          }
-        }
-
-        // ⬇️ Build playersAtTable list
-        const playersAtTable = Array.from(this.seatMap.entries()).map(
-          ([playerId, seatIndex]) => ({ playerId, seatIndex })
-        );
-
-        const enrichedMessage = {
-          ...parsedMessage,
-          payload: {
-            ...parsedMessage.payload,
-            playersAtTable,
-          },
-        };
-
-        // 1️⃣ Broadcast player's action
-        this.broadcastResponse(enrichedMessage);
-
-        // 2️⃣ Find who's next (dummy logic for now)
-        const orderedPlayers = playersAtTable
-          .slice()
-          .sort((a, b) => a.seatIndex - b.seatIndex)
-          .map((entry) => entry.playerId);
-        const currentIndex = orderedPlayers.indexOf(playerId);
-        const nextPlayerId =
-          orderedPlayers[(currentIndex + 1) % orderedPlayers.length];
-
-        // 3️⃣ If next player is a bot, simulate action
-        const isCurrentBot = ["pokerBot", "pokerBot2"].includes(playerId);
-        const isNextBot = ["pokerBot", "pokerBot2"].includes(nextPlayerId);
-
-        if (!isCurrentBot && isNextBot) {
-          setTimeout(() => {
-            const botAction = "bet";
-            const botAmount = 10;
-
-            console.log(
-              `🤖 Bot ${nextPlayerId} acting with ${botAction} ${botAmount}`
-            );
-
-            this.broadcastResponse({
-              relayId: "lobby1",
-              payload: {
-                type: "displayGame",
-                action: botAction,
-                playerId: nextPlayerId,
-                amount: botAction === "bet" ? botAmount : undefined,
-              },
-            });
-          }, 5000);
-        }
-
         return;
       }
 

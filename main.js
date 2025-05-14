@@ -29,6 +29,28 @@ const relayManager = new RelayManager({
   host: pognConfigs.HOST,
 });
 
+// Boot Chat and DisplayGame Relays on the shared WebSocket server
+(async () => {
+  await relayManager.createRelays([
+    {
+      type: "chat",
+      id: "chatRelay",
+      options: {
+        ports: [PORT], // Not used in SHARED_PORT_MODE, but required for compatibility
+        host: pognConfigs.HOST,
+      },
+    },
+    {
+      type: "displayGame",
+      id: "displayGameRelay",
+      options: {
+        ports: [PORT],
+        host: pognConfigs.HOST,
+      },
+    },
+  ]);
+})();
+
 if (pognConfigs.SHARED_PORT_MODE) {
   // sharedServer = new Server({ server }); // ✅ attach to *existing* HTTP server
   console.log(`🔁 Shared WebSocket server attached to port ${PORT}`);
