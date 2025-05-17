@@ -3,6 +3,7 @@ const Relay = require("./relay");
 class ChatRelay extends Relay {
   constructor({ id, ports, host }) {
     super({ type: "chat", id, ports, host });
+    this.chatMap = new Map();
   }
 
   async processMessage(ws, message) {

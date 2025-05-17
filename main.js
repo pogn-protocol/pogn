@@ -34,7 +34,7 @@ const relayManager = new RelayManager({
   await relayManager.createRelays([
     {
       type: "chat",
-      id: "chatRelay",
+      id: "chat",
       options: {
         ports: [PORT], // Not used in SHARED_PORT_MODE, but required for compatibility
         host: pognConfigs.HOST,
@@ -42,7 +42,7 @@ const relayManager = new RelayManager({
     },
     {
       type: "displayGame",
-      id: "displayGameRelay",
+      id: "displayGame",
       options: {
         ports: [PORT],
         host: pognConfigs.HOST,
