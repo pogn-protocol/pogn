@@ -15,6 +15,7 @@
     "express": "^5.1.0",
     "gensync": "^1.0.0-beta.2",
     "globals": "^11.12.0",
+    "handranker": "^1.0.5",
     "irisdb": "^1.0.14",
     "js-tokens": "^4.0.0",
     "jsesc": "^3.1.0",
