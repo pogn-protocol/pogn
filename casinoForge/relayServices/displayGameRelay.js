@@ -9,123 +9,141 @@ class DisplayGameRelay extends Relay {
     this.game = new PokerGame();
     this.botId = "pokerBot";
 
-    // 👇 Inject bot once after first real player joins
-    if (!this.seatMap.has(this.botId)) {
-      const openSeat = [...Array(this.ports.length).keys()].find(
-        (i) => ![...this.seatMap.values()].includes(i)
-      );
-      if (openSeat !== undefined) {
-        this.seatMap.set(this.botId, openSeat);
-        this.playerMap.set(this.botId, null); // no actual socket
-        this.game.addPlayer(this.botId);
-      }
-    }
+    this.game.addPlayer(this.botId);
+    this.playerMap.set(this.botId, null);
+    this.seatMap.set(this.botId, 0);
+    this.botThinking = false;
   }
 
   async processMessage(ws, message) {
-    const { playerId, seatIndex } = message?.payload || {};
+    const { playerId, seatIndex, action } = message?.payload || {};
 
-    if (message?.payload?.action === "sit" && typeof seatIndex === "number") {
+    if (action === "sit" && typeof seatIndex === "number") {
       this.playerMap.set(playerId, ws);
       this.seatMap.set(playerId, seatIndex);
       this.game.addPlayer(playerId);
 
-      // ✅ Broadcast the updated seat map and game state
-      const playersAtTable = Array.from(this.seatMap.entries()).map(
-        ([id, index]) => ({ playerId: id, seatIndex: index })
-      );
+      this._broadcastGameState("sit", playerId, seatIndex, {
+        broadcast: true,
+        updates: this.game.getGameDetails(),
+      });
 
+      const realPlayerCount = [...this.seatMap.keys()].filter(
+        (id) => id !== this.botId
+      ).length;
+      if (!this.game.started && realPlayerCount >= 2) {
+        const result = this.game.processMessage({
+          action: "startHand",
+          seatMap: this.seatMap,
+        });
+        this._broadcastGameState("startHand", null, null, result);
+      }
+      return;
+    }
+
+    if (action === "leave") {
+      this.playerMap.delete(playerId);
+      this.seatMap.delete(playerId);
+      this.game.removePlayer(playerId);
+      return;
+    }
+
+    const result = this.game.processMessage(message.payload);
+    if (!result) return;
+    this._broadcastGameState(action, playerId, seatIndex, result);
+  }
+
+  _broadcastGameState(action, playerId, seatIndex, result = {}) {
+    console.log(
+      `🔄 Broadcasting action: ${action}, playerId: ${playerId}, seatIndex: ${seatIndex}, 
+      result:`,
+      result
+    );
+    const playersAtTable = Array.from(this.seatMap.entries()).map(
+      ([id, index]) => ({ playerId: id, seatIndex: index })
+    );
+
+    if (result.broadcast) {
       this.broadcastResponse({
         relayId: this.id,
         payload: {
           type: "displayGame",
-          action: "sit",
+          action,
           playerId,
           seatIndex,
           playersAtTable,
-          gameState: this.game.getGameDetails(),
+          gameState: result.updates,
         },
       });
-
-      // 🔥 FIX: Only auto-start if there are at least 2 *real* (non-bot) players
-      const realPlayerCount = [...this.playerMap.keys()].filter(
-        (id) => id !== this.botId
-      ).length;
-
-      if (!this.game.started && realPlayerCount >= 2) {
-        const startMsg = { action: "startHand" };
-        return this.processMessage(null, { payload: startMsg });
-      }
-
-      return;
     }
 
-    if (message?.payload?.action === "leave") {
-      this.playerMap.delete(playerId);
-      this.seatMap.delete(playerId);
-      this.game.removePlayer(playerId);
-    }
+    if (result.privateHands) {
+      for (const [id, hand] of Object.entries(result.privateHands)) {
+        const socket = this.playerMap.get(id);
+        if (!socket) continue;
 
-    // 🎯 Forward game actions to PokerGame
-    const result = this.game.processMessage(message.payload);
-    if (!result) return;
+        const visibleHands = {};
+        for (const [otherId, otherHand] of Object.entries(
+          result.privateHands
+        )) {
+          visibleHands[otherId] = otherId === id ? otherHand : [null, null];
+        }
 
-    const { updates, broadcast, privateHands, botTurn } = result;
-
-    // 🔁 Broadcast shared state
-    if (broadcast) {
-      const enriched = {
-        ...message,
-        payload: {
-          ...message.payload,
-          playersAtTable: Array.from(this.seatMap.entries()).map(
-            ([id, index]) => ({ playerId: id, seatIndex: index })
-          ),
-          gameState: updates,
-        },
-      };
-      this.broadcastResponse(enriched);
-    }
-
-    // 🔐 Private hole cards
-    if (privateHands) {
-      for (const [id, hand] of Object.entries(privateHands)) {
-        const ws = this.playerMap.get(id);
-        if (!ws) continue;
-        this.sendResponse(ws, {
+        this.sendResponse(socket, {
           relayId: this.id,
           payload: {
             type: "displayGame",
             action: "privateHand",
             private: true,
-            hand,
+            hands: visibleHands,
             playerId: id,
+            gameState: result.updates,
           },
         });
       }
     }
-
-    // 🤖 Bot logic
-    if (botTurn === this.botId) {
-      setTimeout(() => this.handleBotAction(), 3000);
+    console.log(`currentTurn: ${this.game.getCurrentTurn()}`);
+    console.log(`botId: ${this.botId}`);
+    if (
+      this.game.started &&
+      this.game.getCurrentTurn() === this.botId &&
+      !this.botThinking
+    ) {
+      this.botThinking = true;
+      console.log(`🤖 Bot ${this.botId} is taking action...`);
+      setTimeout(() => this._handleBotAction(), 3000);
+    } else {
+      console.log(`Not bot's turn: ${result.botTurn}`);
     }
   }
 
-  handleBotAction() {
+  _handleBotAction() {
     const botAction = this.game.suggestBotAction(this.botId);
-    if (!botAction) return;
+    if (!botAction) {
+      this.botThinking = false;
+      return;
+    }
 
-    const msg = {
-      relayId: "displayGame",
-      payload: {
-        type: "displayGame",
-        action: botAction.action,
-        amount: botAction.amount,
-        playerId: this.botId,
-      },
-    };
+    const result = this.game.processMessage({
+      type: "displayGame",
+      playerId: this.botId,
+      action: botAction.action,
+      amount: botAction.amount,
+    });
+    console.log(
+      `🤖 Bot ${this.botId} action: ${botAction.action}, amount: ${botAction.amount}, result`,
+      result
+    );
+    if (result) {
+      this._broadcastGameState(
+        botAction.action,
+        this.botId,
+        this.seatMap.get(this.botId),
+        result
+      );
+    }
 
-    this.processMessage(this.playerMap.get(this.botId), msg);
+    this.botThinking = false; // ✅ moved here AFTER broadcasting
   }
 }
 

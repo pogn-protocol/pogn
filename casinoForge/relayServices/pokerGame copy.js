@@ -7,8 +7,6 @@ class PokerGame {
     this.pot = 0;
     this.smallBlind = 10;
     this.bigBlind = 20;
-    this.street = "preflop";
-    this.communityCards = [];
   }
 
   addPlayer(playerId) {
@@ -36,22 +34,26 @@ class PokerGame {
     this.started = true;
     this.deck = this._generateDeck();
 
+    // Get players sorted by seatIndex
     const sortedPlayers = Array.from(seatMap.entries())
-      .sort((a, b) => a[1] - b[1])
+      .sort((a, b) => a[1] - b[1]) // sort by seatIndex
       .map(([playerId]) => playerId);
 
     this.turnOrder = sortedPlayers;
 
+    // Rotate dealer
     if (this.turnOrder.length > 1) {
       this.turnOrder.push(this.turnOrder.shift());
     }
 
+    // Reset and deal hands
     for (const player of this.players.values()) {
       player.hasFolded = false;
       player.bet = 0;
       player.hand = [this.deck.pop(), this.deck.pop()];
     }
 
+    // Post blinds
     const smallBlindId = this.turnOrder[0];
     const bigBlindId = this.turnOrder[1 % this.turnOrder.length];
 
@@ -67,13 +69,11 @@ class PokerGame {
       [bigBlindId]: "BB",
     };
 
-    this.street = "preflop";
-    this.communityCards = [];
-
     const active = this.turnOrder.filter(
       (id) =>
         !this.players.get(id)?.hasFolded && this.players.get(id)?.stack > 0
     );
+
     const idx = active.indexOf(bigBlindId);
     this.currentTurnIndex = this.turnOrder.indexOf(
       active[(idx + 1) % active.length]
@@ -93,15 +93,21 @@ class PokerGame {
   }
 
   getGameDetails() {
-    return {
+    const gameDetails = {
       started: this.started,
       players: Object.fromEntries(this.players),
       turn: this.getCurrentTurn(),
       pot: this.pot,
-      blindInfo: this.blindInfo || {},
-      street: this.street,
-      communityCards: this.communityCards,
+      blindInfo: this.blindInfo || {}, // <-- add this line
     };
+    console.log("🔄 Game details requested:", gameDetails);
+    return gameDetails;
+    // return {
+    //   players: Object.fromEntries(this.players),
+    //   turn: this.getCurrentTurn(),
+    //   pot: this.pot,
+    //   blindInfo: this.blindInfo || {}, // <-- add this line
+    // };
   }
 
   processMessage({ playerId, action, amount, seatMap }) {
@@ -152,7 +158,11 @@ class PokerGame {
         break;
 
       case "check":
+        // Nothing to deduct or add — valid only if current bet is 0
         break;
+
+      default:
+        return; // Invalid action
     }
 
     this._advanceTurn();
@@ -166,52 +176,12 @@ class PokerGame {
     this.currentTurnIndex = this.turnOrder.indexOf(
       active[(idx + 1) % active.length]
     );
-
-    if (this._isRoundComplete()) {
-      this._advanceStreet();
-    }
-  }
-
-  _isRoundComplete() {
-    const active = this.turnOrder.filter(
-      (id) => !this.players.get(id)?.hasFolded
-    );
-    const bets = active.map((id) => this.players.get(id).bet);
-    const uniqueBets = new Set(bets);
-    return uniqueBets.size <= 1;
-  }
-
-  _advanceStreet() {
-    switch (this.street) {
-      case "preflop":
-        this.communityCards = [
-          this.deck.pop(),
-          this.deck.pop(),
-          this.deck.pop(),
-        ];
-        this.street = "flop";
-        break;
-      case "flop":
-        this.communityCards.push(this.deck.pop());
-        this.street = "turn";
-        break;
-      case "turn":
-        this.communityCards.push(this.deck.pop());
-        this.street = "river";
-        break;
-      case "river":
-        this.street = "showdown";
-        break;
-    }
-
-    for (const player of this.players.values()) {
-      player.bet = 0;
-    }
   }
 
   suggestBotAction(botId) {
     const bot = this.players.get(botId);
     if (!bot || bot.hasFolded) return null;
+    // bet  is 3 x big blind
     const bet = this.bigBlind * 3;
     return bot.stack >= 10
       ? { action: "bet", amount: bet }
@@ -243,6 +213,7 @@ class PokerGame {
       }
     }
 
+    // Shuffle
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];

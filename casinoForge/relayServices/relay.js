@@ -123,20 +123,6 @@ class Relay {
 
     ws.on("close", () => {
       console.log(`🛑 ${this.type} Relay WebSocket closed`);
-      for (const [playerId, socket] of this.chatMap.entries()) {
-        if (socket === ws) {
-          this.chatMap.delete(playerId);
-          const leaveMessage = {
-            payload: {
-              type: "chat",
-              playerId: "system",
-              text: `${playerId.slice(0, 6)} left chat.`,
-            },
-          };
-          this.broadcastResponse(leaveMessage);
-          break;
-        }
-      }
       this.removeSocket(ws);
     });
   }
