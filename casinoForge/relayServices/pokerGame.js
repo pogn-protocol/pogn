@@ -1,5 +1,27 @@
 const Ranker = require("handranker");
 
+class Player {
+  constructor(seatIndex) {
+    this.seatIndex = seatIndex;
+    this.stack = 1000;
+    this.bet = 0;
+    this.hand = [];
+    this.hasFolded = false;
+    this.isDealer = false;
+    this.isSB = false;
+    this.isBB = false;
+  }
+
+  resetForNewHand() {
+    this.bet = 0;
+    this.hand = [];
+    this.hasFolded = false;
+    this.isDealer = false;
+    this.isSB = false;
+    this.isBB = false;
+  }
+}
+
 class PokerGame {
   constructor() {
     this.players = new Map();
@@ -12,41 +34,47 @@ class PokerGame {
     this.street = "preflop";
     this.communityCards = [];
     this.showdownResolved = false;
+    this.seatedButWaiting = new Set();
+    this.buttonIndex = 0;
   }
 
-  processMessage({ playerId, action, amount, seatMap }) {
+  processGameMessage({ playerId, action, seatIndex, amount, testConfig }) {
     console.log(
-      `➡️ Player ${playerId} performs ${action} with amount ${amount}`
+      "playerId:",
+      playerId,
+      "action:",
+      action,
+      "amount:",
+      amount,
+      "seatIndex:",
+      seatIndex,
+      "testConfig:",
+      testConfig
     );
-
     switch (action) {
+      case "sit":
+        this.addPlayer(playerId, seatIndex);
+        return { updates: this.getGameDetails() };
+      case "leave":
+        this.removePlayer(playerId);
+        return { updates: this.getGameDetails() };
+
       case "startHand":
-        this.startNewHand(seatMap);
-        return {
-          broadcast: true,
-          updates: this.getGameDetails(),
-          privateHands: this.getPrivateHands(),
-        };
-      case "endHand":
-        this.started = false;
-        return { broadcast: true, updates: this.getGameDetails() };
+        return this.startNewHand(testConfig);
+
       case "bet":
       case "check":
       case "fold":
-        console.log(
-          `🔄 Player ${playerId} action: ${action}, amount: ${amount}`
-        );
         const result = this.processAction(playerId, { action, amount });
-        console.log(
-          `🔄 Result after processing action: ${JSON.stringify(result)}`
-        );
         return {
           broadcast: true,
           updates: this.getGameDetails(),
           botTurn: this.getCurrentTurn(),
-          ...(result || {}), // ✅ add showdownWinner/results if present
+          ...(result || {}),
         };
+
       default:
+        console.warn(`⚠️ Unhandled action: ${action}`);
         return null;
     }
   }
@@ -79,34 +107,43 @@ class PokerGame {
     return result || null;
   }
 
-  startNewHand(seatMap, testConfig = null) {
-    console.log("🟢 Starting new hand with seatMap:", seatMap);
-    console.log("Test config:", testConfig);
+  startNewHand(testConfig = null) {
+    for (const id of this.seatedButWaiting) {
+      const player = this.players.get(id);
+      if (player) player.resetForNewHand();
+    }
+    this.seatedButWaiting.clear();
+
     this.started = true;
     this.deck = this._generateDeck();
 
-    const sortedPlayers = Array.from(seatMap.entries())
-      .sort((a, b) => a[1] - b[1])
-      .map(([playerId]) => playerId);
+    const sorted = Array.from(this.players.entries())
+      .filter(([_, p]) => typeof p.seatIndex === "number")
+      .sort(([, a], [, b]) => a.seatIndex - b.seatIndex);
 
-    this.turnOrder = sortedPlayers;
-
-    if (this.turnOrder.length === 2) {
-    } else if (this.turnOrder.length > 2) {
-      this.turnOrder.push(this.turnOrder.shift());
+    const playerIds = sorted.map(([id]) => id);
+    if (playerIds.length === 2) {
+      this.buttonIndex = (this.buttonIndex + 1) % 2;
+    } else if (playerIds.length > 2) {
+      this.buttonIndex = (this.buttonIndex + 1) % playerIds.length;
     }
+    this.turnOrder = playerIds;
+    this._setInitialTurnIndex();
 
-    for (const [id, player] of this.players.entries()) {
-      player.hasFolded = false;
-      player.bet = 0;
+    for (let i = 0; i < playerIds.length; i++) {
+      const id = playerIds[i];
+      const player = this.players.get(id);
+      player.resetForNewHand();
       player.hand = testConfig?.hands?.[id] || [
         this.deck.pop(),
         this.deck.pop(),
       ];
+      player.isDealer = i === this.buttonIndex;
+      player.isSB = i === (this.buttonIndex + 1) % playerIds.length;
+      player.isBB = i === (this.buttonIndex + 2) % playerIds.length;
     }
 
     if (testConfig?.board) {
-      console.log("Injecting test board:", testConfig.board);
       this.communityCards = [...testConfig.board];
       this.street = "showdown";
     } else {
@@ -114,92 +151,111 @@ class PokerGame {
       this.street = "preflop";
     }
 
-    const smallBlindId = this.turnOrder[0];
-    const bigBlindId = this.turnOrder[1 % this.turnOrder.length];
+    this._postBlinds();
 
-    this.players.get(smallBlindId).stack -= this.smallBlind;
-    this.players.get(smallBlindId).bet = this.smallBlind;
-
-    this.players.get(bigBlindId).stack -= this.bigBlind;
-    this.players.get(bigBlindId).bet = this.bigBlind;
-
-    this.pot = this.smallBlind + this.bigBlind;
-    this.blindInfo = {
-      [smallBlindId]: "SB",
-      [bigBlindId]: "BB",
+    return {
+      broadcast: true,
+      updates: this.getGameDetails(),
+      private: this.getPrivateHands(),
     };
-
-    // this.street = "preflop";
-    // this.communityCards = [];
-
-    this._setInitialTurnIndex(smallBlindId, bigBlindId);
   }
 
-  addPlayer(playerId) {
+  _postBlinds() {
+    this.pot = 0;
+    for (const player of this.players.values()) {
+      if (player.isSB) {
+        player.stack -= this.smallBlind;
+        player.bet = this.smallBlind;
+        this.pot += this.smallBlind;
+      }
+      if (player.isBB) {
+        player.stack -= this.bigBlind;
+        player.bet = this.bigBlind;
+        this.pot += this.bigBlind;
+      }
+    }
+  }
+
+  getPrivateHands() {
+    const privateMap = {};
+    for (const [id, player] of this.players.entries()) {
+      privateMap[id] = { hand: [...player.hand] };
+    }
+    return privateMap;
+  }
+
+  getGameDetails() {
+    const playerData = {};
+    for (const [id, p] of this.players.entries()) {
+      playerData[id] = {
+        seatIndex: p.seatIndex,
+        stack: p.stack,
+        bet: p.bet,
+        hand: [...p.hand],
+        hasFolded: p.hasFolded,
+        isDealer: p.isDealer,
+        isSB: p.isSB,
+        isBB: p.isBB,
+      };
+    }
+    return {
+      started: this.started,
+      players: playerData,
+      pot: this.pot,
+      street: this.street,
+      communityCards: this.communityCards,
+    };
+  }
+
+  _handleSinglePlayerWin(winnerId) {
+    console.log(`🏆 Single player win: ${winnerId} gets pot ${this.pot}`);
+    this.players.get(winnerId).stack += this.pot;
+    this.pot = 0;
+    return {
+      broadcast: true,
+      updates: this.getGameDetails(),
+      showdownWinner: winnerId,
+    };
+  }
+
+  addPlayer(playerId, seatIndex) {
     if (!this.players.has(playerId)) {
-      this.players.set(playerId, {
-        stack: 1000,
-        hasFolded: false,
-        bet: 0,
-        hand: [],
-      });
-      this._recalculateTurnOrder();
+      this.players.set(playerId, new Player(seatIndex));
+      if (this.started) {
+        this.seatedButWaiting.add(playerId);
+      }
     }
   }
 
   removePlayer(playerId) {
     this.players.delete(playerId);
-    this._recalculateTurnOrder();
   }
 
-  _recalculateTurnOrder() {
-    this.turnOrder = Array.from(this.players.keys());
-  }
+  _setInitialTurnIndex() {
+    const numPlayers = this.turnOrder.length;
 
-  _setInitialTurnIndex(smallBlindId, bigBlindId) {
-    if (this.turnOrder.length === 2) {
-      // Heads-up: SB (dealer) acts first preflop
-      this.currentTurnIndex = this.turnOrder.indexOf(smallBlindId);
+    if (numPlayers === 2) {
+      // Heads-up: Small blind (button) acts first preflop
+      this.currentTurnIndex = this.buttonIndex;
     } else {
-      const active = this.turnOrder.filter(
-        (id) =>
-          !this.players.get(id)?.hasFolded && this.players.get(id)?.stack > 0
-      );
-      const idx = active.indexOf(bigBlindId);
-      this.currentTurnIndex = this.turnOrder.indexOf(
-        active[(idx + 1) % active.length]
-      );
+      // 3+ players: UTG acts first preflop (3 seats left of button, or next after BB)
+      this.currentTurnIndex = (this.buttonIndex + 3) % numPlayers;
     }
   }
 
   getCurrentTurn() {
+    if (this.turnOrder.length === 0) return null;
     return this.turnOrder[this.currentTurnIndex];
-  }
-
-  getPrivateHands() {
-    const hands = {};
-    for (const [id, player] of this.players.entries()) {
-      hands[id] = [...player.hand];
-    }
-    return hands;
-  }
-
-  getGameDetails() {
-    return {
-      started: this.started,
-      players: Object.fromEntries(this.players),
-      turn: this.getCurrentTurn(),
-      pot: this.pot,
-      blindInfo: this.blindInfo || {},
-      street: this.street,
-      communityCards: this.communityCards,
-    };
   }
 
   _advanceTurn() {
     const active = this.turnOrder.filter(
       (id) => !this.players.get(id)?.hasFolded
     );
+    if (active.length <= 1) {
+      // Only one player left, they win
+      return this._handleSinglePlayerWin(active[0]);
+    }
 
     // ✅ Calculate next turn before checking street change
     const idx = active.indexOf(this.getCurrentTurn());
@@ -256,7 +312,7 @@ class PokerGame {
         });
       }
     }
-    console;
+    console.log("🏁 Showdown results:", results);
     const winner = results[0]?.id;
 
     if (winner) {
@@ -278,86 +334,6 @@ class PokerGame {
       })),
     };
   }
-
-  // _advanceTurn() {
-  //   const active = this.turnOrder.filter(
-  //     (id) => !this.players.get(id)?.hasFolded
-  //   );
-
-  //   // If showdown, resolve the hand and stop turn progression
-  //   if (this.street === "showdown") {
-  //     return this.resolveShowdown();
-  //   }
-
-  //   // this._setInitialTurnIndex(
-  //   //   this.turnOrder[0],
-  //   //   this.turnOrder[1 % this.turnOrder.length]
-  //   // );
-
-  //   if (this._isRoundComplete()) {
-  //     this._advanceStreet();
-
-  //     // ⬇️ NEW: immediately check if we're now in showdown
-  //     if (this.street === "showdown") {
-  //       return this.resolveShowdown();
-  //     }
-  //   }
-
-  //   return null;
-  // }
-
-  // resolveShowdown() {
-  //   console.log("🟡 Resolving showdown...");
-
-  //   const results = [];
-
-  //   for (const [id, player] of this.players.entries()) {
-  //     if (player.hasFolded) {
-  //       console.log(`⏭️ Skipping folded player: ${id}`);
-  //       continue;
-  //     }
-
-  //     const allCards = [...player.hand, ...this.communityCards];
-  //     console.log(`🔍 Evaluating player ${id} with cards:`, allCards);
-
-  //     try {
-  //       const handResult = Ranker.getHand(allCards);
-  //       console.log(
-  //         `✅ Player ${id} hand:`,
-  //         handResult.description,
-  //         `(rank ${handResult.ranking})`
-  //       );
-
-  //       results.push({
-  //         id,
-  //         description: handResult.description,
-  //         strength: handResult.ranking,
-  //       });
-  //     } catch (err) {
-  //       console.error(`❌ Ranker error for ${id}:`, err);
-  //     }
-  //   }
-
-  //   results.sort((a, b) => b.strength - a.strength); // Strongest hand first
-  //   const winner = results[0]?.id;
-
-  //   if (winner) {
-  //     console.log(`🏆 Winner is ${winner}, awarding pot: ${this.pot}`);
-  //     this.players.get(winner).stack += this.pot;
-  //     this.pot = 0;
-  //   } else {
-  //     console.warn("⚠️ No winner determined!");
-  //   }
-
-  //   console.log("📊 Final showdown results:", results);
-
-  //   return {
-  //     broadcast: true,
-  //     updates: this.getGameDetails(),
-  //     showdownWinner: winner,
-  //     showdownResults: results,
-  //   };
-  // }
 
   _isRoundComplete() {
     const active = this.turnOrder.filter(
@@ -408,15 +384,6 @@ class PokerGame {
       );
       this.currentTurnIndex = this.turnOrder.indexOf(active[0]);
     }
-  }
-
-  suggestBotAction(botId) {
-    const bot = this.players.get(botId);
-    if (!bot || bot.hasFolded) return null;
-    const bet = this.bigBlind * 3;
-    return bot.stack >= 10
-      ? { action: "bet", amount: bet }
-      : { action: "check" };
   }
 
   _generateDeck() {
