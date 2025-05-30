@@ -1,18 +1,13 @@
 const { Server } = require("ws");
 const express = require("express");
 const pognConfigs = require("./casinoForge/configs/pognConfigs");
-
 const RelayManager = require("./casinoForge/relayServices/relayManager");
 const GameController = require("./casinoForge/controllers/gameController");
 const LobbyController = require("./casinoForge/controllers/lobbyController");
 const http = require("http");
-
-// 🟢 Start dummy Express server for Heroku web dyno
 const app = express();
-
 const PORT = pognConfigs.PORT || 3000;
 
-// ✅ Create ONE HTTP server and attach Express + WebSocket to it
 const server = http.createServer(app);
 let sharedServer = null;
 
@@ -29,14 +24,39 @@ const relayManager = new RelayManager({
   host: pognConfigs.HOST,
 });
 
-// Boot Chat and DisplayGame Relays on the shared WebSocket server
+const gameController = new GameController({
+  relayManager,
+  gamePorts: pognConfigs.GAME_PORTS,
+  lobbyWsUrl: pognConfigs.WS_URL,
+});
+
+const lobbyController = new LobbyController({
+  gameController,
+  relayManager,
+  lobbyPorts: pognConfigs.LOBBY_PORTS,
+  gamePorts: pognConfigs.GAME_PORTS,
+});
+
+console.log("📦 Bootstrapping Lobbies...");
+(async () => {
+  console.log("📦 Bootstrapping Lobbies...");
+  await Promise.all(
+    pognConfigs.LOBBY_IDS.map((lobbyId) =>
+      lobbyController.createLobby({ lobbyId })
+    )
+  );
+
+  console.log("📦 Bootstrapping Games...", pognConfigs.INITGAMES);
+  await lobbyController.initGames(pognConfigs.INITGAMES);
+})();
+
 (async () => {
   await relayManager.createRelays([
     {
       type: "chat",
       id: "chat",
       options: {
-        ports: [PORT], // Not used in SHARED_PORT_MODE, but required for compatibility
+        ports: [PORT],
         host: pognConfigs.HOST,
       },
     },
@@ -46,13 +66,14 @@ const relayManager = new RelayManager({
       options: {
         ports: [PORT],
         host: pognConfigs.HOST,
+        //controller: lobbyController,
+        controller: relayManager,
       },
     },
   ]);
 })();
 
 if (pognConfigs.SHARED_PORT_MODE) {
-  // sharedServer = new Server({ server }); // ✅ attach to *existing* HTTP server
   console.log(`🔁 Shared WebSocket server attached to port ${PORT}`);
   sharedServer.on("connection", (ws) => {
     ws.on("message", (rawMsg) => {
@@ -104,32 +125,6 @@ if (pognConfigs.SHARED_PORT_MODE) {
 app.get("/", (req, res) => {
   res.send("Relay server is alive.");
 });
-
-const gameController = new GameController({
-  relayManager,
-  gamePorts: pognConfigs.GAME_PORTS,
-  lobbyWsUrl: pognConfigs.WS_URL,
-});
-
-const lobbyController = new LobbyController({
-  gameController,
-  relayManager,
-  lobbyPorts: pognConfigs.LOBBY_PORTS,
-  gamePorts: pognConfigs.GAME_PORTS,
-});
-
-console.log("📦 Bootstrapping Lobbies...");
-(async () => {
-  console.log("📦 Bootstrapping Lobbies...");
-  await Promise.all(
-    pognConfigs.LOBBY_IDS.map((lobbyId) =>
-      lobbyController.createLobby({ lobbyId })
-    )
-  );
-
-  console.log("📦 Bootstrapping Games...", pognConfigs.INITGAMES);
-  await lobbyController.initGames(pognConfigs.INITGAMES);
-})();
 
 server.listen(PORT, () => {
   console.log(`🌐 HTTP+WS server listening on port ${PORT}`);

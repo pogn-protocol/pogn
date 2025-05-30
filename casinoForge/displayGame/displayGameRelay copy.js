@@ -1,10 +1,10 @@
-const Relay = require("./relay");
+const Relay = require("../relayServices/relay");
 const PokerGame = require("./pokerGame");
 const PokerBot = require("./pokerBot");
 
 class DisplayGameRelay extends Relay {
   constructor({ id, ports, host }) {
-    super({ type: "displayGame", id, ports, host });
+    super({ type: "displayGame", id, ports, host, controller });
 
     this.game = new PokerGame();
     this.botId = "pokerBot";
@@ -25,7 +25,15 @@ class DisplayGameRelay extends Relay {
         this.websocketMap.set(playerId, ws);
       }
       if (action === "leave") {
-        this.websocketMap.delete(playerId);
+        this.game.seatedButWaiting.delete(playerId);
+        const player = this.game.players.get(playerId);
+        if (player) player.seatIndex = null;
+        const result = this.game.getGameDetails();
+        this._broadcastGameState("leave", playerId, null, {
+          broadcast: true,
+          updates: result,
+        });
+        return;
       }
 
       const result = this.game.processGameMessage(payload);
@@ -46,6 +54,26 @@ class DisplayGameRelay extends Relay {
     } catch (err) {
       console.error("❌ Error in processMessage:", err);
     }
+  }
+
+  handleConnectionClose(ws) {
+    for (const [playerId, socket] of this.websocketMap.entries()) {
+      if (socket === ws) {
+        this._handleDisconnect(playerId);
+        break;
+      }
+    }
+  }
+
+  _handleDisconnect(playerId) {
+    console.log(`🔌 Player ${playerId} disconnected.`);
+    this.websocketMap.delete(playerId);
+    this.game.removePlayer(playerId);
+    const result = this.game.getGameDetails();
+    this._broadcastGameState("disconnect", playerId, null, {
+      broadcast: true,
+      updates: result,
+    });
   }
 
   _broadcastGameState(action, playerId, seatIndex, result = {}) {

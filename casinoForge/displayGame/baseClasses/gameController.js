@@ -1,18 +1,18 @@
-const cusGames = require("../games/gamesIndex");
+const cusGames = require("../../games/gamesIndex");
 const BaseController = require("./baseController");
-const Game = require("../gameHubClasses/game");
+const Game = require("../../gameHubClasses/game");
 const {
   checkGameControllerPermissions,
-} = require("../gamehubUtils/permissions");
+} = require("../../gamehubUtils/permissions");
 const {
   validateGameControllerResponse,
   validateGameAction,
-} = require("../gamehubUtils/validations");
+} = require("../../gamehubUtils/validations");
 
 class GameController extends BaseController {
   constructor({ gamePorts = [], lobbyWsUrl, relayManager, customGames }) {
     super({ type: "game", relayManager });
-    this.customGames = customGames || cusGames;
+    this.customGames = cusGames;
     this.activeGames = new Map();
     this.gamePorts = gamePorts;
     this.lobbyWsUrl = lobbyWsUrl;

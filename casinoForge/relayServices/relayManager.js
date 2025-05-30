@@ -5,7 +5,7 @@ const GameRelay = require("./gameRelay");
 const RelayConnector = require("./relayConnector");
 const Relay = require("./relay");
 const ChatRelay = require("./chatRelay");
-const DisplayGameRelay = require("./displayGameRelay");
+const DisplayGameRelay = require("../displayGame/displayGameRelay");
 
 class RelayManager {
   constructor({
@@ -67,7 +67,6 @@ class RelayManager {
 
       switch (type) {
         case "chat":
-          const ChatRelay = require("./chatRelay");
           relay = new ChatRelay({
             id,
             ports,
@@ -78,24 +77,17 @@ class RelayManager {
           break;
 
         case "displayGame": {
-          const DisplayGameRelay = require("./displayGameRelay");
           relay = new DisplayGameRelay({
             id,
             ports,
             host: options.host || this.host,
+            controller: options.controller,
           });
 
           await relay.init(this.sharedPortMode ? this.sharedServer : null);
           break;
         }
         case "lobby":
-          //  constructor({ id, ports, lobbyController, host }) {
-          // relay = new LobbyRelay(
-          //   id,
-          //   options.ports || this.lobbyPorts,
-          //   options.controller,
-          //   options.host || this.host
-          // );
           relay = new LobbyRelay({
             id,
             ports: options.ports || this.lobbyPorts,
