@@ -25,7 +25,9 @@ class GameController extends BaseController {
 
   async processMessage(payload) {
     console.log("GameController processMessage", payload);
+    console.log("this.activeGames", this.activeGames);
     const game = this.activeGames.get(payload.gameId);
+    console.log("GameController processMessage game", game);
 
     return await super.processMessage({ ...payload, game }, [
       validateGameAction,
@@ -114,8 +116,8 @@ class GameController extends BaseController {
     try {
       console.log("Processing game action", gameAction);
       result = game.instance.processAction(playerId, {
-        gameAction,
         ...gameActionParams,
+        gameAction,
       });
       console.log("Game action result", result);
       game.logAction(result?.logEntry || "");
@@ -257,6 +259,7 @@ class GameController extends BaseController {
       };
     }
     console.log("game.lobbyStatus", game.lobbyStatus);
+
     if (
       game.lobbyStatus !== "canStart" &&
       game.lobbyStatus !== "readyToStart"
@@ -277,14 +280,14 @@ class GameController extends BaseController {
     game.instance.players = new Map(game.players); // ✅ fix 1
     game.gameLog.push("Game started.");
     console.log("Game started.", game);
-    let result;
 
     return {
       action: "gameAction",
       gameId: game.gameId,
       playerId: game.playerId,
       gameAction: "gameStarted",
-      ...result,
+      //returning instance is not ideal
+      game,
     };
   }
 }
