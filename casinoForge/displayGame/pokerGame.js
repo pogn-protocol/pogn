@@ -1,8 +1,8 @@
 const Ranker = require("handranker");
-const TurnBasedGame = require("../gameClasses/turnBasedGame");
+const CardGame = require("./cardGame");
 const PokerPlayer = require("./pokerPlayer");
 
-class PokerGame extends TurnBasedGame {
+class PokerGame extends CardGame {
   constructor(options = {}) {
     super(options);
     this.players = new Map();
@@ -10,15 +10,14 @@ class PokerGame extends TurnBasedGame {
     this.currentTurnIndex = 0;
     this.pot = 0;
     this.street = "preflop";
-    this.communityCards = [];
     this.showdownResolved = false;
     this.seatedButWaiting = new Set();
     this.lastBetAmount = 0;
     this.dealerId = null;
-    this.smallBlind = 10;
-    this.bigBlind = 20;
-    this.maxPlayers = 9;
-    this.minPlayers = 2;
+    this.smallBlind = options.smallBlind || 10;
+    this.bigBlind = options.bigBlind || 20;
+    this.maxPlayers = options.maxPlayers || 9;
+    this.minPlayers = options.minPlayers || 2;
   }
 
   init() {
@@ -57,11 +56,14 @@ class PokerGame extends TurnBasedGame {
       this.players.get(id).seatIndex = seatIndex;
     }
   }
+
   startNewHand(testConfig = null) {
     console.log("Starting new hand with testConfig:", testConfig);
 
     this.started = true;
-    this.deck = this._generateDeck();
+
+    // Use inherited deck preparation from CardGame
+    this.prepareDeck();
 
     console.log(`📝 Players waiting to join: ${[...this.seatedButWaiting]}`);
 
@@ -86,7 +88,7 @@ class PokerGame extends TurnBasedGame {
     this.turnOrder = activePlayers.map(([id]) => id);
     this.seatedButWaiting.clear();
 
-    // 🟢 Rotate dealer by seatIndex
+    // Rotate dealer by seatIndex
     const sortedSeats = activePlayers.map(([_, p]) => p.seatIndex);
     sortedSeats.sort((a, b) => a - b);
 
@@ -105,9 +107,9 @@ class PokerGame extends TurnBasedGame {
     const dealerEntry = activePlayers.find(
       ([_, p]) => p.seatIndex === buttonSeat
     );
-    this.dealerId = dealerEntry[0]; // use playerId for tracking
+    this.dealerId = dealerEntry[0];
 
-    // ✅ HEADS-UP FIX: SB = dealer, BB = other player
+    // HEADS-UP FIX: SB = dealer, BB = other player
     let sbSeat, bbSeat;
     if (sortedSeats.length === 2) {
       sbSeat = buttonSeat;
@@ -121,19 +123,25 @@ class PokerGame extends TurnBasedGame {
       bbSeat = seatAfter(sbSeat);
     }
 
-    // Deal cards and assign roles
+    // Deal cards using inherited method from CardGame
+    const hands = this.dealCards(2, this.turnOrder);
+
+    // Assign roles and hands
     for (const [id, player] of this.players.entries()) {
       player.resetForNewHand();
-      player.hand = testConfig?.hands?.[id] || [
-        this.deck.pop(),
-        this.deck.pop(),
-      ];
+      player.hand = testConfig?.hands?.[id] || hands[id] || [];
       player.isDealer = player.seatIndex === buttonSeat;
       player.isSB = player.seatIndex === sbSeat;
       player.isBB = player.seatIndex === bbSeat;
     }
 
-    this.communityCards = testConfig?.board || [];
+    // Handle test configuration for community cards
+    if (testConfig?.board) {
+      this.communityCards = [...testConfig.board];
+    } else {
+      this.communityCards = [];
+    }
+
     this.street = this.communityCards.length ? "showdown" : "preflop";
 
     this._postBlinds();
@@ -164,7 +172,7 @@ class PokerGame extends TurnBasedGame {
 
       privateMap[viewerId] = {
         hands: handsView,
-        hand: myHand, // 👈 personal hand directly
+        hand: myHand,
       };
     }
 
@@ -184,6 +192,7 @@ class PokerGame extends TurnBasedGame {
       "testConfig",
       testConfig
     );
+
     switch (gameAction) {
       case "sit":
         this.addPlayer(playerId, seatIndex);
@@ -309,6 +318,7 @@ class PokerGame extends TurnBasedGame {
         player.isAllIn = true;
         break;
     }
+
     player.hasActedThisRound = true;
     const postTurn = this._advanceTurn();
     console.log(
@@ -334,7 +344,7 @@ class PokerGame extends TurnBasedGame {
       if (this.street === "showdown") {
         return this.resolveShowdown();
       }
-      this._setInitialTurnIndex(); // ✅ FORCE NEW TURN ASSIGNMENT
+      this._setInitialTurnIndex();
     }
 
     return null;
@@ -362,24 +372,21 @@ class PokerGame extends TurnBasedGame {
     this.lastBetAmount = 0;
     for (const player of this.players.values()) {
       player.bet = 0;
-      player.hasActedThisRound = false; // 🔥 ONE LINE HERE
+      player.hasActedThisRound = false;
     }
 
     switch (this.street) {
       case "preflop":
-        this.communityCards = [
-          this.deck.pop(),
-          this.deck.pop(),
-          this.deck.pop(),
-        ];
+        // Use inherited dealCommunityCards method
+        this.dealCommunityCards(3); // Deal the flop
         this.street = "flop";
         break;
       case "flop":
-        this.communityCards.push(this.deck.pop());
+        this.dealCommunityCards(1); // Deal the turn
         this.street = "turn";
         break;
       case "turn":
-        this.communityCards.push(this.deck.pop());
+        this.dealCommunityCards(1); // Deal the river
         this.street = "river";
         break;
       case "river":
@@ -497,14 +504,13 @@ class PokerGame extends TurnBasedGame {
     const base = super.getGameDetails();
     console.log("base", base);
     console.log("this.players", this.players);
-    const playerData = {};
 
+    const playerData = {};
     for (const [id, p] of this.players.entries()) {
       playerData[id] = {
         seatIndex: p.seatIndex,
         stack: p.stack,
         bet: p.bet,
-        // hand: Array.isArray(p.hand) ? [...p.hand] : [],
         hasFolded: p.hasFolded,
         isDealer: p.isDealer,
         isSB: p.isSB,
@@ -512,51 +518,25 @@ class PokerGame extends TurnBasedGame {
         isAllIn: p.isAllIn,
       };
     }
+
     console.log("playerData", playerData);
     console.log("turn", this.turnOrder?.[this.currentTurnIndex] || null);
     console.log("this.turnOrder", this.turnOrder);
     console.log("this.currentTurnIndex", this.currentTurnIndex);
-    console.log("this.buttonIndex",  this.players.get(this.dealerId)?.seatIndex ?? null,);
+    console.log(
+      "this.buttonIndex",
+      this.players.get(this.dealerId)?.seatIndex ?? null
+    );
+
     return {
       ...base,
       players: playerData,
       pot: this.pot,
       street: this.street,
-      communityCards: this.communityCards,
       turn: this.turnOrder?.[this.currentTurnIndex] || null,
       currentTurnIndex: this.currentTurnIndex,
-      buttonIndex:  this.players.get(this.dealerId)?.seatIndex ?? null,
+      buttonIndex: this.players.get(this.dealerId)?.seatIndex ?? null,
     };
-  }
-
-  _generateDeck() {
-    const suits = ["s", "h", "d", "c"];
-    const values = [
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-      "9",
-      "T",
-      "J",
-      "Q",
-      "K",
-      "A",
-    ];
-    const deck = [];
-    for (const suit of suits) {
-      for (const value of values) {
-        deck.push(value + suit);
-      }
-    }
-    for (let i = deck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
-    return deck;
   }
 
   removePlayer(id) {

@@ -1,52 +1,196 @@
 const Ranker = require("handranker");
+const TurnBasedGame = require("../gameClasses/turnBasedGame");
+const PokerPlayer = require("./pokerPlayer");
 
-class Player {
-  constructor(seatIndex) {
-    this.seatIndex = seatIndex;
-    this.stack = 1000;
-    this.bet = 0;
-    this.hand = [];
-    this.hasFolded = false;
-    this.isAllIn = false;
-    this.isDealer = false;
-    this.isSB = false;
-    this.isBB = false;
-  }
-
-  resetForNewHand() {
-    this.bet = 0;
-    this.hand = [];
-    this.hasFolded = false;
-    this.isAllIn = false;
-    this.isDealer = false;
-    this.isSB = false;
-    this.isBB = false;
-  }
-}
-
-class PokerGame {
-  constructor() {
+class PokerGame extends TurnBasedGame {
+  constructor(options = {}) {
+    super(options);
     this.players = new Map();
     this.turnOrder = [];
     this.currentTurnIndex = 0;
-    this.started = false;
     this.pot = 0;
     this.street = "preflop";
     this.communityCards = [];
     this.showdownResolved = false;
     this.seatedButWaiting = new Set();
-    this.buttonIndex = 0;
     this.lastBetAmount = 0;
+    this.dealerId = null;
+    this.smallBlind = 10;
+    this.bigBlind = 20;
+    this.maxPlayers = 9;
+    this.minPlayers = 2;
   }
 
-  processGameMessage({ playerId, action, seatIndex, amount, testConfig }) {
-    switch (action) {
+  init() {
+    console.log("PokerGame initialized with options:", this.options);
+    console.log("PokerGame init — players:", [...this.players.entries()]);
+
+    // Replace any placeholder objects with real PokerPlayer instances
+    let index = 0;
+    for (const [id, data] of this.players.entries()) {
+      if (!(data instanceof PokerPlayer)) {
+        const seatIndex = data.seatIndex ?? index++;
+        const player = new PokerPlayer({ playerId: id, seatIndex });
+        this.players.set(id, player);
+      }
+    }
+
+    return this.startNewHand();
+  }
+
+  addPlayer(id, seatIndex) {
+    console.log(`🪑 Adding player ${id} to seat ${seatIndex}`);
+
+    if (!this.players.has(id)) {
+      const player = new PokerPlayer({ seatIndex, playerId: id });
+      this.players.set(id, player);
+
+      // If game is active, mark them as waiting for next hand
+      if (this.started && this.street !== "showdown") {
+        console.log(`⏳ Player ${id} will join next hand (game in progress)`);
+        this.seatedButWaiting.add(id);
+      } else {
+        console.log(`✅ Player ${id} joins immediately (no active hand)`);
+      }
+    } else {
+      console.log(`⚠️ Player ${id} already exists, updating seat index`);
+      this.players.get(id).seatIndex = seatIndex;
+    }
+  }
+  startNewHand(testConfig = null) {
+    console.log("Starting new hand with testConfig:", testConfig);
+
+    this.started = true;
+    this.deck = this._generateDeck();
+
+    console.log(`📝 Players waiting to join: ${[...this.seatedButWaiting]}`);
+
+    // Include newly seated players
+    for (const id of this.seatedButWaiting) {
+      const player = this.players.get(id);
+      if (player) {
+        player.resetForNewHand();
+      }
+    }
+
+    // Reset all players for new hand
+    for (const player of this.players.values()) {
+      player.resetForNewHand();
+    }
+
+    // Filter and sort players by seatIndex
+    const activePlayers = [...this.players.entries()]
+      .filter(([_, p]) => typeof p.seatIndex === "number")
+      .sort(([, a], [, b]) => a.seatIndex - b.seatIndex);
+
+    this.turnOrder = activePlayers.map(([id]) => id);
+    this.seatedButWaiting.clear();
+
+    // 🟢 Rotate dealer by seatIndex
+    const sortedSeats = activePlayers.map(([_, p]) => p.seatIndex);
+    sortedSeats.sort((a, b) => a - b);
+
+    let lastButtonSeat = this.dealerId
+      ? this.players.get(this.dealerId)?.seatIndex
+      : null;
+    let buttonSeat;
+
+    if (lastButtonSeat != null && sortedSeats.includes(lastButtonSeat)) {
+      const idx = sortedSeats.indexOf(lastButtonSeat);
+      buttonSeat = sortedSeats[(idx + 1) % sortedSeats.length];
+    } else {
+      buttonSeat = sortedSeats[0];
+    }
+
+    const dealerEntry = activePlayers.find(
+      ([_, p]) => p.seatIndex === buttonSeat
+    );
+    this.dealerId = dealerEntry[0]; // use playerId for tracking
+
+    // ✅ HEADS-UP FIX: SB = dealer, BB = other player
+    let sbSeat, bbSeat;
+    if (sortedSeats.length === 2) {
+      sbSeat = buttonSeat;
+      bbSeat = sortedSeats.find((s) => s !== sbSeat);
+    } else {
+      const seatAfter = (seat) => {
+        const idx = sortedSeats.indexOf(seat);
+        return sortedSeats[(idx + 1) % sortedSeats.length];
+      };
+      sbSeat = seatAfter(buttonSeat);
+      bbSeat = seatAfter(sbSeat);
+    }
+
+    // Deal cards and assign roles
+    for (const [id, player] of this.players.entries()) {
+      player.resetForNewHand();
+      player.hand = testConfig?.hands?.[id] || [
+        this.deck.pop(),
+        this.deck.pop(),
+      ];
+      player.isDealer = player.seatIndex === buttonSeat;
+      player.isSB = player.seatIndex === sbSeat;
+      player.isBB = player.seatIndex === bbSeat;
+    }
+
+    this.communityCards = testConfig?.board || [];
+    this.street = this.communityCards.length ? "showdown" : "preflop";
+
+    this._postBlinds();
+    this._setInitialTurnIndex();
+
+    console.log("gameState", this.getGameDetails());
+    console.log("privateHands", this.getPrivateHands());
+
+    return {
+      gameState: this.getGameDetails(),
+      private: this.getPrivateHands(),
+    };
+  }
+
+  getPrivateHands() {
+    const privateMap = {};
+    const isShowdown = this.street === "showdown";
+
+    for (const [viewerId] of this.players.entries()) {
+      const handsView = {};
+      let myHand = [];
+
+      for (const [id, p] of this.players.entries()) {
+        const visible = isShowdown || viewerId === id;
+        handsView[id] = visible ? [...p.hand] : ["X", "X"];
+        if (viewerId === id) myHand = [...p.hand];
+      }
+
+      privateMap[viewerId] = {
+        hands: handsView,
+        hand: myHand, // 👈 personal hand directly
+      };
+    }
+
+    return privateMap;
+  }
+
+  processAction(playerId, { gameAction, seatIndex, amount, testConfig }) {
+    console.log(
+      "playerId",
+      playerId,
+      "gameAction",
+      gameAction,
+      "seatIndex",
+      seatIndex,
+      "amount",
+      amount,
+      "testConfig",
+      testConfig
+    );
+    switch (gameAction) {
       case "sit":
         this.addPlayer(playerId, seatIndex);
-        return { updates: this.getGameDetails() };
+        return { gameState: this.getGameDetails() };
       case "leave":
         this.removePlayer(playerId);
-        return { updates: this.getGameDetails() };
+        return { gameState: this.getGameDetails() };
       case "startHand":
         return this.startNewHand(testConfig);
       case "bet":
@@ -55,10 +199,13 @@ class PokerGame {
       case "call":
       case "raise":
       case "allin":
-        const result = this.processAction(playerId, { action, amount });
+        const result = this.gameAction(playerId, {
+          action: gameAction,
+          amount,
+        });
         return {
           broadcast: true,
-          updates: this.getGameDetails(),
+          gameState: this.getGameDetails(),
           botTurn: this.getCurrentTurn(),
           ...(result || {}),
         };
@@ -67,59 +214,107 @@ class PokerGame {
     }
   }
 
-  processAction(playerId, { action, amount }) {
-    if (playerId !== this.getCurrentTurn()) return;
+  gameAction(playerId, { action, amount }) {
+    console.log(
+      `🎮 [gameAction] Player ${playerId} attempting ${action} ${amount ?? ""}`
+    );
+
+    if (playerId !== this.getCurrentTurn()) {
+      console.warn(`⛔ [gameAction] Not ${playerId}'s turn`);
+      return;
+    }
+
     const player = this.players.get(playerId);
-    if (!player || player.hasFolded || player.isAllIn) return;
+    if (!player || player.hasFolded || player.isAllIn) {
+      console.warn(`⛔ [gameAction] Invalid player or already folded/all-in`);
+      return;
+    }
 
     const maxBet = Math.max(...[...this.players.values()].map((p) => p.bet));
+    console.log(`💰 [gameAction] Max bet on table: ${maxBet}`);
 
     switch (action) {
       case "fold":
         player.hasFolded = true;
+        console.log(`🙈 [gameAction] ${playerId} folds`);
         break;
+
       case "check":
-        if (player.bet < maxBet) return;
-        break;
-      case "call":
-        const callAmount = maxBet - player.bet;
-        if (callAmount > player.stack) {
-          this.pot += player.stack;
-          player.bet += player.stack;
-          player.stack = 0;
-          player.isAllIn = true;
-        } else {
-          player.stack -= callAmount;
-          player.bet += callAmount;
-          this.pot += callAmount;
+        if (player.bet < maxBet) {
+          console.warn(
+            `⛔ [gameAction] Check denied — player bet ${player.bet} < max ${maxBet}`
+          );
+          return;
         }
+        console.log(`✅ [gameAction] ${playerId} checks`);
         break;
+
+      case "call": {
+        const callAmount = maxBet - player.bet;
+        const contribution = Math.min(callAmount, player.stack);
+        player.stack -= contribution;
+        player.bet += contribution;
+        this.pot += contribution;
+        if (player.stack === 0) player.isAllIn = true;
+        console.log(
+          `📞 [gameAction] ${playerId} calls ${contribution}, stack: ${player.stack}`
+        );
+        break;
+      }
+
       case "bet":
-        if (amount <= 0 || amount > player.stack) return;
+        if (amount <= 0 || amount > player.stack) {
+          console.warn(`⛔ [gameAction] Invalid bet amount: ${amount}`);
+          return;
+        }
         this.lastBetAmount = amount;
         player.stack -= amount;
         player.bet += amount;
         this.pot += amount;
+        console.log(
+          `💸 [gameAction] ${playerId} bets ${amount}, stack: ${player.stack}`
+        );
         break;
-      case "raise":
+
+      case "raise": {
         const raiseTo = amount;
         const raiseAmount = raiseTo - player.bet;
-        if (raiseAmount < this.lastBetAmount || raiseTo <= maxBet) return;
-        if (raiseAmount > player.stack) return;
+        if (
+          raiseAmount < this.lastBetAmount ||
+          raiseTo <= maxBet ||
+          raiseAmount > player.stack
+        ) {
+          console.warn(
+            `⛔ [gameAction] Invalid raise to ${raiseTo} (raiseAmount ${raiseAmount}, lastBet ${this.lastBetAmount})`
+          );
+          return;
+        }
         player.stack -= raiseAmount;
         player.bet += raiseAmount;
         this.pot += raiseAmount;
         this.lastBetAmount = raiseAmount;
+        console.log(
+          `🚀 [gameAction] ${playerId} raises to ${raiseTo} (added ${raiseAmount}), stack: ${player.stack}`
+        );
         break;
+      }
+
       case "allin":
-        player.bet += player.stack;
         this.pot += player.stack;
+        player.bet += player.stack;
+        console.log(
+          `💥 [gameAction] ${playerId} goes ALL IN for ${player.stack}`
+        );
         player.stack = 0;
         player.isAllIn = true;
         break;
     }
-
-    return this._advanceTurn();
+    player.hasActedThisRound = true;
+    const postTurn = this._advanceTurn();
+    console.log(
+      `🔁 [gameAction] Turn advanced. Next turn: ${this.getCurrentTurn()}`
+    );
+    return postTurn;
   }
 
   _advanceTurn() {
@@ -139,6 +334,7 @@ class PokerGame {
       if (this.street === "showdown") {
         return this.resolveShowdown();
       }
+      this._setInitialTurnIndex(); // ✅ FORCE NEW TURN ASSIGNMENT
     }
 
     return null;
@@ -151,12 +347,23 @@ class PokerGame {
     });
 
     const bets = active.map((id) => this.players.get(id).bet);
-    return new Set(bets).size <= 1;
+    const allBetsMatch = new Set(bets).size <= 1;
+    const allHaveActed = active.every(
+      (id) => this.players.get(id).hasActedThisRound
+    );
+
+    console.log(`🧮 [_isRoundComplete] bets:`, bets);
+    console.log(`✅ Bets match? ${allBetsMatch}, All acted? ${allHaveActed}`);
+
+    return allBetsMatch && allHaveActed;
   }
 
   _advanceStreet() {
     this.lastBetAmount = 0;
-    for (const player of this.players.values()) player.bet = 0;
+    for (const player of this.players.values()) {
+      player.bet = 0;
+      player.hasActedThisRound = false; // 🔥 ONE LINE HERE
+    }
 
     switch (this.street) {
       case "preflop":
@@ -179,6 +386,7 @@ class PokerGame {
         this.street = "showdown";
         break;
     }
+    this._setInitialTurnIndex();
   }
 
   resolveShowdown() {
@@ -186,21 +394,20 @@ class PokerGame {
     const hands = [...this.players.entries()]
       .filter(([_, p]) => !p.hasFolded)
       .map(([id, p]) => ({ id, cards: p.hand }));
+
     const ordered = Ranker.orderHands(hands, board);
-    const flat = ordered
-      .flat()
-      .map((r) => ({
-        id: r.id,
-        description: r.description,
-        ranking: r.ranking,
-      }));
+    const flat = ordered.flat().map((r) => ({
+      id: r.id,
+      description: r.description,
+      ranking: r.ranking,
+    }));
     const winner = flat[0]?.id;
     if (winner) this.players.get(winner).stack += this.pot;
     this.pot = 0;
 
     return {
       broadcast: true,
-      updates: this.getGameDetails(),
+      gameState: this.getGameDetails(),
       showdownWinner: winner,
       showdownResults: flat,
       revealedHands: hands.map(({ id, cards }) => ({
@@ -210,49 +417,57 @@ class PokerGame {
     };
   }
 
-  startNewHand(testConfig = null) {
-    for (const id of this.seatedButWaiting) {
-      this.players.get(id)?.resetForNewHand();
-    }
-    this.seatedButWaiting.clear();
-    this.started = true;
-    this.deck = this._generateDeck();
-
-    const sorted = [...this.players.entries()]
-      .filter(([_, p]) => typeof p.seatIndex === "number")
-      .sort(([, a], [, b]) => a.seatIndex - b.seatIndex);
-    const playerIds = sorted.map(([id]) => id);
-    this.buttonIndex = (this.buttonIndex + 1) % playerIds.length;
-    this.turnOrder = playerIds;
-    this._setInitialTurnIndex();
-
-    playerIds.forEach((id, i) => {
-      const player = this.players.get(id);
-      player.resetForNewHand();
-      player.hand = testConfig?.hands?.[id] || [
-        this.deck.pop(),
-        this.deck.pop(),
-      ];
-      player.isDealer = i === this.buttonIndex;
-      player.isSB = i === (this.buttonIndex + 1) % playerIds.length;
-      player.isBB = i === (this.buttonIndex + 2) % playerIds.length;
-    });
-
-    this.communityCards = testConfig?.board || [];
-    this.street = this.communityCards.length ? "showdown" : "preflop";
-    this._postBlinds();
-
-    return {
-      broadcast: true,
-      updates: this.getGameDetails(),
-      private: this.getPrivateHands(),
-    };
-  }
-
   _setInitialTurnIndex() {
     const numPlayers = this.turnOrder.length;
-    this.currentTurnIndex =
-      numPlayers === 2 ? this.buttonIndex : (this.buttonIndex + 3) % numPlayers;
+    if (numPlayers === 0) {
+      this.currentTurnIndex = null;
+      return;
+    }
+
+    const active = this.turnOrder.filter((id) => {
+      const p = this.players.get(id);
+      return !p.hasFolded && !p.isAllIn;
+    });
+
+    if (active.length === 0) {
+      this.currentTurnIndex = null;
+      return;
+    }
+
+    const dealer = this.players.get(this.dealerId);
+    if (!dealer) {
+      this.currentTurnIndex = this.turnOrder.indexOf(active[0]);
+      return;
+    }
+
+    const dealerSeat = dealer.seatIndex;
+
+    if (numPlayers === 2) {
+      // SB is dealer, BB is opponent
+      const bb = active.find((id) => this.players.get(id).isBB);
+      const sb = active.find((id) => this.players.get(id).isSB);
+
+      const actorId = this.street === "preflop" ? sb : bb;
+      this.currentTurnIndex = this.turnOrder.indexOf(
+        active.includes(actorId) ? actorId : active[0]
+      );
+    } else {
+      // Start with first active player after BB
+      const bb = this.turnOrder.find((id) => this.players.get(id).isBB);
+      const bbIndex = this.turnOrder.indexOf(bb);
+      const num = this.turnOrder.length;
+
+      for (let i = 1; i <= num; i++) {
+        const idx = (bbIndex + i) % num;
+        const candidate = this.turnOrder[idx];
+        if (active.includes(candidate)) {
+          this.currentTurnIndex = idx;
+          return;
+        }
+      }
+
+      this.currentTurnIndex = this.turnOrder.indexOf(active[0]);
+    }
   }
 
   getCurrentTurn() {
@@ -278,21 +493,18 @@ class PokerGame {
     this.lastBetAmount = this.bigBlind;
   }
 
-  getPrivateHands() {
-    const privateMap = {};
-    for (const [id, p] of this.players.entries())
-      privateMap[id] = { hand: [...p.hand] };
-    return privateMap;
-  }
-
   getGameDetails() {
+    const base = super.getGameDetails();
+    console.log("base", base);
+    console.log("this.players", this.players);
     const playerData = {};
+
     for (const [id, p] of this.players.entries()) {
       playerData[id] = {
         seatIndex: p.seatIndex,
         stack: p.stack,
         bet: p.bet,
-        hand: [...p.hand],
+        // hand: Array.isArray(p.hand) ? [...p.hand] : [],
         hasFolded: p.hasFolded,
         isDealer: p.isDealer,
         isSB: p.isSB,
@@ -300,12 +512,20 @@ class PokerGame {
         isAllIn: p.isAllIn,
       };
     }
+    console.log("playerData", playerData);
+    console.log("turn", this.turnOrder?.[this.currentTurnIndex] || null);
+    console.log("this.turnOrder", this.turnOrder);
+    console.log("this.currentTurnIndex", this.currentTurnIndex);
+    console.log("this.buttonIndex",  this.players.get(this.dealerId)?.seatIndex ?? null,);
     return {
-      started: this.started,
+      ...base,
       players: playerData,
       pot: this.pot,
       street: this.street,
       communityCards: this.communityCards,
+      turn: this.turnOrder?.[this.currentTurnIndex] || null,
+      currentTurnIndex: this.currentTurnIndex,
+      buttonIndex:  this.players.get(this.dealerId)?.seatIndex ?? null,
     };
   }
 
@@ -327,20 +547,16 @@ class PokerGame {
       "A",
     ];
     const deck = [];
-    for (const suit of suits)
-      for (const value of values) deck.push(value + suit);
+    for (const suit of suits) {
+      for (const value of values) {
+        deck.push(value + suit);
+      }
+    }
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
     }
     return deck;
-  }
-
-  addPlayer(id, seatIndex) {
-    if (!this.players.has(id)) {
-      this.players.set(id, new Player(seatIndex));
-      if (this.started) this.seatedButWaiting.add(id);
-    }
   }
 
   removePlayer(id) {
@@ -352,7 +568,7 @@ class PokerGame {
     this.pot = 0;
     return {
       broadcast: true,
-      updates: this.getGameDetails(),
+      gameState: this.getGameDetails(),
       showdownWinner: id,
     };
   }

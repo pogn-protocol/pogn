@@ -74,61 +74,6 @@ class PokerBot extends PokerPlayer {
     }
   }
 
-  // receiveGameMessage(message) {
-  //   console.log(`📩 [PokerBot] receiveGameMessage:`, message);
-  //   const { payload } = message;
-  //   console.log(`📩 [PokerBot] payload:`, payload);
-
-  //   if (payload.private && payload.playerId === this.botId && payload.hand) {
-  //     this.hand = message.hand;
-  //     console.log(`🃏 [PokerBot] Hand received:`, this.hand);
-  //   }
-
-  //   const turnId = payload.gameState?.turn;
-  //   if (turnId !== this.botId) {
-  //     this.lastTurnSeen = null; // ⬅️ reset if not our turn
-  //     return;
-  //   }
-  //   console.log(`[PokerBot] checking turnId=${turnId} vs botId=${this.botId}`);
-  //   console.log(
-  //     `[PokerBot] lastTurnSeen=${this.lastTurnSeen}, thinking=${this.thinking}`
-  //   );
-  //   if (
-  //     turnId === this.botId &&
-  //     turnId !== this.lastTurnSeen &&
-  //     !this.thinking
-  //   ) {
-  //     this.lastTurnSeen = turnId;
-
-  //     console.log(`⏳ [PokerBot] It's my turn. Thinking...`);
-  //     this.thinking = true;
-
-  //     setTimeout(() => {
-  //       console.log(`🧠 [PokerBot] Deciding action after thinking...`);
-  //       const botMove = this.decideAction();
-  //       console.log(`✅ [PokerBot] Decided move:`, botMove);
-
-  //       if (botMove) {
-  //         this.socket.send(
-  //           JSON.stringify({
-  //             type: "displayGame",
-  //             payload: {
-  //               action: "gameAction",
-  //               playerId: this.botId,
-  //               gameId: this.gameId,
-  //               gameAction: botMove.action,
-  //               gameActionParams: { amount: botMove.amount },
-  //             },
-  //           })
-  //         );
-  //       } else {
-  //         console.log(`🛑 [PokerBot] No valid action (maybe folded?)`);
-  //       }
-  //       this.thinking = false;
-  //     }, 3000);
-  //   }
-  // }
-
   decideAction() {
     try {
       console.log(`🧠 [PokerBot] Deciding action...`, this.gameId);
