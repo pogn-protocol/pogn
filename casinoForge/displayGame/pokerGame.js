@@ -156,11 +156,13 @@ class PokerGame extends CardGame {
     };
   }
 
-  getPrivateHands() {
+  getPrivateHands(observers = []) {
     const privateMap = {};
     const isShowdown = this.street === "showdown";
 
-    for (const [viewerId] of this.players.entries()) {
+    const allViewers = [...this.players.keys(), ...observers];
+
+    for (const viewerId of allViewers) {
       const handsView = {};
       let myHand = [];
 
@@ -178,6 +180,29 @@ class PokerGame extends CardGame {
 
     return privateMap;
   }
+
+  // getPrivateHands() {
+  //   const privateMap = {};
+  //   const isShowdown = this.street === "showdown";
+
+  //   for (const [viewerId] of this.players.entries()) {
+  //     const handsView = {};
+  //     let myHand = [];
+
+  //     for (const [id, p] of this.players.entries()) {
+  //       const visible = isShowdown || viewerId === id;
+  //       handsView[id] = visible ? [...p.hand] : ["X", "X"];
+  //       if (viewerId === id) myHand = [...p.hand];
+  //     }
+
+  //     privateMap[viewerId] = {
+  //       hands: handsView,
+  //       hand: myHand,
+  //     };
+  //   }
+
+  //   return privateMap;
+  // }
 
   processAction(playerId, { gameAction, seatIndex, amount, testConfig }) {
     console.log(
@@ -417,10 +442,17 @@ class PokerGame extends CardGame {
       gameState: this.getGameDetails(),
       showdownWinner: winner,
       showdownResults: flat,
-      revealedHands: hands.map(({ id, cards }) => ({
-        playerId: id,
-        hand: cards,
-      })),
+      revealedHands: [...this.players.entries()]
+        .filter(([_, p]) => Array.isArray(p.hand) && p.hand.length > 0)
+        .map(([id, p]) => ({
+          playerId: id,
+          hand: p.hand,
+        })),
+
+      // revealedHands: hands.map(({ id, cards }) => ({
+      //   playerId: id,
+      //   hand: cards,
+      // })),
     };
   }
 
@@ -431,50 +463,61 @@ class PokerGame extends CardGame {
       return;
     }
 
-    const active = this.turnOrder.filter((id) => {
+    const activePlayers = this.turnOrder.filter((id) => {
       const p = this.players.get(id);
-      return !p.hasFolded && !p.isAllIn;
+      return p && !p.hasFolded && !p.isAllIn;
     });
 
-    if (active.length === 0) {
+    if (activePlayers.length === 0) {
       this.currentTurnIndex = null;
       return;
     }
 
-    const dealer = this.players.get(this.dealerId);
-    if (!dealer) {
-      this.currentTurnIndex = this.turnOrder.indexOf(active[0]);
+    // HEADS-UP SPECIAL CASE
+    if (numPlayers === 2) {
+      const sb = this.turnOrder.find((id) => this.players.get(id)?.isSB);
+      const bb = this.turnOrder.find((id) => this.players.get(id)?.isBB);
+      const firstToAct = this.street === "preflop" ? sb : bb; // SB acts first preflop in HU
+      this.currentTurnIndex = this.turnOrder.indexOf(firstToAct);
       return;
     }
 
-    const dealerSeat = dealer.seatIndex;
-
-    if (numPlayers === 2) {
-      // SB is dealer, BB is opponent
-      const bb = active.find((id) => this.players.get(id).isBB);
-      const sb = active.find((id) => this.players.get(id).isSB);
-
-      const actorId = this.street === "preflop" ? sb : bb;
-      this.currentTurnIndex = this.turnOrder.indexOf(
-        active.includes(actorId) ? actorId : active[0]
+    // MULTI-PLAYER (3+)
+    if (this.street === "preflop") {
+      // Preflop: first to act is first active player left of BB
+      const bbIndex = this.turnOrder.findIndex(
+        (id) => this.players.get(id)?.isBB
       );
-    } else {
-      // Start with first active player after BB
-      const bb = this.turnOrder.find((id) => this.players.get(id).isBB);
-      const bbIndex = this.turnOrder.indexOf(bb);
-      const num = this.turnOrder.length;
 
-      for (let i = 1; i <= num; i++) {
-        const idx = (bbIndex + i) % num;
-        const candidate = this.turnOrder[idx];
-        if (active.includes(candidate)) {
-          this.currentTurnIndex = idx;
+      for (let i = 1; i < numPlayers; i++) {
+        const candidateIndex = (bbIndex + i) % numPlayers;
+        const candidateId = this.turnOrder[candidateIndex];
+        const p = this.players.get(candidateId);
+        if (p && !p.hasFolded && !p.isAllIn) {
+          this.currentTurnIndex = candidateIndex;
           return;
         }
       }
+    } else {
+      // Post-flop: first to act is SB (or first active player after SB if SB folded)
+      const sbIndex = this.turnOrder.findIndex(
+        (id) => this.players.get(id)?.isSB
+      );
 
-      this.currentTurnIndex = this.turnOrder.indexOf(active[0]);
+      // Start from SB and find first active player
+      for (let i = 0; i < numPlayers; i++) {
+        const candidateIndex = (sbIndex + i) % numPlayers;
+        const candidateId = this.turnOrder[candidateIndex];
+        const p = this.players.get(candidateId);
+        if (p && !p.hasFolded && !p.isAllIn) {
+          this.currentTurnIndex = candidateIndex;
+          return;
+        }
+      }
     }
+
+    // Fallback to first active player
+    this.currentTurnIndex = this.turnOrder.indexOf(activePlayers[0]);
   }
 
   getCurrentTurn() {
