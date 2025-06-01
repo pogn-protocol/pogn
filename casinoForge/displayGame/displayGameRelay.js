@@ -22,6 +22,7 @@ class DisplayGameRelay extends GameRelay {
     this.gameController = gameController;
     this.gameId = id;
     this.botId = "pokerBot";
+    this.gameStarted = false;
 
     console.log(`🟢 DisplayGameRelay initialized for gameId: ${this.gameId}`);
 
@@ -142,13 +143,13 @@ class DisplayGameRelay extends GameRelay {
         console.log("game", game);
         if (
           realPlayerCount >= 1 &&
-          !game.started &&
+          !this.gameStarted &&
           game.lobbyStatus !== "started"
         ) {
           console.log(
             `🟢 Starting game ${this.gameId} with ${realPlayerCount} players`
           );
-
+          this.gameStarted = true;
           console.log("game.lobbyStatus", game.lobbyStatus);
           console.warn("game.gameStatus", game.gameStatus);
           game.lobbyStatus = "canStart"; // Ensure game is ready to start
@@ -163,6 +164,14 @@ class DisplayGameRelay extends GameRelay {
             console.log("Game started and initialized:", game);
             console.log("startResult", startResult);
           }
+        } else {
+          //put the player in the game instance
+          // game.instance.players.set(playerId, game.players.get(playerId));
+          const seatIndex = game.players.get(playerId).seatIndex;
+          console.log(`🪑 Player ${playerId} assigned to seat ${seatIndex} `);
+
+          game.instance.addPlayer(playerId, seatIndex);
+          console.log("Game instance updated with players:", game.instance);
         }
 
         result.playersAtTable = [...game.players.entries()].map(([id, p]) => ({
@@ -186,21 +195,6 @@ class DisplayGameRelay extends GameRelay {
           broadcast: true,
         };
         console.log("Sit/leave result:", result);
-
-        // result = {
-        //   payload: {
-        //     type: "displayGame",
-        //     action: action,
-        //     gameId: this.gameId,
-        //     playerId: playerId,
-        //     playersAtTable: [...game.players.entries()].map(([id, p]) => ({
-        //       playerId: id,
-        //       seatIndex: p.seatIndex,
-        //     })),
-        //     gameState: game.instance.getGameDetails(),
-        //   },
-        //   broadcast: true,
-        // };
       } else if (action === "gameAction") {
         // ✅ Route to gameController for any game actions (bet, fold, etc)
         result = await this.gameController.processMessage(payload);

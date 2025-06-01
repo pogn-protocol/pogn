@@ -11,7 +11,6 @@ class PokerPlayer extends Player {
     this.seatIndex = seatIndex;
     this.stack = 1000;
     this.bet = 0;
-    this.hand = [];
     this.hasFolded = false;
     this.isAllIn = false;
     this.isDealer = false;
@@ -21,12 +20,12 @@ class PokerPlayer extends Player {
 
   resetForNewHand() {
     this.bet = 0;
-    this.hand = [];
     this.hasFolded = false;
     this.isAllIn = false;
     this.isDealer = false;
     this.isSB = false;
     this.isBB = false;
+    this.hasActedThisRound = false; // 👈 add this
   }
 }
 
