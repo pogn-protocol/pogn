@@ -102,38 +102,77 @@ class DisplayGameRelay extends GameRelay {
 
     if (action === "observe") {
       this.observers.set(playerId, ws);
+      this.webSocketMap.set(playerId, ws);
+
       console.log(`👁️ Player ${playerId} is now observing`);
 
       const game = this.gameController.activeGames.get(this.gameId);
+      if (!game) {
+        console.warn(`⚠️ No game found for gameId: ${this.gameId}`);
+        return;
+      }
       const gameState = game?.instance?.getGameDetails?.() || {};
-
       const view =
         game?.instance?.getPrivateHands?.([playerId])?.[playerId] || {};
 
-        const playersAtTable = [...game.players.entries()].map(([id, p]) => ({
-          playerId: id,
-          seatIndex: p.seatIndex,
-        }));
+      const playersAtTable = [...game?.players.entries()].map(([id, p]) => ({
+        playerId: id,
+        seatIndex: p.seatIndex,
+      }));
 
-const observerResponse = {
-  relayId: this.relayId,
-  uuid: uuidv4(),
-  payload: {
-    type: "displayGame",
-    action: "update",
-    playerId,
-    gameId: this.gameId,
-    gameState,
-    playersAtTable, // ✅ add this
-    hand: view.hand || [],
-    hands: view.hands || {},
-  },
-};
+      const observerResponse = {
+        relayId: this.relayId,
+        uuid: uuidv4(),
+        payload: {
+          type: "displayGame",
+          action: "update",
+          playerId,
+          gameId: this.gameId,
+          gameState,
+          playersAtTable,
+          hand: view.hand || [],
+          hands: view.hands || {},
+        },
+      };
 
-      console.log("Observer response to send:", observerResponse);
-      ws.send(JSON.stringify(observerResponse));
+      this.sendResponse(playerId, observerResponse); // ✅ use this instead
       return;
     }
+
+    //     if (action === "observe") {
+    //       this.observers.set(playerId, ws);
+    //       console.log(`👁️ Player ${playerId} is now observing`);
+
+    //       const game = this.gameController.activeGames.get(this.gameId);
+    //       const gameState = game?.instance?.getGameDetails?.() || {};
+
+    //       const view =
+    //         game?.instance?.getPrivateHands?.([playerId])?.[playerId] || {};
+
+    //         const playersAtTable = [...game.players.entries()].map(([id, p]) => ({
+    //           playerId: id,
+    //           seatIndex: p.seatIndex,
+    //         }));
+
+    // const observerResponse = {
+    //   relayId: this.relayId,
+    //   uuid: uuidv4(),
+    //   payload: {
+    //     type: "displayGame",
+    //     action: "update",
+    //     playerId,
+    //     gameId: this.gameId,
+    //     gameState,
+    //     playersAtTable, // ✅ add this
+    //     hand: view.hand || [],
+    //     hands: view.hands || {},
+    //   },
+    // };
+
+    //       console.log("Observer response to send:", observerResponse);
+    //       ws.send(JSON.stringify(observerResponse));
+    //       return;
+    //     }
 
     if (playerId) {
       this.webSocketMap.set(playerId, ws);
