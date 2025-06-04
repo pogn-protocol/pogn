@@ -103,23 +103,32 @@ class DisplayGameRelay extends GameRelay {
     if (action === "observe") {
       this.observers.set(playerId, ws);
       this.webSocketMap.set(playerId, ws);
+      for (const [id, socket] of this.webSocketMap.entries()) {
+        if (socket === ws && id.startsWith("temp-")) {
+          this.webSocketMap.delete(id);
+          break;
+        }
+      }
 
       console.log(`👁️ Player ${playerId} is now observing`);
 
       const game = this.gameController.activeGames.get(this.gameId);
+      console.log("game", game);
       if (!game) {
         console.warn(`⚠️ No game found for gameId: ${this.gameId}`);
         return;
       }
       const gameState = game?.instance?.getGameDetails?.() || {};
+      console.log("gameState", gameState);
+
       const view =
         game?.instance?.getPrivateHands?.([playerId])?.[playerId] || {};
-
+      console.log("view", view);
       const playersAtTable = [...game?.players.entries()].map(([id, p]) => ({
         playerId: id,
         seatIndex: p.seatIndex,
       }));
-
+      console.log("playersAtTable", playersAtTable);
       const observerResponse = {
         relayId: this.relayId,
         uuid: uuidv4(),
@@ -134,48 +143,20 @@ class DisplayGameRelay extends GameRelay {
           hands: view.hands || {},
         },
       };
-
+      console.log("observerResponse", observerResponse);
       this.sendResponse(playerId, observerResponse); // ✅ use this instead
       return;
     }
 
-    //     if (action === "observe") {
-    //       this.observers.set(playerId, ws);
-    //       console.log(`👁️ Player ${playerId} is now observing`);
-
-    //       const game = this.gameController.activeGames.get(this.gameId);
-    //       const gameState = game?.instance?.getGameDetails?.() || {};
-
-    //       const view =
-    //         game?.instance?.getPrivateHands?.([playerId])?.[playerId] || {};
-
-    //         const playersAtTable = [...game.players.entries()].map(([id, p]) => ({
-    //           playerId: id,
-    //           seatIndex: p.seatIndex,
-    //         }));
-
-    // const observerResponse = {
-    //   relayId: this.relayId,
-    //   uuid: uuidv4(),
-    //   payload: {
-    //     type: "displayGame",
-    //     action: "update",
-    //     playerId,
-    //     gameId: this.gameId,
-    //     gameState,
-    //     playersAtTable, // ✅ add this
-    //     hand: view.hand || [],
-    //     hands: view.hands || {},
-    //   },
-    // };
-
-    //       console.log("Observer response to send:", observerResponse);
-    //       ws.send(JSON.stringify(observerResponse));
-    //       return;
-    //     }
-
     if (playerId) {
       this.webSocketMap.set(playerId, ws);
+      for (const [id, socket] of this.webSocketMap.entries()) {
+        if (socket === ws && id.startsWith("temp-")) {
+          this.webSocketMap.delete(id);
+          break;
+        }
+      }
+
       console.log(`📌 WebSocket for ${playerId} tracked/updated.`);
       console.log("lobbyController", this.lobbyController);
       const lobby = this.lobbyController.lobbies.get(this.lobbyId);
@@ -294,6 +275,7 @@ class DisplayGameRelay extends GameRelay {
           response.payload.private
         )) {
           const privateResponse = JSON.parse(JSON.stringify(response));
+          privateResponse.uuid = uuidv4();
           privateResponse.payload = {
             ...response.payload,
             ...handData,
@@ -376,29 +358,8 @@ class DisplayGameRelay extends GameRelay {
     }
   }
 
-  // broadcastResponse(message) {
-  //   console.log("Broadcasting message to all players:", message);
-  //   for (const [playerId, socket] of this.webSocketMap.entries()) {
-  //     if (playerId === this.botId) continue; // bot is handled separately
-  //     if (!socket || socket.readyState !== 1) {
-  //       console.warn(`⚠️ WebSocket not open for ${playerId}`);
-  //       continue;
-  //     }
-  //     try {
-  //       socket.send(JSON.stringify(message));
-  //     } catch (err) {
-  //       console.error(`❌ Failed to send to ${playerId}`, err);
-  //     }
-  //   }
-
-  //   // ✅ Always route to bot separately
-  //   if (this.bot && typeof this.bot.receiveGameMessage === "function") {
-  //     console.log(`🤖 [PokerBot] Broadcasting message:`, message);
-  //     this.bot.receiveGameMessage(message);
-  //   }
-  // }
-
   removeSocket(ws) {
+    console.log("Removing socket from DisplayGameRelay:", ws);
     let playerId = null;
 
     // 🔍 Reverse-lookup playerId from socket
@@ -409,7 +370,7 @@ class DisplayGameRelay extends GameRelay {
       }
     }
 
-    // 👇 Always call parent method to clean up map
+    // 👇 Always call parent to clean up webSocketMap
     super.removeSocket(ws);
 
     if (!playerId) {
@@ -419,24 +380,50 @@ class DisplayGameRelay extends GameRelay {
 
     console.log(`🧹 Cleaning up player ${playerId} on disconnect...`);
 
-    // 👁️ Observer cleanup
+    // 👁️ Remove observer
     if (this.observers.has(playerId)) {
       this.observers.delete(playerId);
       console.log(`👁️ Observer ${playerId} removed on disconnect`);
     }
 
-    // 💬 Try to remove from lobby
+    // 💬 Remove from lobby
     const lobby = this.lobbyController?.lobbies?.get("displayLobby");
     if (lobby?.players?.has(playerId)) {
       lobby.players.delete(playerId);
       console.log(`🚪 Player ${playerId} removed from lobby`);
     }
 
-    // ♠️ Try to remove from game
+    // ♠️ Clean game state
     const game = this.gameController?.activeGames?.get(this.gameId);
+    console.log("game", game);
+    console.log("game.players", game?.players);
     if (game?.players?.has(playerId)) {
+      console.log(`♠️ Removing player ${playerId} from game state...`);
+      console.log(`🧹 Removing ${playerId} from game`);
       game.players.delete(playerId);
-      console.log(`🪑 Player ${playerId} removed from game`);
+      let leaveResult = game.instance.processAction(playerId, {
+        gameAction: "leave",
+      });
+      console.log("leaveResult", leaveResult);
+      const broadcastMessage = {
+        relayId: this.relayId,
+        uuid: uuidv4(),
+        payload: {
+          type: "displayGame",
+          action: "leave",
+          playerId,
+          gameId: this.gameId,
+          gameState: leaveResult.gameState,
+          playersAtTable: [...game.players.entries()].map(([id, p]) => ({
+            playerId: id,
+            seatIndex: p.seatIndex,
+          })),
+        },
+        broadcast: true,
+      };
+      console.log("removePlayer broadcastMessage", broadcastMessage);
+      this.broadcastResponse(broadcastMessage);
+      //this.broadcastGameState?.(); // ← update clients if you have this method
     }
   }
 }

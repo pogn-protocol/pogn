@@ -24,7 +24,6 @@ class PokerGame extends CardGame {
     console.log("PokerGame initialized with options:", this.options);
     console.log("PokerGame init — players:", [...this.players.entries()]);
 
-    // Replace any placeholder objects with real PokerPlayer instances
     let index = 0;
     for (const [id, data] of this.players.entries()) {
       if (!(data instanceof PokerPlayer)) {
@@ -168,7 +167,7 @@ class PokerGame extends CardGame {
 
       for (const [id, p] of this.players.entries()) {
         const visible = isShowdown || viewerId === id;
-        handsView[id] = visible ? [...p.hand] : ["X", "X"];
+        handsView[id] = visible ? [...p?.hand] : ["X", "X"];
         if (viewerId === id) myHand = [...p.hand];
       }
 
@@ -180,29 +179,6 @@ class PokerGame extends CardGame {
 
     return privateMap;
   }
-
-  // getPrivateHands() {
-  //   const privateMap = {};
-  //   const isShowdown = this.street === "showdown";
-
-  //   for (const [viewerId] of this.players.entries()) {
-  //     const handsView = {};
-  //     let myHand = [];
-
-  //     for (const [id, p] of this.players.entries()) {
-  //       const visible = isShowdown || viewerId === id;
-  //       handsView[id] = visible ? [...p.hand] : ["X", "X"];
-  //       if (viewerId === id) myHand = [...p.hand];
-  //     }
-
-  //     privateMap[viewerId] = {
-  //       hands: handsView,
-  //       hand: myHand,
-  //     };
-  //   }
-
-  //   return privateMap;
-  // }
 
   processAction(playerId, { gameAction, seatIndex, amount, testConfig }) {
     console.log(
@@ -402,7 +378,6 @@ class PokerGame extends CardGame {
 
     switch (this.street) {
       case "preflop":
-        // Use inherited dealCommunityCards method
         this.dealCommunityCards(3); // Deal the flop
         this.street = "flop";
         break;
@@ -448,11 +423,6 @@ class PokerGame extends CardGame {
           playerId: id,
           hand: p.hand,
         })),
-
-      // revealedHands: hands.map(({ id, cards }) => ({
-      //   playerId: id,
-      //   hand: cards,
-      // })),
     };
   }
 
@@ -583,7 +553,34 @@ class PokerGame extends CardGame {
   }
 
   removePlayer(id) {
+    const player = this.players.get(id);
+    if (!player) return;
+
+    console.log(`🚪 Removing player ${id} from game`);
+
+    // 🫳 Fold the hand if still active
+    if (!player.hasFolded && !player.isAllIn) {
+      player.hasFolded = true;
+      console.log(`🙈 Player ${id} auto-folded on removal`);
+    }
+
+    // 💸 Move any outstanding bet into the pot
+    if (player.bet > 0) {
+      this.pot += player.bet;
+      player.bet = 0;
+      console.log(`💰 Added ${player.bet} chips from ${id} to pot`);
+    }
+
+    // ❌ Remove from players and turn order
     this.players.delete(id);
+    this.turnOrder = this.turnOrder.filter((pid) => pid !== id);
+
+    // 🧠 Recalculate turn index if needed
+    if (this.currentTurnIndex >= this.turnOrder.length) {
+      this.currentTurnIndex = 0;
+    }
+
+    console.log(`🧹 Player ${id} removed. Pot: ${this.pot}`);
   }
 
   _handleSinglePlayerWin(id) {

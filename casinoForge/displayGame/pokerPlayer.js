@@ -25,7 +25,7 @@ class PokerPlayer extends Player {
     this.isDealer = false;
     this.isSB = false;
     this.isBB = false;
-    this.hasActedThisRound = false; // 👈 add this
+    this.hasActedThisRound = false;
   }
 }
 
